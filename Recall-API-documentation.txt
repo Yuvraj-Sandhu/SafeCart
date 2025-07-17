@@ -1,0 +1,779 @@
+    
+   
+   
+ 
+   
+  
+  
+ 
+ 
+  
+ 
+ 
+     
+          
+ 
+          
+         
+         
+         
+         
+                 
+             
+                     
+         
+         
+          
+         
+          
+           
+         
+          
+           
+         
+  
+  USDA Food Safety and Inspection Service August 2023 
+Recall API - Roadmap for Operation and 
+Functionalities 
+The Recall API provides delivery of content of type Recall in JSON format. The content can be 
+filtered by several types of fields that compound that content type.  
+The complete solution also includes an administrative page that helps the administrator to b uild 
+the set of parameters that will compound the request for filtering purposes. 
+API endpoint 
+fsis/api/recall/v/1 
+The complete URL is: https://www.fsis.usda.gov/fsis/api/recall/v/1 
+Sample results of an unfiltered request: 
+Beautified output of a request from a Firefox browser: 
+[ 
+{ 
+"field_title": "Foster Farms Recalls Fully Cooked Frozen Chicken Patty 
+Products Due to Possible Foreign Matter Contaminati on", 
+"field_active_notice": "True", 
+"field_states" : "Arizona, California, Colorado, Utah, Washington", 
+"field_archive_recall": "False", 
+"field_closed_date" : "2022-10-29", 
+"field_closed_year" : "", 
+"field_company_media_contact" : "\n Company Media Contact\n \n Vice 
+President of Communications, Foster Farms \n Ira Brill \n 209-394-
+6891\n info@fosterfarms.com\n \n\n ", 
+"field_distro_list" : "", 
+"field_en_press_release" : "", 
+"field_establishment": "Foster Farms" , 
+"field_labels" : "Recall- 040-2022-label.pdf", 
+"field_media_contact": "Bailey McWilliams", 
+"field_risk_level" : "High -Class I", 
+"field_last_modified_date": "2022-10-29", 
+"field_press_release": "", 
+"field_processing" : "Fully Cooked -Not Shelf Stable", 
+"field_product_items": "\u2022\t80-oz. plastic bag packages containing 20 
+pieces of \u201cCHICKEN PATTIES BREADED CHICKEN BREAST PATTIES WITH RIB 
+MEAT\u201d with best by date \ u201c08\/11\/23,\u201d establishment number 
+Page 1 of 13     
+   
+     
+  
+          
+         
+         
+          
+          
+         
+         
+         
+   
+ 
+  
+ 
+         
+         
+         
+     
+     
+         
+  
+  
+          
+          
+         
+         
+         
+           
+                   
+           
+         
+   
+  
+         
+          
+         
+         
+           
+         
+          
+           
+          
+          
+         USDA Food Safety and Inspection Service August 2023 
+\u201cP-33901,\u201d and lot code \u201c3*2223**\ u201d in inkjet print on the 
+back edge of the packaging as" , 
+"field_qty_recovered": "", 
+"field_recall_classification" : "Class I", 
+"field_recall_date" : "2022-10-29", 
+"field_recall_number": "040-2022", 
+"field_recall_reason": "Product Contamination", 
+"field_recall_type" : "Recall" , 
+"field_related_to_outbreak": "False", 
+"field_summary": "\u003Cp\u003E\u003Cstrong\ u003EWASHINGTON, Oct. 29, 
+2022\u003C\/strong\u003E \u2013 Foster Farms, a Farmerville, La. establishment, 
+is recalling approximately 148,000 pounds of fully cooked frozen chicken breast 
+patty products that may be contaminated with extraneous materials, specifically 
+hard clear ......." , 
+"field_year" : "2022", 
+"langcode": "English", 
+"field_has_spanish" : "False" 
+}, 
+{ 
+"field_title": "Family Traditions Meat Company Retira Productos De 
+Palitos De Carne De Res Listos Para Consumir Debido A Un Error De Rotulaci\ u00f3n 
+Y Al\u00e9rgenos No Declarados", 
+"field_active_notice": "False", 
+"field_states" : "Illinois, Iowa, Kansas, Minnesota, Missouri, South 
+Dakota, Wisconsin", 
+"field_archive_recall": "True", 
+"field_closed_date" : "2021-03-10", 
+"field_closed_year" : "2021", 
+"field_company_media_contact" : "\n Company Media 
+Contact\n \n Company Media Contact\n Jolene Heikens \n (641) 847 -
+8116\n \n\n ", 
+"field_distro_list" : "Distro: Family Traditions Meat Company Retira 
+Productos De Palitos De Carne De Res Listos Para Consumir Debido A Un Error De 
+Rotulacin Y Alrgenos No Declarados", 
+"field_en_press_release" : "", 
+"field_establishment": "Family Traditions Meat Company, Inc.", 
+"field_labels" : "recall- 006-2020-labels", 
+"field_media_contact": "Maria Machuca", 
+"field_risk_level" : "High -Class I", 
+"field_last_modified_date": "", 
+"field_press_release": "", 
+"field_processing" : "Heat Treated -Shelf Stable" , 
+"field_product_items": "", 
+"field_qty_recovered": "", 
+"field_recall_classification" : "Class I" , 
+Page 2 of 13     
+   
+          
+          
+          
+         
+         
+        
+ 
+  
+ 
+         
+         
+         
+     
+ 
+ 
+ 
+ 
+ 
+ LI https://fsis-dev.fsis.usda.gov/fsis/api/recall/v/1 \"o 
+({ "f1eld_Utle" :'""FSIS Issl..H!'s PUbUc. Health Alert f:or Spec1f1c Gr'Ollnd Beef In HeJJ.of1•est1 ~1 Kits Due to Possible E. CoU 01S7:H7 
+Cu11tari111at1on", "fleli:I ~tale~ ":"Ndl10. 1wide·." iehl archl~ ,·eLdll" :·F,,!lse", "fltHi:I closed date· :"2022-09-
+11", "fit!'Jd_ClO!ied_vea;:" :'"'"," · 1e.1cl_establ1S~ il": -;;-.. , " 1e:1d_r1~k_l~el":'"' Public 11'ea1th Aief'"r'," iHdJJl'«ess if11t' : .. RdW -Ho() lnlacr," le:ld_J'.tf''Od uct_lli!m!.": "\u1021:\t10-oz. 
+plastic ... acuun-padted packages cootaJ.n!Ag \u201catOI.N) BEEf 85'1 LE~~V1S1i fAT\u201d 1111th codes \u201cESU46481 ll 22 1SS.\ul01.d 01 .. \u.2.01cESH~8 1 LS 22 1SS\u201d Ofl Uie 
+Slde Of the pacJi:agh •S-", "+1eld_~c.all_c1as~1f1Cdt10l'l":"Publ1c lie<:tll:Jii Alel"r, " leld_r-e-c:all _date":"2022 -09-10"'," leld_1·eLdll_1wnber•" : "Plitl.-09102022-
+01", "flt!Jd_,~c.au_,--easo..·:" Produc:::l Cootamlni:1Uoo" , ·field_r"t!c.ill_type" : .. Public. Hf!alth 
+Alef•t'", .. field_r-elated_lo_ouUM-ea •:"false •." iehl_SU1'11'..:lr'y":'"\u003Cp\u003E\u003Cstr-oog\u 003-EWASHI NGTCt~. Sept. 10, 2e22 \uOOJC\/Slr0 1-.g\u003E\u201l The U.S. Oep,artae11t of 
+Agl'"ic.ulture\u2019s food Safety •:md Inspe,r.t1os 1 Sf.1-vic.e (F:SISJ a 1.Ssul11s a public: ltiealtfl aler't dlle to c.onc:er"llS Uiat g1'0ul\d ~t :J),tOducts in lleJloF.-es.h iiedl k.1ts i11dy be­
+assoc.idted wHb \u003Cm\u003H .scher1chia c.oll\u003CVen\u00l E (\u00lCen\u001 EE. coli\u00JC\fem\ u00JEJ 01S.7:U7 illn.t!·.SS . A ,~all wa!i not 1-equMted b@<au!i@ UM! produc.t.s 
+ar-e no longer .avaHable for purcr.ase . \u00-3CVp\u003E\1 1,\ul'03Cp\ u00lETl.e neal k.its cootaJ.niJlg gr'Our)d beef f.Or ltli.s public. ti.ealth aJert were shipped to <.onsuuer~ fr<.'m lu.ly 
+2-21, 2022. Tt-.e-t0Uow.U1s pt"(>ducli dr'e subje<:t to the-public. rtealth <:1le1·t (\u003Ci:! t·,ret-=\u0022VSileS\/defdv 1tVtUe.s\/fOOd _label_pdt\/20 22·09\/PMA -0'9102022-
+01.pdf\u0022\L.i003E:vlew labe-1 \u003C\/a\u063E:) : \u00a0 \u00a0\u00a0\ u003C\/p\ u003E\o\u003Cul \u001E\u063CU\u003E:10i·02. pld.Stic vacuun-pad:.t!ii pa:c::kagt!-5 cootain1ng 
+\11201C.GIIOI.N) BEEF 85'¥ LE.\NV1Sli UT\v201tl wlth Lodes \u2'01.CE.S-T~1\u00a0t1 l2 155\u201d (H" \u.201<ESTU4684 1 LS. 12 155\u201d on the ~lde-Of Uie 
+pd<kag111s. \u00lC\/11 \u003E\d\ u003CVv1 \uOOlnuOO]Cp\uOO]E\ u00a0The Sr'O!.J1'1d bel:'T i::iactas,e-::!:, bear' \u.201<£ST .46841\u201d iJlSide Utie ~ mar'k Of in:!i.p~tlOfl aM Cir\ the pl a sue: 
+gr-c1t.md bel:'T pac age-. \u003CVp\L.i003E:\ll\u0034'\ uOOlEFSIS, Ult! C.ef1te-1--s TOf' 01.!iea~e Cor,Lrol and Pr'e'YenUori, and state public heallh partt.ers .are in~.!-Ug,alb ~ an outbreak 
+Of\u00.:!0\u003Ceni\ut'83H . c.o11\ut'e.a0\u00JC\/em\u00.3E0 157:H7 ar\d rdw gl'Ol.ll'1d beef 15 the JK·.Obdble ~oun.e ot tM r-eportet:I 11lr)e~~es. Tracebd<:. 11 or'lndllou 1..rer·1t1 ied ttlat 
+nulliplt! C.d.S.e-palit!'uts r--ec.ehed S,'Ola1d beef fK'od'u(ed .at eSla:bllSllll'.i'!nt K.!6841 dlld diStl'"ibuted by He . .llorr"t!-Sh irl mi!,:11 kHS frcm July 1:-21. 2011. Tr'dC.ebac:k (ri .ndteridl:!i. med 
+to produce the gJ'Otald beef .L!i oog,oil)& asld rs.JS cootl.Jwes to WOf•k wiu-.. suppHe,~~ arld public health p.a1'lnief'S oo tfle iovesusauo n. \u00lCVp\ u003E\ill\ u003Cp\u00lEFSI.S-1s 
+c.oncer'tled Utal ~one-pr'Oduc.t may be in C.OllS~·s\u .2019 frffZel'"!-. . C.ot'1S-~1·s r..t)o have pur(ha~ed UleSe pn:.1h1Cb ar-e ur,get:i not to c.orbune them. TI~e l'f'Oduc.l!i Sl)Olu-Jd be Utr'Owrl ~Nd.,. \uOOJC\/ p\u00JE\n\u00lCp\u003 HSIS ad11i.ses .all cooSUfl:!rs to safely prepa1'"t! tl11elr raw n:eat pr··oitucts, iJKludlng fres . .h and fro2en, and ooly c.onsune ground beef that has 
+beerl c.ooked Lo a t~er-alure-of 16-e IF. TIie 011Jy way to c.oofl,"TA U~l g1'0ur'N1 beet b COOied to a tec.,peratu re hl~h enou-gh to kill har'flfv.l bat.Leda C. to us.t!-a fOOd 
+tliief-..crnHe r-thdt rte.d:!i.Ul"ei. iJ\te1"11ldl lt!flpe-.l'"atw'-e, \u00lCa 
+hr-ef::c\u0012hl t.ps: V \/-. fs i.s. usda .g<wV san!'tenpchart \uOOU\UIOOJEhltps: \IV- . fsl..s. usda .g<w\f ~afett!flpct.art \u003CV,a \u003E. \u0ea0\u003C\/p\u00l E \n\u003Cp\u003£14ed1a and 
+C.O.lSutterS w1lh que~uorc. r-ega1·d11 1s the pubHr.. he.allh alel"t C.dJI «llllact \u00.3Ca. hr'e'f::c\u0012Jt..ailto: l'M!,lle@flel10fre!-. h.COfil\u00 2l\u001Et1eUO@bellot.-es.tu:-cm\ u00.3CV.a\ u00)E o,· 
+\u:OO](d, t·1rei-=\u00221tttps: V Vgu:02. S.c1fell 1'1k.!i . protie<:Uoo .OU llOOk. C<JoV ?ur l=h l tp~"UA.UFX2fw...w . t)eUofresh. (od.2f CUii Lac t-
+us\u0026anp; data::0517C01X7CX7Ce9 211:i-1~9b4f4]21tl08808da9}8:8c9aG7C.edS/IJ]6e 701el:!4ebc.8671:!@03c.-f.a0d46'9-n7C0:X7C0X7C6379845. 12961J6140SVC Unklw:iwn.'VCTWrpbGZs bld8eyJltl joU4C4wl jAI.JIWA 
+1LCJQijo1V2 h.aMZ.11lUBTil6Ik ~LClXVCI6Hn0DD'17C3 008X-7CUCX7C\u00 2&mp;~da ta.::Dly(.~I/KJARAaP ZE:L\IPS1.xErF3vt:flpx9~J.Gqb'.t2 8]C'.DD\u0026arip ;,--es.e1'Ved;:0\u00 22 
+tdJ"'Sf!t=\ u002l_blar)k\u0021\u003Eb)i live dtat\u00JC\fa\u00l [. \uOOJC\/ i::i\u00lE\1'1\u003Cp\u00] ECoos~-s r,dtl• foOd Sd ·ety quesuoi.s C.dJI C..tll U\.e Loll-free USDA Ji(edt and Pou.lll'y 
+Hot11r"te at S88-fiFHot11.J--.e (8:8:8-674,-68~) 01' Uwe <.hat via \u003Ca h.ref.:c\u002lhttps: \/Vask .usda.goYV\u00 21\u003EAsk 1£DA\u003CVa\u003E l'OII 10 d-.12. to 6 p.m. (Ea!.leN! 
+Tl!D:!) Motlddy UU'Ougfl Fr'ida-y. COJ\!:.uneii"S (dr) d•l:!i.O bl'Ow~e fUOO ~dfety nfo::!:.Sd8'f'::!:. at \u003Ci:! href=:\u00 llhtlp~:\/Vask .usdd.sov\/\u0022\u00]EA~li: USDA\u003CVa\u003 [ or· ~t!f)d d 
+que-st1.oril Yla fmdH to \u00JC.a hrt!f::c\u0022naUto:MPlloU10tiusda.gov\L.iOOll\u00l [~l'K>t11ir~ u!itla.gov\t.J003CVa\uOOlE. For· c.or-..sunt!:1--S that need to N!-pDrt a pt:'oblen wlth .a ine:al. 
+po111tr·y, or egg proc:luc.t, tJi,e. online El~troru, Coo.s.uner C.onpLaint Hoo.l.torlni;: Sy.s.lt!ril C.afl be ac.c.e~.s.eil 24 t.ours a day .at \uOOJC.a 
+t)ref-=\u002211. llV,S:V\/fOOdCOlfl) lalul. ~lS.u.s.Od,. ov\/eCU\/\u00 2.2\u003 □1itlps : \IV oodccqdaln t.fSb.u!ida.g<w\/eC CF\/\uOOJCVa\uOOl [. \u00oJCVp\u003 E\n""," leld_y&tr'" :"2012"," 
+1eld_t,·anslal10i1_sour·c.@":"wld•." langcode-":"E1 1i;:li.sl1"', "tlefault_langcode-":•011", "translat1or1_l1nk": "\/1KxJeV507 2\flr•a1\!ilalioi 11.s"} ,{"field_tiUe"':"S ur)!i@t i=al'II foocJ.s Inc., 
+Re-r..alh Sau~as,e- Proc:luc.b O..e Lo Pos~ible For-ei.gil Natt,er· COf)lariinatlor\", •f1dd_~latt!S'" : .. Alabana , FIOl'~lda., Ge<K·~la, 1-th 
+(dl't.lli.r\a .. ," 1e.ld_ar<hive_reCdll" :"'Fdl:5.e", '""fldd_(lOS-ed_ddte": "2022-·09-07", "tield_ClOSed_yedr'" :"", "t1eld_est.ibll.s.t ·1oeat'"':"S unsH i=dr"WI foOO.s, Ioc.", "fie.ld_l'"iSk._leve.1 ":"Lo.r -
+Cl.ass Ir," 1e.ld_p1'0C@!islng" :"Tully Cooked -Not Shelf Stable", '"f1eld_p1'oducl_1terns'"":"\u2e2l\l28. ·02. wii£uun sealed pack~-ges \ul01<:Geu,---gia Speclal Chid:er\ .and Pork 
+Smoke(! Sau~dse\u201d with d ~ell by dale Of 10-28-22. ", '"+1eld_r-~dll_das~1f1Ldlion'"":"(Ja~~ II", ... fldd_.-ec.all_ddle": "1022-09-07", •f1e1d_1"e<:all_r"1m.tler"":'"0) 1· 
+lell" "· Ie.ltl ('e(all r·e.a.sor1'': "Pfocluc.t 
+Coota:i11 1at100'", "field_~all_lyp,e•:"Rec.all '", "field_r'elaled_to_oulbrea •:'"False", '"field_surmary" :""\uOOJCp\u003E\u003G tr'OIIIS\u003E~ rnGTON, Sepl. 7, 
+2e2l\Lit'03CVS ll'"Of)8\u00][ \u.2.01] Surhd fdl0II foo,b Inc., -i:! VahlflSL:t, G,L establ1.S.lfl'lef'1l, 1S rec.alllng apJ)tilxiit.alely 4,480 p0u1MIS Of c.1u.,ke.1 afld pol"I: s,oo.ke,dl SaU!.age fK'Ol!uc:.t~ 
+tJ~t nd•V be-c.ontanil)atetl wltb e.x.trar-..eous iial.t!r'bh . spec.! iC.d.lJy thfo blut!' i::;ld.st1c , tlM! U.S. Dev,ar'tn:e r1t cf AAr'1£ultw-e\u2019s Food S-afetv aniJ Inspec.Uon Sen,ice (fS[S.) 
+◄ USDA Food Safety and Inspection Service August 2023 
+"field_recall_date" : "2020-02-08", 
+"field_recall_number": "006-2020", 
+"field_recall_reason": "Misbranding, Unreported Allergens", 
+"field_recall_type" : "Recall" , 
+"field_related_to_outbreak": "False", 
+"field_summary": "\u003Cp 
+dir=\u0022ltr\u0022\u003E\u003Cstrong \u003EWASHINGTON, 8\ u0026nbsp;de febrero de 
+2020\u003C\/strong\u003E\u0026nbsp;-Family Traditions Meat Company, una 
+compa\u00f1\u00eda en Ackley, Iowa, est\ u00e1 retirando .....", 
+"field_year" : "2020", 
+"langcode": "Spanish", 
+"field_has_spanish" : "True" 
+} 
+] 
+The JSON object in IE browser, without formatting for human reading: 
+Page 3 of 13     
+   
+  
+ 
+ 
+ 
+     
+   
+    
+     
+    
+     
+     
+     
+ 
+     
+    
+     
+     
+     
+     
+     
+     
+ 
+     
+     
+ 
+ 
+  USDA Food Safety and Inspection Service August 2023 
+Filters and Search: 
+After the filter is applied, the resulting URL is: 
+https://www.fsis.usda.gov/fsis/api/recall/v/1? field_states_id =All&field_archive_r 
+ecall=All& field_closed_date_value=&field_closed_year_id =All&field_risk_level_id =A 
+ll&field_processing_id=All& field_product_items_value=meat&field_recall_classifica 
+tion_id=All&field_recall_number=&field_recall_reason_id=All& field_recall_type_id= 
+All&field_related_to_outbreak =All&field_summary_value=&field_year_id=All&field_tr 
+anslation_language=All 
+“field_recall_number ” for searching text included in “Recall Number” - 021-2022 and 
+“field_summary_value” for searching text included in “Summary” – any text in the recall release 
+body. 
+Name Parameters Types Value format 
+Archive recall field_archive_recall Selection 
+Closed date field_closed_date_value Text YYYY -MM -DD(ex: 2023 -07-
+18) 
+Closed year field_closed_year_id Selection 
+Processing Category field_processing_id Selection 
+Product Items field_product_items_value Text include the text but Not 
+exact match 
+Recall classification field_recall_classification_id Selection 
+Recall number field_recall_number Text DDD -YYYY(Ex: 021 -2023) 
+Recall reason field_recall_reason_id Selection 
+Recall type field_recall_type_id Selection 
+Related to Outbreak field_related_to_outbreak Selection 
+Health risk level field_risk_level_id Selection 
+Affected states field_states_id Selection 
+Summary field_summary_value Text include the text but Not 
+exact match 
+Translation 
+language field_translation_language Selection 
+Issue Year field_year_id Selection 
+All filters not being used also produce parameters in the URL. Like: field_archive_recall=All. 
+Page 4 of 13     
+   
+    
+ 
+   
+ 
+ 
+ 
+  
+ 
+   
+ 
+  
+ 
+ 
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  USDA Food Safety and Inspection Service August 2023 
+However, they can be ignored. The URL for the API can be built with the parameters with 
+identifiers: field_states_id=33 and field_closed_year_id=446. 
+The request to the API would be: 
+/fsis/api/recall/v/1?field_states_id=33&field_closed_year_id=446 
+The complete URL would be: 
+https://www.fsis.usda.gov/fsis/api/recall/v/1?field_states_id=33&field_closed_year_id=446 
+Appendix A - List of all sortable Identifiers 
+and values to use(Values are defined in 
+Drupal Taxonomy) 
+Affected States 
+field_states_id 
+Name value 
+Default All 
+Alabama 25 
+Alaska 26 
+American Samoa 77 
+Arizona 27 
+Arkansas 28 
+California 29 
+Colorado 30 
+Connecticut 31 
+Delaware 32 
+District of Columbia 76 
+Page 5 of 13     
+   
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  35
+40
+45
+50
+55USDA Food Safety and Inspection Service August 2023 
+Florida 33 
+Georgia 34 
+Guam 78 
+Hawaii 
+Idaho 36 
+Illinois 37 
+Indiana 38 
+Iowa 39 
+Kansas 
+Kentucky 41 
+Louisiana 42 
+Maine 43 
+Maryland 44 
+Massachusetts 
+Michigan 46 
+Minnesota 47 
+Mississippi 48 
+Missouri 
+Montana 51 
+Nationwide 557 
+Nebraska 52 
+Nevada 53 
+New Hampshire 54 
+New Jersey 
+New Mexico 56 
+New York 57 
+North Carolina 58 
+North Dakota 59 
+Northern Mariana Islands 79 
+Page 6 of 13     
+   
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ 
+ 
+   
+  
+  
+  
+ 
+ 
+   USDA Food Safety and Inspection Service August 2023 
+Ohio 60 
+Oklahoma 61 
+Oregon 62 
+Pennsylvania 63 
+Puerto Rico 80 
+Rhode Island 64 
+South Carolina 65 
+South Dakota 66 
+Tennessee 67 
+Texas 68 
+United States Minor Outlying Islands 81 
+Utah 69 
+Vermont 70 
+Virgin Islands, U.S. 82 
+Virginia 71 
+Washington 72 
+West Virginia 73 
+Wisconsin 74 
+Wyoming 75 
+Archive Recall 
+field_archive_recall 
+Name value 
+Default All 
+TRUE 1 
+FALSE 0 
+Closed Year 
+field_closed_year_id 
+Name ID 
+Page 7 of 13     
+   
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  1990
+1995
+2000
+2005
+2010
+2015USDA Food Safety and Inspection Service August 2023 
+Default All 
+1970 470 
+1980 469 
+468 
+1991 467 
+1992 466 
+1993 465 
+1994 464 
+462 
+1996 463 
+1997 231 
+1998 230 
+1999 229 
+228 
+2001 227 
+2002 226 
+2003 225 
+2004 224 
+223 
+2006 222 
+2007 221 
+2008 220 
+2009 219 
+218 
+2011 217 
+2012 216 
+2013 215 
+2014 177 
+6 
+Page 8 of 13     
+   
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ 
+   
+  
+   
+   
+   
+    
+  
+ 
+ 
+   
+  
+  
+   
+     
+    
+    
+    USDA Food Safety and Inspection Service August 2023 
+2016 5 
+2017 4 
+2018 3 
+2019 2 
+2020 1 
+2021 446 
+2022 444 
+2023 445 
+2024 606 
+Health risk level 
+field_risk_level_id 
+Name value 
+Default All 
+High -Class I 9 
+Low -Class II 7 
+Marginal -Class III 611 
+Medium -Class I 8 
+Public Health Alert 555 
+Processing Category 
+field_processing_id 
+Name value 
+Default All 
+Eggs/Egg Products 162 
+Fully Cooked -Not Shelf Stable 159 
+Heat Treated -Not Fully Cooked -Not Shelf Stable 160 
+Heat Treated -Shelf Stable 158 
+Not Heat Treated -Shelf Stable 157 
+Products with Secondary Inhibitors -Not Shelf Stable 161 
+Page 9 of 13     
+  
+    
+   
+  
+    
+  
+ 
+ 
+   
+  
+  
+  
+  
+  
+ 
+ 
+   
+  
+  
+  
+  
+  
+  
+   
+   
+  
+  
+ 
+ USDA Food Safety and Inspection Service August 2023 
+Raw -Intact 154 
+Raw -Non Intact 155 
+Slaughter 153 
+Thermally Processed -Commercially Sterile 156 
+Unknown 625 
+Recall classification 
+field_recall_classification_id 
+Name value 
+Default All 
+Class I 10 
+Class II 11 
+Class III 12 
+Public Health Alert 554 
+Recall reason 
+field_recall_reason_id 
+Name value 
+Default All 
+Import Violation 19 
+Insanitary Conditions 17 
+Misbranding 13 
+Mislabeling 15 
+Processing Defect 21 
+Produced Without Benefit of Inspection 18 
+Product Contamination 16 
+Unfit for Human Consumption 20 
+Unreported Allergens 14 
+Recall type 
+field_recall_type_id 
+Page 10 of 13     
+  
+    
+  
+  
+  
+  
+  
+ 
+ 
+   
+  
+  
+  
+  
+ 
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  USDA Food Safety and Inspection Service August 2023 
+Name value 
+Default All 
+Outbreak 338 
+Public Health Alert 22 
+Active Recall 23 
+Closed Recall 24 
+Related to Outbreak 
+field_related_to_outbreak 
+Name value 
+Default All 
+TRUE 1 
+FALSE 0 
+Recall Issue Year 
+field_year_id 
+Name value 
+Default All 
+1970 470 
+1980 469 
+1990 468 
+1991 467 
+1992 466 
+1993 465 
+1994 464 
+1995 462 
+1996 463 
+1997 231 
+1998 230 
+1999 229 
+Page 11 of 13     
+  
+   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ 
+ 
+   
+  USDA Food Safety and Inspection Service August 2023 
+2000 228 
+2001 227 
+2002 226 
+2003 225 
+2004 224 
+2005 223 
+2006 222 
+2007 221 
+2008 220 
+2009 219 
+2010 218 
+2011 217 
+2012 216 
+2013 215 
+2014 177 
+2015 6 
+2016 5 
+2017 4 
+2018 3 
+2019 2 
+2020 1 
+2021 446 
+2022 444 
+2023 445 
+2024 606 
+Translation language 
+field_translation_language 
+Name value 
+Default All 
+Page 12 of 13     
+  
+   
+  
+ USDA Food Safety and Inspection Service August 2023 
+English en 
+Spanish es 
+Page 13 of 13 

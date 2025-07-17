@@ -1,0 +1,415 @@
+import * as admin from 'firebase-admin';
+import { ProcessedRecall, Recall } from '../models/recall.model';
+import logger from '../utils/logger';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+/**
+ * Service class for managing recall data in Firebase Firestore
+ * 
+ * This service handles:
+ * - Saving and updating recall documents in Firestore
+ * - Processing raw recall data into enhanced format
+ * - Querying recalls by various criteria
+ * - Managing product images in Firebase Storage (future implementation)
+ * 
+ * The service uses a single 'recalls' collection with the following structure:
+ * - Document ID: Auto-generated Firestore ID
+ * - Document data: ProcessedRecall object
+ * - Indexes: field_recall_number, field_recall_date, affectedStatesArray
+ * 
+ * @example
+ * ```typescript
+ * const firebaseService = new FirebaseService();
+ * await firebaseService.saveRecall(recallData);
+ * const recentRecalls = await firebaseService.getRecentRecalls(30);
+ * ```
+ */
+export class FirebaseService {
+  private db: admin.firestore.Firestore;
+  private storage: admin.storage.Storage;
+  private recallsCollection: admin.firestore.CollectionReference;
+
+  /**
+   * Initializes Firebase Admin SDK and sets up Firestore references
+   * 
+   * Note: The private key often contains \n characters that need to be
+   * properly formatted for the Firebase SDK
+   */
+  constructor() {
+    if (!admin.apps.length) {
+      // Debug: Check environment variables
+      if (!process.env.FIREBASE_PROJECT_ID) {
+        throw new Error('FIREBASE_PROJECT_ID is not set in environment variables');
+      }
+      if (!process.env.FIREBASE_CLIENT_EMAIL) {
+        throw new Error('FIREBASE_CLIENT_EMAIL is not set in environment variables');
+      }
+      if (!process.env.FIREBASE_PRIVATE_KEY) {
+        throw new Error('FIREBASE_PRIVATE_KEY is not set in environment variables');
+      }
+      if (!process.env.FIREBASE_STORAGE_BUCKET) {
+        throw new Error('FIREBASE_STORAGE_BUCKET is not set in environment variables');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+        }),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+      });
+    }
+
+    this.db = admin.firestore();
+    this.storage = admin.storage();
+    this.recallsCollection = this.db.collection('recalls');
+  }
+
+  /**
+   * Saves or updates a recall document in Firestore
+   * 
+   * Uses the recall number as a unique identifier to prevent duplicates.
+   * If a recall with the same number exists, it updates the existing document.
+   * 
+   * @param recall - Raw recall data from USDA API
+   * @returns Promise resolving to the Firestore document ID
+   * @throws Error if save operation fails
+   */
+  async saveRecall(recall: Recall): Promise<string> {
+    try {
+      const processedRecall = this.processRecall(recall);
+      
+      const existingDoc = await this.recallsCollection
+        .where('field_recall_number', '==', recall.field_recall_number)
+        .where('langcode', '==', recall.langcode)
+        .limit(1)
+        .get();
+
+      let docRef;
+      if (!existingDoc.empty) {
+        docRef = existingDoc.docs[0].ref;
+        const updateData = this.buildUpdateData(processedRecall);
+        await docRef.update(updateData);
+        logger.info(`Updated recall ${recall.field_recall_number}`);
+      } else {
+        docRef = await this.recallsCollection.add({
+          ...processedRecall,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+        logger.info(`Created new recall ${recall.field_recall_number}`);
+      }
+
+      return docRef.id;
+    } catch (error) {
+      logger.error('Error saving recall to Firestore:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Batch saves multiple recalls to Firestore
+   * 
+   * Uses Firestore batch operations for better performance.
+   * Processes recalls in sub-batches of 500 (Firestore limit).
+   * Failed saves are logged but don't stop the batch process.
+   * 
+   * @param recalls - Array of raw recall data from USDA API
+   * @returns Promise that resolves when all save attempts complete
+   */
+  async saveRecalls(recalls: Recall[]): Promise<void> {
+    const FIRESTORE_BATCH_LIMIT = 500;
+    let savedCount = 0;
+    let failedCount = 0;
+
+    // Process in chunks of 500 (Firestore batch limit)
+    for (let i = 0; i < recalls.length; i += FIRESTORE_BATCH_LIMIT) {
+      const chunk = recalls.slice(i, i + FIRESTORE_BATCH_LIMIT);
+      const batch = this.db.batch();
+      const processedRecalls: Array<{ ref: admin.firestore.DocumentReference, data: any }> = [];
+
+      // Prepare batch operations
+      for (const recall of chunk) {
+        try {
+          const processedRecall = this.processRecall(recall);
+          
+          // Check if recall already exists (considering both recall number and language)
+          const existingDoc = await this.recallsCollection
+            .where('field_recall_number', '==', recall.field_recall_number)
+            .where('langcode', '==', recall.langcode)
+            .limit(1)
+            .get();
+
+          let docRef;
+          if (!existingDoc.empty) {
+            // Update existing document
+            docRef = existingDoc.docs[0].ref;
+            const updateData = this.buildUpdateData(processedRecall);
+            batch.update(docRef, updateData);
+          } else {
+            // Create new document
+            docRef = this.recallsCollection.doc();
+            batch.set(docRef, {
+              ...processedRecall,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
+          
+          processedRecalls.push({ ref: docRef, data: recall });
+        } catch (error) {
+          logger.error(`Failed to prepare recall ${recall.field_recall_number}:`, error);
+          failedCount++;
+        }
+      }
+
+      // Commit the batch
+      try {
+        await batch.commit();
+        savedCount += processedRecalls.length;
+        logger.info(`Batch saved: ${processedRecalls.length} recalls (${i + chunk.length}/${recalls.length} total)`);
+      } catch (error) {
+        logger.error(`Batch commit failed:`, error);
+        failedCount += processedRecalls.length;
+      }
+    }
+
+    logger.info(`Batch save complete: ${savedCount} saved, ${failedCount} failed out of ${recalls.length} total`);
+  }
+
+  async getRecallById(id: string): Promise<ProcessedRecall | null> {
+    try {
+      const doc = await this.recallsCollection.doc(id).get();
+      if (doc.exists) {
+        return { id: doc.id, ...doc.data() } as ProcessedRecall;
+      }
+      return null;
+    } catch (error) {
+      logger.error('Error fetching recall:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Queries recalls affecting a specific state
+   * 
+   * Uses Firestore's array-contains query on the processed affectedStatesArray field
+   * 
+   * @param stateCode - State name or abbreviation (e.g., "California", "CA")
+   * @param limit - Maximum number of results to return (default: 100)
+   * @returns Promise resolving to array of recalls affecting the specified state
+   */
+  async getRecallsByState(stateCode: string, limit: number = 100): Promise<ProcessedRecall[]> {
+    try {
+      const snapshot = await this.recallsCollection
+        .where('affectedStatesArray', 'array-contains', stateCode)
+        .orderBy('field_recall_date', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ProcessedRecall));
+    } catch (error) {
+      logger.error('Error fetching recalls by state:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Queries recalls from the last N days
+   * 
+   * @param days - Number of days to look back (default: 30)
+   * @param limit - Maximum number of results to return (default: 100)
+   * @returns Promise resolving to recent recalls ordered by date descending
+   */
+  async getRecentRecalls(days: number = 30, limit: number = 100): Promise<ProcessedRecall[]> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+
+      const snapshot = await this.recallsCollection
+        .where('field_recall_date', '>=', cutoffDate.toISOString().split('T')[0])
+        .orderBy('field_recall_date', 'desc')
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ProcessedRecall));
+    } catch (error) {
+      logger.error('Error fetching recent recalls:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all recalls from the database without any filtering
+   * 
+   * @param limit - Maximum number of results to return (default: 5000)
+   * @returns Promise resolving to array of all recalls in database
+   */
+  async getAllRecalls(limit: number = 5000): Promise<ProcessedRecall[]> {
+    try {
+      const snapshot = await this.recallsCollection
+        .limit(limit)
+        .get();
+
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ProcessedRecall));
+    } catch (error) {
+      logger.error('Error fetching all recalls:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Downloads product images from USDA and stores them in Firebase Storage
+   * 
+   * TODO: Implement actual image download and storage logic
+   * Current implementation returns the original URL as a placeholder
+   * 
+   * Future implementation will:
+   * 1. Download image from USDA servers
+   * 2. Upload to Firebase Storage
+   * 3. Return Firebase Storage URL
+   * 
+   * @param imageUrl - URL of the image from USDA
+   * @param recallNumber - Recall number for organizing images
+   * @returns Promise resolving to the stored image URL
+   */
+  async downloadAndStoreImage(imageUrl: string, recallNumber: string): Promise<string> {
+    try {
+      // Implementation for downloading and storing images
+      // This would download the image from USDA and upload to Firebase Storage
+      // For now, returning the original URL
+      return imageUrl;
+    } catch (error) {
+      logger.error('Error storing image:', error);
+      return imageUrl;
+    }
+  }
+
+  /**
+   * Builds update data object with only USDA fields and processed fields
+   * Preserves custom fields like images that may have been added later
+   * 
+   * @param processedRecall - Processed recall data
+   * @returns Update data object for Firestore
+   * @private
+   */
+  private buildUpdateData(processedRecall: Omit<ProcessedRecall, 'id'>): any {
+    const updateData: any = {};
+    
+    // Copy only the fields that come from USDA API
+    const usdaFields = [
+      'field_title', 'field_active_notice', 'field_states', 'field_archive_recall',
+      'field_closed_date', 'field_closed_year', 'field_company_media_contact',
+      'field_establishment', 'field_labels', 'field_media_contact', 'field_year',
+      'field_risk_level', 'field_processing', 'field_product_items',
+      'field_recall_classification', 'field_recall_date', 'field_recall_number',
+      'field_recall_reason', 'field_recall_type', 'field_related_to_outbreak',
+      'field_summary', 'field_translation_language', 'field_has_spanish', 'langcode'
+    ];
+    
+    usdaFields.forEach(field => {
+      if (field in processedRecall) {
+        updateData[field] = (processedRecall as any)[field];
+      }
+    });
+    
+    // Add processed fields
+    updateData.fetchedAt = processedRecall.fetchedAt;
+    updateData.affectedStatesArray = processedRecall.affectedStatesArray;
+    updateData.isActive = processedRecall.isActive;
+    updateData.isArchived = processedRecall.isArchived;
+    updateData.isOutbreakRelated = processedRecall.isOutbreakRelated;
+    updateData.hasSpanishVersion = processedRecall.hasSpanishVersion;
+    updateData.riskLevelCategory = processedRecall.riskLevelCategory;
+    updateData.processedSummary = processedRecall.processedSummary;
+    updateData.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
+    
+    return updateData;
+  }
+
+  /**
+   * Processes raw recall data into enhanced format
+   * 
+   * This method:
+   * - Parses comma-separated states into an array
+   * - Converts string boolean fields to actual booleans
+   * - Categorizes risk levels for easier filtering
+   * - Cleans HTML content from summary text
+   * 
+   * @param recall - Raw recall data from USDA API
+   * @returns Processed recall object ready for Firestore
+   * @private
+   */
+  private processRecall(recall: Recall): Omit<ProcessedRecall, 'id'> {
+    const affectedStatesArray = recall.field_states
+      .split(',')
+      .map(state => state.trim())
+      .filter(state => state.length > 0);
+
+    const riskLevelCategory = this.categorizeRiskLevel(recall.field_risk_level);
+
+    return {
+      ...recall,
+      fetchedAt: new Date(),
+      affectedStatesArray,
+      isActive: recall.field_active_notice === 'True',
+      isArchived: recall.field_archive_recall === 'True',
+      isOutbreakRelated: recall.field_related_to_outbreak === 'True',
+      hasSpanishVersion: recall.field_has_spanish === 'True',
+      riskLevelCategory,
+      processedSummary: this.cleanHtmlContent(recall.field_summary)
+    };
+  }
+
+  /**
+   * Categorizes USDA risk levels into simplified categories
+   * 
+   * USDA Risk Levels:
+   * - Class I (High): Dangerous products that could cause serious health problems or death
+   * - Class II (Low): Products that might cause temporary health problems
+   * - Class III (Marginal): Products unlikely to cause health problems
+   * 
+   * @param riskLevel - Raw risk level string from USDA
+   * @returns Simplified risk category
+   * @private
+   */
+  private categorizeRiskLevel(riskLevel: string): 'high' | 'medium' | 'low' | 'unknown' {
+    const lowerRisk = riskLevel.toLowerCase();
+    if (lowerRisk.includes('high') || lowerRisk.includes('class i')) return 'high';
+    if (lowerRisk.includes('medium')) return 'medium';
+    if (lowerRisk.includes('low') || lowerRisk.includes('class ii')) return 'low';
+    return 'unknown';
+  }
+
+  /**
+   * Strips HTML tags and decodes Unicode escape sequences
+   * 
+   * The USDA API returns HTML-encoded content with Unicode escapes.
+   * This method cleans the content for plain text display.
+   * 
+   * @param html - HTML-encoded string with potential Unicode escapes
+   * @returns Clean plain text string
+   * @private
+   */
+  private cleanHtmlContent(html: string): string {
+    return html
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/\\u[\dA-F]{4}/gi, match => // Decode Unicode escapes
+        String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
+      )
+      .trim();
+  }
+}
