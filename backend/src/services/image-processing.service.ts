@@ -75,6 +75,8 @@ export class ImageProcessingService {
     if (!fieldSummary || fieldSummary.trim() === '') return [];
     
     const urls: string[] = [];
+    
+    // Pattern 1: Original href regex for labels
     const hrefRegex = /href=["']([^"']*labels[^"']*)["']/gi;
     let match;
     
@@ -84,6 +86,146 @@ export class ImageProcessingService {
         url = `https://www.fsis.usda.gov${url}`;
       }
       if (url.toLowerCase().includes('labels')) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 2: Look for <a href="...">view label</a> or <a href="...">view labels</a> (both singular and plural)
+    // Updated to handle href not being the first attribute
+    const viewLabelRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*view\s+labels?\s*<\/a>/gi;
+    
+    while ((match = viewLabelRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      // Handle Outlook safe links
+      if (url.includes('safelinks.protection.outlook.com')) {
+        const urlMatch = url.match(/url=([^&]+)/);
+        if (urlMatch) {
+          url = decodeURIComponent(urlMatch[1]);
+        }
+      }
+      
+      // Only add if it's not already in the array
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 3: Also catch [<a href="...">view label</a>] or [<a href="...">view labels</a>] format (with brackets outside)
+    const bracketViewLabelRegex = /\[<a[^>]*href=["']([^"']+)["'][^>]*>\s*view\s+labels?\s*<\/a>\]/gi;
+    
+    while ((match = bracketViewLabelRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      // Handle Outlook safe links
+      if (url.includes('safelinks.protection.outlook.com')) {
+        const urlMatch = url.match(/url=([^&]+)/);
+        if (urlMatch) {
+          url = decodeURIComponent(urlMatch[1]);
+        }
+      }
+      
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 4: Also catch <a href="...">[view label]</a> or <a href="...">[view labels]</a> format (with brackets inside)
+    const insideBracketViewLabelRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*\[\s*view\s+labels?\s*\]\s*<\/a>/gi;
+    
+    while ((match = insideBracketViewLabelRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      // Handle Outlook safe links
+      if (url.includes('safelinks.protection.outlook.com')) {
+        const urlMatch = url.match(/url=([^&]+)/);
+        if (urlMatch) {
+          url = decodeURIComponent(urlMatch[1]);
+        }
+      }
+      
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 5: Links with "here" text pointing to PDF files
+    const hereLinksRegex = /<a[^>]*href=["']([^"']*\.pdf[^"']*)["'][^>]*>\s*here\s*<\/a>/gi;
+    
+    while ((match = hereLinksRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 6: Links with "product list" or similar text
+    const productListRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*[^<]*product[^<]*list[^<]*<\/a>/gi;
+    
+    while ((match = productListRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    
+    // Pattern 7: PDF URLs containing relevant keywords (label, product, recall)
+    const relevantPdfRegex = /<a[^>]*href=["']([^"']*(?:label|product|recall)[^"']*\.pdf[^"']*)["'][^>]*>/gi;
+    
+    while ((match = relevantPdfRegex.exec(fieldSummary)) !== null) {
+      let url = match[1];
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        url = `https://www.fsis.usda.gov${url}`;
+      }
+      
+      // Handle HTML entities
+      url = url.replace(/&amp;/g, '&');
+      
+      if (!urls.includes(url)) {
         urls.push(url);
       }
     }

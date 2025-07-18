@@ -66,15 +66,178 @@ function extractLabelUrls(fieldSummary) {
   if (!fieldSummary || fieldSummary.trim() === '') return [];
   
   const urls = [];
-  const hrefRegex = /href=["']([^"']*labels[^"']*)["']/gi;
+  
+  // Pattern 1: Original href regex for labels (with optional 's')
+  const hrefRegex = /href=["']([^"']*labels?[^"']*)["']/gi;
   let match;
   
   while ((match = hrefRegex.exec(fieldSummary)) !== null) {
     let url = match[1];
+    
+    // Skip anchor links to labels sections
+    if (url === '#labels' || url === '#label' || url === '#Labels' || url === '#Label') {
+      continue;
+    }
+    
     if (url.startsWith('/')) {
       url = `https://www.fsis.usda.gov${url}`;
     }
-    if (url.toLowerCase().includes('labels')) {
+    if (url.toLowerCase().includes('label')) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 2: Look for <a href="...">view label</a> or <a href="...">view labels</a> (both singular and plural)
+  // Updated to handle href not being the first attribute
+  const viewLabelRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*view\s+labels?\s*<\/a>/gi;
+  
+  while ((match = viewLabelRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Skip anchor links to labels sections
+    if (url.toLowerCase() === '#labels' || url.toLowerCase() === '#label') {
+      continue;
+    }
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities FIRST
+    url = url.replace(/&amp;/g, '&');
+    
+    // Handle Outlook safe links
+    if (url.includes('safelinks.protection.outlook.com')) {
+      const urlMatch = url.match(/url=([^&]+)/);
+      if (urlMatch) {
+        url = decodeURIComponent(urlMatch[1]);
+      }
+    }
+    
+    // Only add if it's not already in the array
+    if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 3: Also catch [<a href="...">view label</a>] or [<a href="...">view labels</a>] format (with brackets outside)
+  const bracketViewLabelRegex = /\[<a[^>]*href=["']([^"']+)["'][^>]*>\s*view\s+labels?\s*<\/a>\]/gi;
+  
+  while ((match = bracketViewLabelRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Skip anchor links to labels sections
+    if (url.toLowerCase() === '#labels' || url.toLowerCase() === '#label') {
+      continue;
+    }
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities FIRST
+    url = url.replace(/&amp;/g, '&');
+    
+    // Handle Outlook safe links
+    if (url.includes('safelinks.protection.outlook.com')) {
+      const urlMatch = url.match(/url=([^&]+)/);
+      if (urlMatch) {
+        url = decodeURIComponent(urlMatch[1]);
+      }
+    }
+    
+    if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 4: Also catch <a href="...">[view label]</a> or <a href="...">[view labels]</a> format (with brackets inside)
+  const insideBracketViewLabelRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*\[\s*view\s+labels?\s*\]\s*<\/a>/gi;
+  
+  while ((match = insideBracketViewLabelRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Skip anchor links to labels sections
+    if (url.toLowerCase() === '#labels' || url.toLowerCase() === '#label') {
+      continue;
+    }
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities FIRST
+    url = url.replace(/&amp;/g, '&');
+    
+    // Handle Outlook safe links
+    if (url.includes('safelinks.protection.outlook.com')) {
+      const urlMatch = url.match(/url=([^&]+)/);
+      if (urlMatch) {
+        url = decodeURIComponent(urlMatch[1]);
+      }
+    }
+    
+    if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 5: Links with "here" text pointing to PDF files
+  const hereLinksRegex = /<a[^>]*href=["']([^"']*\.pdf[^"']*)["'][^>]*>\s*here\s*<\/a>/gi;
+  
+  while ((match = hereLinksRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities
+    url = url.replace(/&amp;/g, '&');
+    
+    if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 6: Links with "product list" or similar text
+  const productListRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>\s*[^<]*product[^<]*list[^<]*<\/a>/gi;
+  
+  while ((match = productListRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities
+    url = url.replace(/&amp;/g, '&');
+    
+    if (!urls.includes(url)) {
+      urls.push(url);
+    }
+  }
+  
+  // Pattern 7: PDF URLs containing relevant keywords (label, product, recall)
+  const relevantPdfRegex = /<a[^>]*href=["']([^"']*(?:label|product|recall)[^"']*\.pdf[^"']*)["'][^>]*>/gi;
+  
+  while ((match = relevantPdfRegex.exec(fieldSummary)) !== null) {
+    let url = match[1];
+    
+    // Handle relative URLs
+    if (url.startsWith('/')) {
+      url = `https://www.fsis.usda.gov${url}`;
+    }
+    
+    // Handle HTML entities
+    url = url.replace(/&amp;/g, '&');
+    
+    if (!urls.includes(url)) {
       urls.push(url);
     }
   }
@@ -188,7 +351,7 @@ async function convertPdfToImages(pdfPath, recallId) {
         try {
           execSync(`magick "${pdfPath}[${page-1}]" -density 150 -quality 100 "${outputPath}"`, { 
             stdio: 'pipe',
-            timeout: 30000 
+            timeout: 300000 
           });
           
           if (fs.existsSync(outputPath)) {
@@ -470,6 +633,22 @@ async function processRecall(recallDoc) {
 }
 
 /**
+ * Check if processedImages array contains actual converted images (not just PDFs or errors)
+ */
+function hasActualImages(processedImages) {
+  if (!processedImages || !Array.isArray(processedImages) || processedImages.length === 0) {
+    return false;
+  }
+  
+  // Check if there are any successfully converted images (pdf-page or image types)
+  const actualImages = processedImages.filter(img => 
+    img.type === 'pdf-page' || img.type === 'image'
+  );
+  
+  return actualImages.length > 0;
+}
+
+/**
  * Main processing function
  */
 async function main() {
@@ -526,7 +705,8 @@ async function main() {
           needsProcessing = !data.imagesProcessedAt || 
                           !data.processedImages || 
                           data.processedImages.length === 0 ||
-                          (data.totalImageCount === 0 && !data.hasErrors);
+                          data.totalImageCount === 0 ||
+                          !hasActualImages(data.processedImages);
         }
         
         if (needsProcessing) {
