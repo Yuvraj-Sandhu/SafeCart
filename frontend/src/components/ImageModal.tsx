@@ -38,13 +38,14 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
       setPosition({ x: 0, y: 0 });
       setIsDragging(false);
     } else {
-      // When modal opens, set to the passed currentIndex and reset zoom/position
-      setCurrentImageIndex(currentIndex);
+      // When modal opens, ensure we start from a valid index
+      const validIndex = Math.max(0, Math.min(currentIndex, images.filter(img => img.type !== 'error' && img.storageUrl).length - 1));
+      setCurrentImageIndex(validIndex);
       setZoom(1);
       setPosition({ x: 0, y: 0 });
       setIsDragging(false);
     }
-  }, [isOpen, currentIndex]);
+  }, [isOpen, currentIndex, images]);
 
   // Close on escape key and prevent background scrolling
   useEffect(() => {
@@ -59,15 +60,34 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
       e.preventDefault();
     };
 
+    // Prevent background touch scrolling on mobile - but only outside modal
+    const handleTouchMove = (e: TouchEvent) => {
+      const target = e.target as Element;
+      const modal = document.querySelector('[data-modal="true"]');
+      const thumbnails = document.querySelector('[data-thumbnails="true"]');
+      
+      // Allow scrolling within thumbnails
+      if (thumbnails && thumbnails.contains(target)) {
+        return;
+      }
+      
+      // Only prevent if the touch is outside the modal
+      if (modal && !modal.contains(target)) {
+        e.preventDefault();
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.addEventListener('wheel', handleWheel, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.body.style.overflow = 'hidden';
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.removeEventListener('wheel', handleWheel);
+      document.removeEventListener('touchmove', handleTouchMove);
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
@@ -105,7 +125,7 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
     if (isDragging && zoom > 1) {
       e.preventDefault();
       // Reduce drag speed by applying a multiplier (0.7 = 70% of original speed)
-      const dragSensitivity = 0.5;
+      const dragSensitivity = 0.7;
       const deltaX = (e.clientX - dragStart.x) * dragSensitivity;
       const deltaY = (e.clientY - dragStart.y) * dragSensitivity;
       
@@ -117,6 +137,41 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault();
+      setIsDragging(false);
+    }
+  };
+
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (zoom > 1 && e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y
+      });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDragging && zoom > 1 && e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dragSensitivity = 0.5;
+      const deltaX = (touch.clientX - dragStart.x) * dragSensitivity;
+      const deltaY = (touch.clientY - dragStart.y) * dragSensitivity;
+      
+      setPosition({
+        x: deltaX,
+        y: deltaY
+      });
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (isDragging) {
       e.preventDefault();
       setIsDragging(false);
@@ -144,11 +199,12 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
   return (
     <div 
       className={styles.overlay}
-      style={{ backgroundColor: `${currentTheme.text}CC` }}
+      style={{ backgroundColor: currentTheme.shadow }}
       onClick={onClose}
     >
       <div 
         className={styles.modal}
+        data-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -180,8 +236,12 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           style={{ 
-            cursor: isDragging ? 'grabbing' : (zoom > 1 ? 'grab' : 'zoom-in')
+            cursor: isDragging ? 'grabbing' : (zoom > 1 ? 'grab' : 'zoom-in'),
+            touchAction: zoom > 1 ? 'none' : 'auto'
           }}
         >
           <img
@@ -217,7 +277,9 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
                   color: 'white'
                 }}
               >
-                ← Previous
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(180deg)' }}>
+                  <path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </button>
               <button
                 onClick={goToNext}
@@ -227,7 +289,9 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
                   color: 'white'
                 }}
               >
-                Next →
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </button>
             </div>
           )}
@@ -279,6 +343,7 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
         {validImages.length > 1 && (
           <div 
             className={styles.thumbnails}
+            data-thumbnails="true"
             style={{ backgroundColor: currentTheme.cardBackground }}
           >
             {validImages.map((image, index) => (
