@@ -195,7 +195,7 @@ export class FirebaseService {
   }
 
   /**
-   * Queries recalls affecting a specific state
+   * Queries recalls affecting a specific state (includes both state-specific and nationwide recalls)
    * 
    * Uses Firestore's array-contains query on the processed affectedStatesArray field
    * 
@@ -205,16 +205,46 @@ export class FirebaseService {
    */
   async getRecallsByState(stateCode: string, limit: number = 100): Promise<ProcessedRecall[]> {
     try {
-      const snapshot = await this.recallsCollection
+      // Get state-specific recalls
+      const stateSnapshot = await this.recallsCollection
         .where('affectedStatesArray', 'array-contains', stateCode)
         .orderBy('field_recall_date', 'desc')
         .limit(limit)
         .get();
 
-      return snapshot.docs.map(doc => ({
+      // Get nationwide recalls (only if not already requesting "Nationwide")
+      let nationwideSnapshot;
+      if (stateCode.toLowerCase() !== 'nationwide') {
+        nationwideSnapshot = await this.recallsCollection
+          .where('affectedStatesArray', 'array-contains', 'Nationwide')
+          .orderBy('field_recall_date', 'desc')
+          .limit(limit)
+          .get();
+      }
+
+      // Combine results
+      const stateRecalls = stateSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as ProcessedRecall));
+
+      const nationwideRecalls = nationwideSnapshot ? nationwideSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ProcessedRecall)) : [];
+
+      // Merge and remove duplicates (in case a recall affects both the state and is marked nationwide)
+      const allRecalls = [...stateRecalls, ...nationwideRecalls];
+      const uniqueRecalls = allRecalls.filter((recall, index, self) => 
+        index === self.findIndex(r => r.id === recall.id)
+      );
+
+      // Sort by date and limit results
+      const sortedRecalls = uniqueRecalls
+        .sort((a, b) => new Date(b.field_recall_date).getTime() - new Date(a.field_recall_date).getTime())
+        .slice(0, limit);
+
+      return sortedRecalls;
     } catch (error) {
       logger.error('Error fetching recalls by state:', error);
       throw error;
@@ -268,33 +298,6 @@ export class FirebaseService {
     } catch (error) {
       logger.error('Error fetching all recalls:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Downloads product images from USDA and stores them in Firebase Storage
-   * 
-   * TODO: Implement actual image download and storage logic
-   * Current implementation returns the original URL as a placeholder
-   * 
-   * Future implementation will:
-   * 1. Download image from USDA servers
-   * 2. Upload to Firebase Storage
-   * 3. Return Firebase Storage URL
-   * 
-   * @param imageUrl - URL of the image from USDA
-   * @param recallNumber - Recall number for organizing images
-   * @returns Promise resolving to the stored image URL
-   */
-  async downloadAndStoreImage(imageUrl: string, recallNumber: string): Promise<string> {
-    try {
-      // Implementation for downloading and storing images
-      // This would download the image from USDA and upload to Firebase Storage
-      // For now, returning the original URL
-      return imageUrl;
-    } catch (error) {
-      logger.error('Error storing image:', error);
-      return imageUrl;
     }
   }
 

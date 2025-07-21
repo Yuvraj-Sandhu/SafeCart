@@ -312,24 +312,48 @@ export class ImageProcessingService {
           const outputPath = path.join(this.tempDir, `${recallId}_page_${page}.png`);
           
           try {
-            // Use 400 DPI for good text readability with optimized processing and auto-trim whitespace
-            execSync(`magick -density 400 "${pdfPath}[${page-1}]" -trim +repage -quality 95 -strip "${outputPath}"`, { 
-              stdio: 'pipe',
-              timeout: 120000 
-            });
+            let conversionSucceeded = false;
             
-            if (fs.existsSync(outputPath)) {
+            // First attempt: 400 DPI for high quality
+            try {
+              execSync(`magick -density 400 "${pdfPath}[${page-1}]" -trim +repage -quality 95 -strip "${outputPath}"`, { 
+                stdio: 'pipe',
+                timeout: 120000 
+              });
+              conversionSucceeded = true;
+              logger.info(`Page ${page} converted at 400 DPI (${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB)`);
+            } catch (highDpiError) {
+              logger.warn(`400 DPI conversion timed out or failed for page ${page}, trying 300 DPI fallback...`);
+              
+              // Fallback attempt: 300 DPI for faster processing
+              try {
+                // Remove any partial file from failed attempt
+                if (fs.existsSync(outputPath)) {
+                  fs.unlinkSync(outputPath);
+                }
+                
+                execSync(`magick -density 300 "${pdfPath}[${page-1}]" -trim +repage -quality 95 -strip "${outputPath}"`, { 
+                  stdio: 'pipe',
+                  timeout: 180000
+                });
+                conversionSucceeded = true;
+                logger.info(`Page ${page} converted at 300 DPI fallback (${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB)`);
+              } catch (fallbackError) {
+                logger.error(`Both 400 DPI and 300 DPI conversion failed for page ${page}:`, fallbackError);
+              }
+            }
+            
+            if (conversionSucceeded && fs.existsSync(outputPath)) {
               images.push({
                 path: outputPath,
                 page: page,
                 originalSize: fs.statSync(outputPath).size
               });
-              logger.info(`✓ Page ${page} converted (${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB)`);
             } else {
               logger.warn(`⚠ Page ${page} conversion failed - no output file`);
             }
           } catch (directError) {
-            logger.error(`✗ ImageMagick failed for page ${page}:`, directError);
+            logger.error(`✗ ImageMagick processing failed for page ${page}:`, directError);
           }
         } catch (pageError) {
           logger.error(`✗ Page ${page} error:`, pageError);
