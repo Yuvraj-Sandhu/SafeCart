@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { Recall, downloadAsJson, ProcessedImage } from '@/services/api';
@@ -21,6 +21,36 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     recallTitle: string;
   } | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [columnCount, setColumnCount] = useState(1);
+
+  // Calculate column count based on screen size
+  useEffect(() => {
+    const updateColumnCount = () => {
+      const width = window.innerWidth;
+      if (width >= 1280) setColumnCount(4);
+      else if (width >= 1024) setColumnCount(3);
+      else if (width >= 640) setColumnCount(2);
+      else setColumnCount(1);
+    };
+
+    updateColumnCount();
+    window.addEventListener('resize', updateColumnCount);
+    return () => window.removeEventListener('resize', updateColumnCount);
+  }, []);
+
+  // Create masonry columns with horizontal ordering
+  const createMasonryColumns = (recalls: Recall[]) => {
+    const columns: Recall[][] = Array(columnCount).fill(null).map(() => []);
+    
+    // Fill columns horizontally (round-robin)
+    recalls.forEach((recall, index) => {
+      const columnIndex = index % columnCount;
+      columns[columnIndex].push(recall);
+    });
+    
+    return columns;
+  };
 
   const handleViewDetails = (recall: Recall) => {
     if (recall.field_recall_url) {
@@ -108,6 +138,8 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     );
   }
 
+  const masonryColumns = createMasonryColumns(recalls);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -119,22 +151,24 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
         </Button>
       </div>
       
-      <div className={styles.masonry}>
-        {recalls.map((recall) => {
-          const firstImage = recall.processedImages?.find(img => 
-            img.type !== 'error' && img.storageUrl
-          );
-          const isExpanded = expandedCards.has(recall.id);
-          
-          return (
-            <div
-              key={recall.id}
-              className={styles.recallCard}
-              style={{
-                backgroundColor: currentTheme.cardBackground,
-                borderColor: currentTheme.cardBorder,
-              }}
-            >
+      <div ref={containerRef} className={styles.masonry}>
+        {masonryColumns.map((column, columnIndex) => (
+          <div key={columnIndex} className={styles.column}>
+            {column.map((recall) => {
+              const firstImage = recall.processedImages?.find(img => 
+                img.type !== 'error' && img.storageUrl
+              );
+              const isExpanded = expandedCards.has(recall.id);
+              
+              return (
+                <div
+                  key={recall.id}
+                  className={styles.recallCard}
+                  style={{
+                    backgroundColor: currentTheme.cardBackground,
+                    borderColor: currentTheme.cardBorder,
+                  }}
+                >
               {firstImage ? (
                 <div 
                   className={styles.imageContainer}
@@ -150,7 +184,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                   {recall.processedImages && recall.processedImages.length > 1 && (
                     <div 
                       className={styles.imageCount}
-                      style={{ backgroundColor: currentTheme.primaryHover }}
+                      style={{ backgroundColor: currentTheme.primaryHover}}
                     >
                       +{recall.processedImages.length - 1}
                     </div>
@@ -186,6 +220,15 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     }}
                   >
                     {recall.field_risk_level}
+                  </span>
+                  <span 
+                    className={styles.activeStatus}
+                    style={{ 
+                      color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                      borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                    }}
+                  >
+                    {recall.isActive ? 'Active' : 'Closed'}
                   </span>
                 </div>
                 
@@ -269,8 +312,10 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                 </div>
               </div>
             </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Image Modal */}

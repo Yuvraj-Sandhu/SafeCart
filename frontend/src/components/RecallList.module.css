@@ -13,27 +13,17 @@
 }
 
 .masonry {
-  column-count: 1;
-  column-gap: 1rem;
+  display: flex;
+  gap: 1rem;
   width: 100%;
+  align-items: flex-start;
 }
 
-@media (min-width: 640px) {
-  .masonry {
-    column-count: 2;
-  }
-}
-
-@media (min-width: 1024px) {
-  .masonry {
-    column-count: 3;
-  }
-}
-
-@media (min-width: 1280px) {
-  .masonry {
-    column-count: 4;
-  }
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .recallCard {
@@ -42,9 +32,6 @@
   overflow: hidden;
   transition: all 0.2s ease;
   cursor: pointer;
-  break-inside: avoid;
-  margin-bottom: 1rem;
-  display: inline-block;
   width: 100%;
 }
 
@@ -61,7 +48,7 @@
 }
 
 .imageContainer:hover {
-  transform: scale(1.02);
+  transform: scale(1.015);
 }
 
 .recallImage {
@@ -69,6 +56,7 @@
   height: auto;
   display: block;
   object-fit: cover;
+  border-radius: 1rem;
 }
 
 .imagePlaceholder {
@@ -82,10 +70,10 @@
 
 .imageCount {
   position: absolute;
-  top: 0.5rem;
+  top: 0.6rem;
   right: 0.5rem;
-  color: white;
-  font-size: 0.875rem;
+  color: var(--color-text);
+  font-size: 1rem;
   font-weight: 600;
   padding: 0.25rem 0.5rem;
   border-radius: 0.5rem;
@@ -98,24 +86,37 @@
 
 .recallHeader {
   margin-bottom: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .recallTitle {
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .riskLevel {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 700;
   padding: 0.25rem 0.5rem;
-  border: 1px solid;
+  border: 2px solid;
+  border-radius: 0.5rem;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.activeStatus {
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid;
   border-radius: 0.5rem;
   white-space: nowrap;
   display: inline-block;
@@ -134,7 +135,8 @@
 }
 
 .recallStates {
-  font-size: 0.875rem;
+  font-size: 1.125rem;
+  font-weight: 500;
   margin-bottom: 1rem;
   line-height: 1.4;
 }
@@ -149,13 +151,10 @@
   margin-bottom: 1rem;
 }
 
-.detailSection:last-child {
-  margin-bottom: 0;
-}
-
 .detailSection h4 {
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
+  letter-spacing: 0.025rem;
   margin: 0 0 0.5rem 0;
 }
 
@@ -169,7 +168,6 @@
 .recallActions {
   display: flex;
   justify-content: center;
-  margin-top: 1rem;
 }
 
 /* Loading state */
