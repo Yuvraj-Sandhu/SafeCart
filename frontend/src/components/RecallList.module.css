@@ -9,7 +9,11 @@
   margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 1rem;
-  letter-spacing: 0.01em;
+}
+
+.header h2 {
+  font-size: 2rem;
+  font-weight: 500;
 }
 
 .searchSection {
@@ -179,9 +183,9 @@
 }
 
 .recallStates {
-  font-size: 1.125rem;
-  font-weight: 500;
-  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
   line-height: 1.4;
 }
 

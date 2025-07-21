@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -8,10 +8,14 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import { RecallList } from '@/components/RecallList';
 import { US_STATES } from '@/data/states';
 import { api, filterRecallsByDateRange, Recall } from '@/services/api';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { getDefaultState } from '@/services/geolocation';
 import styles from './page.module.css';
 
 export default function Home() {
   const { currentTheme, mode, toggleTheme } = useTheme();
+  const { location, isLoading: isLocationLoading } = useUserLocation();
+  const hasInitialSearched = useRef(false);
   
   // Filter states
   const [selectedState, setSelectedState] = useState('');
@@ -30,6 +34,28 @@ export default function Home() {
       setError('Backend server is not running. Please start the server on port 3001.');
     });
   }, []);
+
+  // Auto-select state based on location
+  useEffect(() => {
+    // Skip if already have a selected state or still loading location
+    if (selectedState || isLocationLoading) return;
+
+    const setDefaultStateAsync = async () => {
+      const defaultState = await getDefaultState();
+      setSelectedState(defaultState);
+    };
+
+    setDefaultStateAsync();
+  }, [isLocationLoading, location, selectedState]); // Include selectedState to prevent re-runs
+
+  // Auto-select Year to Date preset on page load
+  useEffect(() => {
+    const currentDate = new Date();
+    const yearStart = new Date(currentDate.getFullYear(), 0, 1); // January 1st of current year
+    
+    setStartDate(yearStart);
+    setEndDate(currentDate);
+  }, []); // Run once on mount
 
   const handleSearch = async () => {
     if (!selectedState) {
@@ -58,6 +84,14 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Auto-trigger search once when initial data is ready
+  useEffect(() => {
+    if (selectedState && startDate && endDate && !hasInitialSearched.current && !loading) {
+      hasInitialSearched.current = true;
+      handleSearch();
+    }
+  }, [selectedState, startDate, endDate]);
 
   const handleReset = () => {
     setSelectedState('');

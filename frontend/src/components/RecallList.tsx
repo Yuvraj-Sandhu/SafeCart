@@ -308,6 +308,12 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                   {recall.field_title}
                 </h3>
                 
+                <div className={styles.recallStates}>
+                  <span style={{ color: currentTheme.text }}>
+                    {recall.field_states}
+                  </span>
+                </div>
+                
                 <div className={styles.recallMeta}>
                   <span 
                     className={styles.metaItem}
@@ -320,14 +326,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {new Date(recall.field_recall_date).toLocaleDateString()}
-                  </span>
-                </div>
-                
-                <div className={styles.recallStates}>
-                  <span style={{ color: currentTheme.text }}>
-                    {recall.field_states.length > 50 
-                      ? recall.field_states.substring(0, 50) + '...' 
-                      : recall.field_states}
                   </span>
                 </div>
                 
