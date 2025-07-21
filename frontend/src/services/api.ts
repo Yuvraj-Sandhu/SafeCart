@@ -48,7 +48,15 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to fetch recalls');
     }
-    return response.json();
+    const data: RecallsResponse = await response.json();
+    
+    // Filter for English records only
+    data.data = data.data.filter(recall => 
+      recall.langcode === 'English'
+    );
+    data.count = data.data.length;
+    
+    return data;
   },
 
   // Get all recalls
@@ -57,7 +65,15 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to fetch recalls');
     }
-    return response.json();
+    const data: RecallsResponse = await response.json();
+    
+    // Filter for English records only
+    data.data = data.data.filter(recall => 
+      recall.langcode === 'English'
+    );
+    data.count = data.data.length;
+    
+    return data;
   },
 
   // Get health status
