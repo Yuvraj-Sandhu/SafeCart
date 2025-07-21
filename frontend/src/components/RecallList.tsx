@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { Recall, downloadAsJson, ProcessedImage } from '@/services/api';
+import { Recall, ProcessedImage } from '@/services/api';
 import { ImageModal } from './ImageModal';
 import styles from './RecallList.module.css';
 
@@ -23,6 +23,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Calculate column count based on screen size
   useEffect(() => {
@@ -38,6 +39,11 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     window.addEventListener('resize', updateColumnCount);
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
+
+  // Filter recalls by search term
+  const filteredRecalls = recalls.filter(recall =>
+    recall.field_title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Create masonry columns with horizontal ordering
   const createMasonryColumns = (recalls: Recall[]) => {
@@ -70,13 +76,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     }
   };
 
-  const handleDownloadRecall = (recall: Recall) => {
-    downloadAsJson(recall, `recall-${recall.field_recall_number}.json`);
-  };
-
-  const handleDownloadAll = () => {
-    downloadAsJson(recalls, `recalls-${new Date().toISOString().split('T')[0]}.json`);
-  };
 
   const handleImageClick = (recall: Recall, imageIndex: number = 0) => {
     const validImages = recall.processedImages?.filter(img => 
@@ -138,17 +137,87 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     );
   }
 
-  const masonryColumns = createMasonryColumns(recalls);
+  if (filteredRecalls.length === 0 && searchTerm) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h2 style={{ color: currentTheme.text }}>
+            Found 0 recalls (filtered from {recalls.length})
+          </h2>
+        </div>
+        
+        <div className={styles.searchSection}>
+          <div className={styles.searchContainer}>
+            <svg 
+              className={styles.searchIcon}
+              xmlns="http://www.w3.org/2000/svg" 
+              x="0px" y="0px" 
+              width="20" height="20" 
+              viewBox="0 0 50 50"
+              fill={currentTheme.textSecondary}
+            >
+              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search recalls by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+              style={{
+                backgroundColor: currentTheme.cardBackground,
+                color: currentTheme.text,
+                borderColor: currentTheme.cardBorder,
+              }}
+            />
+          </div>
+        </div>
+        <div 
+          className={styles.empty}
+          style={{ color: currentTheme.textSecondary }}
+        >
+          <p>No recalls found matching "{searchTerm}". Try a different search term.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const masonryColumns = createMasonryColumns(filteredRecalls);
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 style={{ color: currentTheme.text }}>
-          Found {recalls.length} recall{recalls.length !== 1 ? 's' : ''}
+          Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
+          {searchTerm && ` (filtered from ${recalls.length})`}
         </h2>
-        <Button size="small" onClick={handleDownloadAll}>
-          Download All as JSON
-        </Button>
+      </div>
+      
+      <div className={styles.searchSection}>
+        <div className={styles.searchContainer}>
+          <svg 
+            className={styles.searchIcon}
+            xmlns="http://www.w3.org/2000/svg" 
+            x="0px" y="0px" 
+            width="20" height="20" 
+            viewBox="0 0 50 50"
+            fill={currentTheme.textSecondary}
+          >
+            <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search recalls by title..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={styles.searchInput}
+            style={{
+              backgroundColor: currentTheme.cardBackground,
+              color: currentTheme.text,
+              borderColor: currentTheme.cardBorder,
+            }}
+          />
+        </div>
       </div>
       
       <div ref={containerRef} className={styles.masonry}>
