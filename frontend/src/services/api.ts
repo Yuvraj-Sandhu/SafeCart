@@ -1,4 +1,15 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://safecart-backend-984543935964.europe-west1.run.app/api';
+
+export interface ProcessedImage {
+  originalFilename: string;
+  type: 'pdf-page' | 'image' | 'error';
+  page?: number;
+  sourceUrl: string;
+  storageUrl?: string;
+  error?: string;
+  size?: number;
+  optimizedSize?: number;
+}
 
 export interface Recall {
   id: string;
@@ -13,10 +24,15 @@ export interface Recall {
   field_recall_reason: string;
   field_summary: string;
   field_year: string;
+  field_closed_date?: string;
+  field_recall_url?: string;
   affectedStatesArray: string[];
   riskLevelCategory: 'high' | 'medium' | 'low' | 'unknown';
   isActive: boolean;
   langcode: string;
+  processedImages?: ProcessedImage[];
+  imagesProcessedAt?: string;
+  totalImageCount?: number;
 }
 
 export interface RecallsResponse {

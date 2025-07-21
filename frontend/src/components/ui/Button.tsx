@@ -22,12 +22,14 @@ export function Button({
   const { currentTheme } = useTheme();
 
   const style = variant === 'primary' ? {
-    backgroundColor: currentTheme.buttonPrimary,
+    '--button-bg': currentTheme.buttonPrimary,
+    '--button-bg-hover': currentTheme.primaryHover,
     color: currentTheme.buttonPrimaryText,
-  } : {
-    backgroundColor: currentTheme.buttonSecondary,
+  } as React.CSSProperties : {
+    '--button-bg': currentTheme.buttonSecondary,
+    '--button-bg-hover': currentTheme.buttonSecondary,
     color: currentTheme.buttonSecondaryText,
-  };
+  } as React.CSSProperties;
 
   return (
     <button
