@@ -3,17 +3,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { Recall, ProcessedImage } from '@/services/api';
+import { RecallWithDisplay } from '@/types/display';
 import { ImageModal } from './ImageModal';
 import styles from './RecallList.module.css';
+import editStyles from './EditableRecallList.module.css';
 
-interface RecallListProps {
-  recalls: Recall[];
+// Use ProcessedImage from RecallWithDisplay for compatibility
+type ProcessedImage = NonNullable<RecallWithDisplay['processedImages']>[0];
+
+interface EditableRecallListProps {
+  recalls: RecallWithDisplay[];
   loading: boolean;
   error: string | null;
+  onEdit: (recall: RecallWithDisplay) => void;
 }
 
-export function RecallList({ recalls, loading, error }: RecallListProps) {
+export function EditableRecallList({ recalls, loading, error, onEdit }: EditableRecallListProps) {
   const { currentTheme } = useTheme();
   const [selectedImageModal, setSelectedImageModal] = useState<{
     images: ProcessedImage[];
@@ -46,17 +51,17 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
   );
 
   // Create masonry columns with horizontal ordering (including split cards)
-  const createMasonryColumns = (recalls: Recall[]) => {
+  const createMasonryColumns = (recalls: RecallWithDisplay[]) => {
     // Expand recalls that have display splits
-    const expandedRecalls: Array<{ recall: Recall, splitIndex: number }> = [];
+    const expandedRecalls: Array<{ recall: RecallWithDisplay, splitIndex: number }> = [];
     
     recalls.forEach(recall => {
-      const display = (recall as any).display;
+      const display = recall.display;
       if (display?.cardSplits && display.cardSplits.length > 0) {
         // Add main card
         expandedRecalls.push({ recall, splitIndex: -1 });
         // Add split cards
-        display.cardSplits.forEach((_: any, index: number) => {
+        display.cardSplits.forEach((_, index: number) => {
           expandedRecalls.push({ recall, splitIndex: index });
         });
       } else {
@@ -65,7 +70,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
       }
     });
     
-    const columns: Array<Array<{ recall: Recall, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
+    const columns: Array<Array<{ recall: RecallWithDisplay, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
     
     // Fill columns horizontally (round-robin) with expanded recalls
     expandedRecalls.forEach((expandedRecall, index) => {
@@ -76,7 +81,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     return columns;
   };
 
-  const handleViewDetails = (recall: Recall, cardId?: string) => {
+  const handleViewDetails = (recall: RecallWithDisplay, cardId?: string) => {
     if (recall.field_recall_url) {
       // Open USDA website in new tab
       window.open(recall.field_recall_url, '_blank', 'noopener,noreferrer');
@@ -95,8 +100,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     }
   };
 
-
-  const handleImageClick = (images: any[], title: string, imageIndex: number = 0) => {
+  const handleImageClick = (images: ProcessedImage[], title: string, imageIndex: number = 0) => {
     const validImages = images.filter(img => 
       img.type !== 'error' && img.storageUrl
     ) || [];
@@ -175,7 +179,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               viewBox="0 0 50 50"
               fill={currentTheme.textSecondary}
             >
-              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
             </svg>
             <input
               type="text"
@@ -247,7 +251,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               const cardId = splitIndex === -1 ? recall.id : `${recall.id}-${splitIndex}`;
               
               // Get display data
-              const display = (recall as any).display;
+              const display = recall.display;
               
               // Get card-specific images
               let cardImages = recall.processedImages || [];
@@ -297,159 +301,172 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     borderColor: currentTheme.cardBorder,
                   }}
                 >
-              {firstImage ? (
-                <div 
-                  className={styles.imageContainer}
-                  onClick={() => handleImageClick(cardImages, displayTitle, 0)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <img 
-                    src={firstImage.storageUrl} 
-                    alt={`${displayTitle} label`}
-                    className={styles.recallImage}
-                    loading="lazy"
-                  />
-                  {cardImages.length > 1 && (
-                    <div 
-                      className={styles.imageCount}
-                      style={{ backgroundColor: currentTheme.primaryHover}}
-                    >
-                      +{cardImages.length - 1}
+                  {/* Edit button - only show on main card */}
+                  {splitIndex === -1 && (
+                    <div className={editStyles.editButton}>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => onEdit(recall)}
+                      >
+                        ✏️ Edit
+                      </Button>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div 
-                  className={styles.imagePlaceholder}
-                  style={{ backgroundColor: currentTheme.backgroundSecondary }}
-                >
-                  <svg 
-                    width="60" 
-                    height="60" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke={currentTheme.textSecondary}
-                    strokeWidth="1.5"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                </div>
-              )}
-              
-              <div className={styles.cardContent}>
-                {splitIndex !== -1 && (
-                  <div 
-                    className={styles.splitIndicator}
-                    style={{
-                      backgroundColor: currentTheme.primaryLight,
-                      color: currentTheme.primary,
-                    }}
-                  >
-                    Part {splitIndex + 2}
-                  </div>
-                )}
-                
-                <div className={styles.recallHeader}>
-                  <span 
-                    className={styles.riskLevel}
-                    style={{ 
-                      color: getRiskLevelColor(recall.field_risk_level),
-                      borderColor: getRiskLevelColor(recall.field_risk_level),
-                    }}
-                  >
-                    {recall.field_risk_level}
-                  </span>
-                  <span 
-                    className={styles.activeStatus}
-                    style={{ 
-                      color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
-                      borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
-                    }}
-                  >
-                    {recall.isActive ? 'Active' : 'Closed'}
-                  </span>
-                </div>
-                
-                <h3 
-                  className={styles.recallTitle}
-                  style={{ color: currentTheme.text }}
-                >
-                  {displayTitle}
-                </h3>
-                
-                <div className={styles.recallStates}>
-                  <span style={{ color: currentTheme.text }}>
-                    {recall.field_states}
-                  </span>
-                </div>
-                
-                <div className={styles.recallMeta}>
-                  <span 
-                    className={styles.metaItem}
-                    style={{ color: currentTheme.textSecondary }}
-                  >
-                    {recall.field_establishment}
-                  </span>
-                  <span 
-                    className={styles.metaItem}
-                    style={{ color: currentTheme.textSecondary }}
-                  >
-                    {new Date(recall.field_recall_date).toLocaleDateString()}
-                  </span>
-                </div>
-                
-                {isExpanded && (
-                  <div className={styles.expandedDetails}>
-                    {recall.field_recall_reason && (
-                      <div className={styles.detailSection}>
-                        <h4 style={{ color: currentTheme.text }}>Recall Reason</h4>
-                        <p style={{ color: currentTheme.textSecondary }}>
-                          {recall.field_recall_reason}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {recall.field_closed_date && (
-                      <div className={styles.detailSection}>
-                        <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
-                        <p style={{ color: currentTheme.textSecondary }}>
-                          {new Date(recall.field_closed_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                    
-                    <div className={styles.detailSection}>
-                      <h4 style={{ color: currentTheme.text }}>Product Details</h4>
-                      <p style={{ color: currentTheme.textSecondary }}>
-                        {recall.field_product_items}
-                      </p>
-                    </div>
-                    
-                    <div className={styles.detailSection}>
-                      <h4 style={{ color: currentTheme.text }}>Summary</h4>
-                      <div 
-                        style={{ color: currentTheme.textSecondary }}
-                        dangerouslySetInnerHTML={{ 
-                          __html: recall.field_summary.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
-                        }}
+
+                  {firstImage ? (
+                    <div 
+                      className={styles.imageContainer}
+                      onClick={() => handleImageClick(cardImages, displayTitle, 0)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <img 
+                        src={firstImage.storageUrl} 
+                        alt={`${displayTitle} label`}
+                        className={styles.recallImage}
+                        loading="lazy"
                       />
+                      {cardImages.length > 1 && (
+                        <div 
+                          className={styles.imageCount}
+                          style={{ backgroundColor: currentTheme.primaryHover}}
+                        >
+                          +{cardImages.length - 1}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div 
+                      className={styles.imagePlaceholder}
+                      style={{ backgroundColor: currentTheme.backgroundSecondary }}
+                    >
+                      <svg 
+                        width="60" 
+                        height="60" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke={currentTheme.textSecondary}
+                        strokeWidth="1.5"
+                      >
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                  )}
+                  
+                  <div className={styles.cardContent}>
+                    {splitIndex !== -1 && (
+                      <div 
+                        className={editStyles.splitIndicator}
+                        style={{
+                          backgroundColor: currentTheme.primaryLight,
+                          color: currentTheme.primary,
+                        }}
+                      >
+                        Part {splitIndex + 2}
+                      </div>
+                    )}
+                    
+                    <div className={styles.recallHeader}>
+                      <span 
+                        className={styles.riskLevel}
+                        style={{ 
+                          color: getRiskLevelColor(recall.field_risk_level),
+                          borderColor: getRiskLevelColor(recall.field_risk_level),
+                        }}
+                      >
+                        {recall.field_risk_level}
+                      </span>
+                      <span 
+                        className={styles.activeStatus}
+                        style={{ 
+                          color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                          borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                        }}
+                      >
+                        {recall.isActive ? 'Active' : 'Closed'}
+                      </span>
+                    </div>
+                    
+                    <h3 
+                      className={styles.recallTitle}
+                      style={{ color: currentTheme.text }}
+                    >
+                      {displayTitle}
+                    </h3>
+                    
+                    <div className={styles.recallStates}>
+                      <span style={{ color: currentTheme.text }}>
+                        {recall.field_states}
+                      </span>
+                    </div>
+                    
+                    <div className={styles.recallMeta}>
+                      <span 
+                        className={styles.metaItem}
+                        style={{ color: currentTheme.textSecondary }}
+                      >
+                        {recall.field_establishment}
+                      </span>
+                      <span 
+                        className={styles.metaItem}
+                        style={{ color: currentTheme.textSecondary }}
+                      >
+                        {new Date(recall.field_recall_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className={styles.expandedDetails}>
+                        {recall.field_recall_reason && (
+                          <div className={styles.detailSection}>
+                            <h4 style={{ color: currentTheme.text }}>Recall Reason</h4>
+                            <p style={{ color: currentTheme.textSecondary }}>
+                              {recall.field_recall_reason}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {recall.field_closed_date && (
+                          <div className={styles.detailSection}>
+                            <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
+                            <p style={{ color: currentTheme.textSecondary }}>
+                              {new Date(recall.field_closed_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div className={styles.detailSection}>
+                          <h4 style={{ color: currentTheme.text }}>Product Details</h4>
+                          <p style={{ color: currentTheme.textSecondary }}>
+                            {recall.field_product_items}
+                          </p>
+                        </div>
+                        
+                        <div className={styles.detailSection}>
+                          <h4 style={{ color: currentTheme.text }}>Summary</h4>
+                          <div 
+                            style={{ color: currentTheme.textSecondary }}
+                            dangerouslySetInnerHTML={{ 
+                              __html: recall.field_summary.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className={styles.recallActions}>
+                      <Button 
+                        size="small" 
+                        variant="secondary"
+                        onClick={() => handleViewDetails(recall, cardId)}
+                      >
+                        {recall.field_recall_url ? 'Visit USDA Page' : (isExpanded ? 'Show Less' : 'View Details')}
+                      </Button>
                     </div>
                   </div>
-                )}
-                
-                <div className={styles.recallActions}>
-                  <Button 
-                    size="small" 
-                    variant="secondary"
-                    onClick={() => handleViewDetails(recall, cardId)}
-                  >
-                    {recall.field_recall_url ? 'Visit USDA Page' : (isExpanded ? 'Show Less' : 'View Details')}
-                  </Button>
                 </div>
-              </div>
-            </div>
               );
             })}
           </div>

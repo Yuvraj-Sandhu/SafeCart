@@ -5,14 +5,16 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
-import { RecallList } from '@/components/RecallList';
+import { EditableRecallList } from '@/components/EditableRecallList';
+import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
-import { api, filterRecallsByDateRange, Recall } from '@/services/api';
+import { api, filterRecallsByDateRange } from '@/services/api';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { getDefaultState } from '@/services/geolocation';
-import styles from './page.module.css';
+import { RecallWithDisplay, EditModalState } from '@/types/display';
+import styles from '../../page.module.css';
 
-export default function Home() {
+export default function InternalEditPage() {
   const { currentTheme, mode, toggleTheme } = useTheme();
   const { location, isLoading: isLocationLoading } = useUserLocation();
   const hasInitialSearched = useRef(false);
@@ -23,10 +25,16 @@ export default function Home() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   
   // Data states
-  const [recalls, setRecalls] = useState<Recall[]>([]);
+  const [recalls, setRecalls] = useState<RecallWithDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // Edit modal state
+  const [editModal, setEditModal] = useState<EditModalState>({
+    isOpen: false,
+    recall: null
+  });
 
   // Check server health on mount
   useEffect(() => {
@@ -37,7 +45,6 @@ export default function Home() {
 
   // Auto-select state based on location
   useEffect(() => {
-    // Skip if already have a selected state or still loading location
     if (selectedState || isLocationLoading) return;
 
     const setDefaultStateAsync = async () => {
@@ -46,16 +53,16 @@ export default function Home() {
     };
 
     setDefaultStateAsync();
-  }, [isLocationLoading, location, selectedState]); // Include selectedState to prevent re-runs
+  }, [isLocationLoading, location, selectedState]);
 
   // Auto-select Year to Date preset on page load
   useEffect(() => {
     const currentDate = new Date();
-    const yearStart = new Date(currentDate.getFullYear(), 0, 1); // January 1st of current year
+    const yearStart = new Date(currentDate.getFullYear(), 0, 1);
     
     setStartDate(yearStart);
     setEndDate(currentDate);
-  }, []); // Run once on mount
+  }, []);
 
   const handleSearch = async () => {
     if (!selectedState) {
@@ -76,7 +83,7 @@ export default function Home() {
         filteredRecalls = filterRecallsByDateRange(filteredRecalls, startDate, endDate);
       }
       
-      setRecalls(filteredRecalls);
+      setRecalls(filteredRecalls as RecallWithDisplay[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
@@ -100,6 +107,27 @@ export default function Home() {
     setRecalls([]);
     setError(null);
     setHasSearched(false);
+    hasInitialSearched.current = false;
+  };
+
+  const handleEdit = (recall: RecallWithDisplay) => {
+    setEditModal({
+      isOpen: true,
+      recall
+    });
+  };
+
+  const handleSaveEdit = async (updatedRecall: RecallWithDisplay) => {
+    // Update local state
+    setRecalls(prev => prev.map(r => 
+      r.id === updatedRecall.id ? updatedRecall : r
+    ));
+    
+    // TODO: Save to backend
+    console.log('Saving display data:', updatedRecall.display);
+    
+    // Close modal
+    setEditModal({ isOpen: false, recall: null });
   };
 
   return (
@@ -154,7 +182,7 @@ export default function Home() {
           <div>
             <h1 style={{ color: currentTheme.primary }}>SafeCart</h1>
             <p style={{ color: currentTheme.textSecondary }}>
-              Search and filter USDA food recall data
+              Internal Editor
             </p>
           </div>
         </header>
@@ -206,12 +234,21 @@ export default function Home() {
 
         {hasSearched && (
           <div className={styles.results}>
-            <RecallList
+            <EditableRecallList
               recalls={recalls}
               loading={loading}
               error={error}
+              onEdit={handleEdit}
             />
           </div>
+        )}
+
+        {editModal.isOpen && editModal.recall && (
+          <EditModal
+            recall={editModal.recall}
+            onClose={() => setEditModal({ isOpen: false, recall: null })}
+            onSave={handleSaveEdit}
+          />
         )}
       </div>
     </main>
