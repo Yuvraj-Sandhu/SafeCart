@@ -23,16 +23,24 @@ export interface RecallWithDisplay {
   field_recall_number: string;
   field_recall_date: string;
   field_states: string;
-  field_establishment: string;
   field_risk_level: string;
-  field_recall_reason?: string;
-  field_product_items?: string;
-  field_summary?: string;
+  field_company_media_contact: string;
+  field_establishment: string;
+  field_product_items: string;
+  field_recall_reason: string;
+  field_summary: string;
+  field_year: string;
+  field_closed_date?: string;
+  field_recall_url?: string;
+  affectedStatesArray: string[];
+  riskLevelCategory: 'high' | 'medium' | 'low' | 'unknown';
   isActive: boolean;
   langcode: string;
   
   // Image processing data
   processedImages?: ProcessedImage[];
+  imagesProcessedAt?: string;
+  totalImageCount?: number;
   
   // Display customization data
   display?: DisplayData;

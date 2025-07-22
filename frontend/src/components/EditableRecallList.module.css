@@ -1,8 +1,21 @@
 .editButton {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 10;
+  background-color: var(--color-primaryHover);
+  top: 1rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  min-width: auto;
+  color: var(--color-text);
+  font-weight: 600;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.editButton:hover {
+  transform: translateY(-2px);
+  scale: 1.03;
 }
 
 .splitIndicator {

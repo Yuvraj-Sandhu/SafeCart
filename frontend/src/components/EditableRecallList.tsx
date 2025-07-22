@@ -301,19 +301,6 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                     borderColor: currentTheme.cardBorder,
                   }}
                 >
-                  {/* Edit button - only show on main card */}
-                  {splitIndex === -1 && (
-                    <div className={editStyles.editButton}>
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => onEdit(recall)}
-                      >
-                        ✏️ Edit
-                      </Button>
-                    </div>
-                  )}
-
                   {firstImage ? (
                     <div 
                       className={styles.imageContainer}
@@ -326,6 +313,21 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         className={styles.recallImage}
                         loading="lazy"
                       />
+                      {/* Edit button before image count - only show on main card */}
+                      {splitIndex === -1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(recall);
+                          }}
+                          className={editStyles.editButton}
+                          style={{ 
+                            right: cardImages.length > 1 ? '4rem' : '1rem'
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
                       {cardImages.length > 1 && (
                         <div 
                           className={styles.imageCount}
@@ -352,6 +354,21 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <polyline points="21 15 16 10 5 21"/>
                       </svg>
+                      {/* Edit button for cards without images - only show on main card */}
+                      {splitIndex === -1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(recall);
+                          }}
+                          className={editStyles.editButton}
+                          style={{
+                            right: '1rem'
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
                     </div>
                   )}
                   

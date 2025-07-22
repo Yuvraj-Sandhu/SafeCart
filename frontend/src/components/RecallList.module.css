@@ -118,8 +118,8 @@
 
 .imageCount {
   position: absolute;
-  top: 0.6rem;
-  right: 0.5rem;
+  top: 1rem;
+  right: 1rem;
   color: var(--color-text);
   font-size: 1rem;
   font-weight: 600;
