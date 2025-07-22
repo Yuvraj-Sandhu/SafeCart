@@ -398,6 +398,46 @@ export class FirebaseService {
   }
 
   /**
+   * Updates only the display data for a recall
+   * 
+   * This method allows customization of how a recall is displayed without
+   * modifying any of the original USDA data. It only updates the 'display'
+   * field in the Firestore document.
+   * 
+   * If display is undefined, it removes the display field entirely,
+   * effectively resetting the recall to its original state.
+   * 
+   * @param recallId - Firestore document ID of the recall
+   * @param displayData - Display customization object or undefined to reset
+   * @returns Promise that resolves when update is complete
+   * @throws Error if update operation fails
+   */
+  async updateRecallDisplay(recallId: string, displayData: any): Promise<void> {
+    try {
+      const docRef = this.recallsCollection.doc(recallId);
+      
+      if (displayData === undefined || displayData === null) {
+        // Remove the display field entirely
+        await docRef.update({
+          display: admin.firestore.FieldValue.delete(),
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+        logger.info(`Removed display data for recall ${recallId}`);
+      } else {
+        // Update only the display field
+        await docRef.update({
+          display: displayData,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+        });
+        logger.info(`Updated display data for recall ${recallId}`);
+      }
+    } catch (error) {
+      logger.error(`Error updating display data for recall ${recallId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Strips HTML tags and decodes Unicode escape sequences
    * 
    * The USDA API returns HTML-encoded content with Unicode escapes.

@@ -83,6 +83,24 @@ export const api = {
       throw new Error('Server is not responding');
     }
     return response.json();
+  },
+
+  // Update recall display data
+  async updateRecallDisplay(recallId: string, displayData: any): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/recalls/${recallId}/display`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ display: displayData })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to update recall display' }));
+      throw new Error(error.message || 'Failed to update recall display');
+    }
+    
+    return response.json();
   }
 };
 

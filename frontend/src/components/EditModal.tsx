@@ -129,6 +129,22 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     onSave(updatedRecall);
   };
 
+  const handleReset = () => {
+    // Clear all display data
+    setPreviewTitle('');
+    setPrimaryImageIndex(-1);
+    setCardSplits([]);
+    
+    // Create recall with empty display
+    const updatedRecall: RecallWithDisplay = {
+      ...editedRecall,
+      display: undefined // Remove display object entirely
+    };
+    
+    // Save the reset state
+    onSave(updatedRecall);
+  };
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div 
@@ -372,12 +388,27 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         </div>
 
         <div className={styles.modalFooter}>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            Save Changes
-          </Button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button 
+              variant="secondary" 
+              onClick={handleReset}
+              style={{ 
+                backgroundColor: currentTheme.danger,
+                color: currentTheme.buttonPrimaryText,
+                border: 'none'
+              }}
+            >
+              Reset All
+            </Button>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              Save Changes
+            </Button>
+          </div>
         </div>
       </div>
     </div>

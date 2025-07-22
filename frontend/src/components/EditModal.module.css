@@ -210,7 +210,8 @@
 
 .modalFooter {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   padding: 1.5rem;
   border-top: 1px solid var(--color-card-border);

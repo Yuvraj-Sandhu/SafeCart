@@ -362,4 +362,62 @@ router.post('/recalls/batch', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * PUT /api/recalls/:id/display
+ * 
+ * Updates the display data for a specific recall
+ * 
+ * This endpoint allows internal team members to customize how a recall
+ * is displayed without modifying the original USDA data.
+ * 
+ * @param id - Firestore document ID
+ * @body display - Display customization object or undefined to reset
+ * 
+ * @returns JSON response with success status
+ * 
+ * @example
+ * PUT /api/recalls/abc123def456/display
+ * Content-Type: application/json
+ * {
+ *   "display": {
+ *     "primaryImageIndex": 2,
+ *     "previewTitle": "Custom Title",
+ *     "cardSplits": [...],
+ *     "lastEditedAt": "2024-01-20T...",
+ *     "lastEditedBy": "user@example.com"
+ *   }
+ * }
+ */
+router.put('/recalls/:id/display', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { display } = req.body;
+    
+    // Validate that recall exists
+    const recall = await firebaseService.getRecallById(id);
+    if (!recall) {
+      return res.status(404).json({
+        success: false,
+        error: 'Recall not found'
+      });
+    }
+    
+    // Update display data
+    await firebaseService.updateRecallDisplay(id, display);
+    
+    logger.info(`Updated display data for recall ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Display data updated successfully'
+    });
+  } catch (error) {
+    logger.error('Error updating recall display:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update display data'
+    });
+  }
+});
+
 export default router;
