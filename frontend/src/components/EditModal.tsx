@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { RecallWithDisplay, CardSplit, SplitPreview } from '@/types/display';
+import { RecallWithDisplay, CardSplit, SplitPreview, UploadedImage } from '@/types/display';
+import { api } from '@/services/api';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
@@ -17,6 +18,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const [primaryImageIndex, setPrimaryImageIndex] = useState(recall.display?.primaryImageIndex ?? -1);
   const [cardSplits, setCardSplits] = useState<CardSplit[]>(recall.display?.cardSplits || []);
   const [splitPreviews, setSplitPreviews] = useState<SplitPreview[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(recall.display?.uploadedImages || []);
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string; metadata: UploadedImage }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const images = recall.processedImages || [];
   const hasImages = images.length > 0;
@@ -113,20 +118,52 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     setCardSplits(newSplits);
   };
 
-  const handleSave = () => {
-    const updatedRecall: RecallWithDisplay = {
-      ...editedRecall,
-      display: {
-        ...editedRecall.display,
+  const handleSave = async () => {
+    try {
+      setIsUploading(true);
+
+      // Prepare display data without uploaded images (they'll be added by the API)
+      const displayData = {
         previewTitle: previewTitle || undefined,
         primaryImageIndex: primaryImageIndex >= 0 ? primaryImageIndex : undefined,
         cardSplits: cardSplits.length > 0 ? cardSplits : undefined,
+        uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined, // Existing uploaded images
         lastEditedAt: new Date().toISOString(),
         lastEditedBy: 'current-user' // TODO: Get from auth context
+      };
+
+      let finalRecall: RecallWithDisplay;
+
+      if (pendingFiles.length > 0) {
+        // Upload new images and update display data
+        const files = pendingFiles.map(pf => pf.file);
+        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
+        
+        // Clean up preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update with response data
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      } else {
+        // No new images, just update display data
+        await api.updateRecallDisplay(recall.id, displayData);
+        finalRecall = {
+          ...editedRecall,
+          display: displayData
+        };
       }
-    };
-    
-    onSave(updatedRecall);
+      
+      onSave(finalRecall);
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleReset = () => {
@@ -134,6 +171,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     setPreviewTitle('');
     setPrimaryImageIndex(-1);
     setCardSplits([]);
+    setUploadedImages([]);
+    
+    // Clean up pending files and their preview URLs
+    pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+    setPendingFiles([]);
     
     // Create recall with empty display
     const updatedRecall: RecallWithDisplay = {
@@ -143,6 +185,79 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     
     // Save the reset state
     onSave(updatedRecall);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      // Convert FileList to Array and validate image files
+      const imageFiles = Array.from(files).filter(file => 
+        file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024 // 10MB limit
+      );
+      
+      if (imageFiles.length === 0) {
+        alert('Please select valid image files (max 10MB each).');
+        return;
+      }
+
+      // Create pending file objects for preview and later upload
+      const newPendingFiles = imageFiles.map(file => {
+        const metadata: UploadedImage = {
+          filename: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${file.name}`,
+          originalName: file.name,
+          type: 'uploaded-image' as const,
+          storageUrl: '', // Will be set after upload
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'current-user', // TODO: Replace with actual user ID from auth context
+          size: file.size,
+          dimensions: undefined
+        };
+
+        return {
+          file,
+          previewUrl: URL.createObjectURL(file),
+          metadata
+        };
+      });
+
+      // Add to pending files for display and later upload
+      setPendingFiles(prev => [...prev, ...newPendingFiles]);
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Upload preparation failed:', error);
+      alert('Failed to prepare images for upload. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveUploadedImage = (index: number) => {
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles(prev => {
+      const updated = [...prev];
+      // Clean up the object URL to prevent memory leaks
+      URL.revokeObjectURL(updated[index].previewUrl);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   return (
@@ -222,7 +337,105 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                     <span className={styles.imageNumber}>#{index + 1}</span>
                   </div>
                 ))}
+                
+                {/* Already Uploaded Images */}
+                {uploadedImages.map((img, index) => (
+                  <div 
+                    key={`uploaded-${index}`}
+                    className={`${styles.imageThumb} ${styles.uploaded}`}
+                    style={{ 
+                      borderColor: currentTheme.cardBorder,
+                      position: 'relative'
+                    }}
+                  >
+                    <img 
+                      src={img.storageUrl} 
+                      alt={`Uploaded Image ${index + 1}`}
+                    />
+                    <span className={styles.imageNumber}>U{index + 1}</span>
+                    <button
+                      className={styles.removeButton}
+                      onClick={() => handleRemoveUploadedImage(index)}
+                      style={{ 
+                        backgroundColor: currentTheme.danger,
+                        color: 'white'
+                      }}
+                      title="Remove uploaded image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                
+                {/* Pending Files (to be uploaded on save) */}
+                {pendingFiles.map((pendingFile, index) => (
+                  <div 
+                    key={`pending-${index}`}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${styles.pending}`}
+                    style={{ 
+                      borderColor: currentTheme.primary,
+                      borderStyle: 'dashed',
+                      position: 'relative'
+                    }}
+                  >
+                    <img 
+                      src={pendingFile.previewUrl} 
+                      alt={`Pending Image ${index + 1}`}
+                    />
+                    <span className={styles.imageNumber} style={{ backgroundColor: currentTheme.primary }}>
+                      P{index + 1}
+                    </span>
+                    <button
+                      className={styles.removeButton}
+                      onClick={() => handleRemovePendingFile(index)}
+                      style={{ 
+                        backgroundColor: currentTheme.danger,
+                        color: 'white'
+                      }}
+                      title="Remove pending image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                
+                {/* Upload Button */}
+                <div 
+                  className={`${styles.imageThumb} ${styles.uploadButton}`}
+                  onClick={handleUploadClick}
+                  style={{ 
+                    borderColor: currentTheme.primary,
+                    borderStyle: 'dashed',
+                    cursor: isUploading ? 'not-allowed' : 'pointer',
+                    opacity: isUploading ? 0.6 : 1
+                  }}
+                >
+                  <div className={styles.uploadContent}>
+                    <svg 
+                      fill={currentTheme.primary} 
+                      viewBox="0 0 24 24" 
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="40"
+                      height="40"
+                    >
+                      <path d="M19,13a1,1,0,0,0-1,1v.38L16.52,12.9a2.79,2.79,0,0,0-3.93,0l-.7.7L9.41,11.12a2.85,2.85,0,0,0-3.93,0L4,12.6V7A1,1,0,0,1,5,6h7a1,1,0,0,0,0-2H5A3,3,0,0,0,2,7V19a3,3,0,0,0,3,3H17a3,3,0,0,0,3-3V14A1,1,0,0,0,19,13ZM5,20a1,1,0,0,1-1-1V15.43l2.9-2.9a.79.79,0,0,1,1.09,0l3.17,3.17,0,0L15.46,20Zm13-1a.89.89,0,0,1-.18.53L13.31,15l.7-.7a.77.77,0,0,1,1.1,0L18,17.21ZM22.71,4.29l-3-3a1,1,0,0,0-.33-.21,1,1,0,0,0-.76,0,1,1,0,0,0-.33.21l-3,3a1,1,0,0,0,1.42,1.42L18,4.41V10a1,1,0,0,0,2,0V4.41l1.29,1.3a1,1,0,0,0,1.42,0A1,1,0,0,0,22.71,4.29Z" />
+                    </svg>
+                    <span style={{ color: currentTheme.primary, fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      {isUploading ? 'Uploading...' : 'Upload Images'}
+                    </span>
+                  </div>
+                </div>
               </div>
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+              />
               <button
                 onClick={() => setPrimaryImageIndex(-1)}
                 style={{
@@ -405,8 +618,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             <Button variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              Save Changes
+            <Button onClick={handleSave} disabled={isUploading}>
+              {isUploading 
+                ? (pendingFiles.length > 0 
+                  ? `Uploading ${pendingFiles.length} image${pendingFiles.length > 1 ? 's' : ''}...` 
+                  : 'Saving...') 
+                : `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+              }
             </Button>
           </div>
         </div>

@@ -17,6 +17,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
 import { SyncService } from '../services/sync.service';
@@ -26,6 +27,23 @@ const router = Router();
 const usdaService = new USDAApiService();
 const firebaseService = new FirebaseService();
 const syncService = new SyncService();
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 10 // Maximum 10 files per request
+  },
+  fileFilter: (req, file, cb) => {
+    // Only accept image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 /**
  * GET /api/recalls/state/:stateCode
@@ -416,6 +434,97 @@ router.put('/recalls/:id/display', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update display data'
+    });
+  }
+});
+
+/**
+ * POST /api/recalls/:id/upload-images
+ * 
+ * Uploads images for a specific recall and updates display data
+ * 
+ * This endpoint handles image uploads to Firebase Storage and updates
+ * the recall's display data with the uploaded image metadata.
+ * 
+ * @param id - Firestore document ID
+ * @files images - Array of image files to upload
+ * @body displayData - Updated display data including other changes
+ * 
+ * @returns JSON response with success status and uploaded image data
+ * 
+ * Example:
+ * POST /api/recalls/abc123def456/upload-images
+ * Content-Type: multipart/form-data
+ * files: [image1.jpg, image2.png]
+ * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
+ */
+router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No images provided'
+      });
+    }
+    
+    // Validate that recall exists
+    const recall = await firebaseService.getRecallById(id);
+    if (!recall) {
+      return res.status(404).json({
+        success: false,
+        error: 'Recall not found'
+      });
+    }
+    
+    // Parse display data from form data
+    let displayData;
+    try {
+      displayData = req.body.displayData ? JSON.parse(req.body.displayData) : {};
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid display data format'
+      });
+    }
+    
+    logger.info(`Uploading ${files.length} images for recall ${id}`);
+    
+    // Upload images to Firebase Storage and get metadata
+    const uploadedImages = await firebaseService.uploadRecallImages(id, files);
+    
+    // Update display data with uploaded images
+    const updatedDisplayData = {
+      ...displayData,
+      uploadedImages: [
+        ...(displayData.uploadedImages || []),
+        ...uploadedImages
+      ],
+      lastEditedAt: new Date().toISOString(),
+      lastEditedBy: req.body.userId || 'current-user' // TODO: Get from auth context
+    };
+    
+    // Save updated display data to Firestore
+    await firebaseService.updateRecallDisplay(id, updatedDisplayData);
+    
+    logger.info(`Successfully uploaded ${uploadedImages.length} images for recall ${id}`);
+    
+    res.json({
+      success: true,
+      message: `Successfully uploaded ${uploadedImages.length} images`,
+      data: {
+        uploadedImages,
+        displayData: updatedDisplayData
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error uploading images:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload images'
     });
   }
 });

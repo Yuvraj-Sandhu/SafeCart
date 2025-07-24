@@ -101,6 +101,38 @@ export const api = {
     }
     
     return response.json();
+  },
+
+  async uploadImagesAndUpdateDisplay(
+    recallId: string, 
+    files: File[], 
+    displayData: any
+  ): Promise<{ success: boolean; message: string; data: any }> {
+    const formData = new FormData();
+    
+    // Add files to form data
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    // Add display data as JSON string
+    formData.append('displayData', JSON.stringify(displayData));
+    
+    // TODO: Add user ID when auth is implemented
+    // formData.append('userId', userId);
+    
+    const response = await fetch(`${API_BASE_URL}/recalls/${recallId}/upload-images`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header for FormData - browser will set it with boundary
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to upload images' }));
+      throw new Error(error.message || 'Failed to upload images');
+    }
+    
+    return response.json();
   }
 };
 

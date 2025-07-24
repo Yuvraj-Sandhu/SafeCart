@@ -11,6 +11,7 @@ export interface DisplayData {
   primaryImageIndex?: number; // Index of the primary image to show first on main card (relative to main card's image range)
   cardSplits?: CardSplit[];   // Array defining how to split cards
   previewTitle?: string;      // Override title for the main card
+  uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
   lastEditedBy?: string;      // Email/ID of last editor
   lastEditedAt?: string;      // ISO timestamp of last edit
 }
@@ -54,6 +55,20 @@ export interface ProcessedImage {
   storageUrl?: string;
   error?: string;
   processedAt?: string;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+}
+
+export interface UploadedImage {
+  filename: string;        // Generated filename in storage
+  originalName: string;    // Original filename from user's device
+  type: 'uploaded-image';
+  storageUrl: string;      // Firebase Storage URL
+  uploadedAt: string;      // ISO timestamp of upload
+  uploadedBy?: string;     // Email/ID of uploader
+  size: number;           // File size in bytes
   dimensions?: {
     width: number;
     height: number;
