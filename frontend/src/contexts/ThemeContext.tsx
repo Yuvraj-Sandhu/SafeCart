@@ -29,6 +29,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     const currentTheme = theme[mode];
     
+    // Set data-theme attribute for CSS selectors
+    root.setAttribute('data-theme', mode);
+    
     // Set CSS custom properties
     Object.entries(currentTheme).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);

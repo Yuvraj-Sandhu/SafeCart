@@ -18,7 +18,7 @@ export function DateRangePicker({
   onStartDateChange,
   onEndDateChange
 }: DateRangePickerProps) {
-  const { currentTheme } = useTheme();
+  const { currentTheme, mode } = useTheme();
   const [showPresets, setShowPresets] = useState(false);
 
   const handlePreset = (preset: string) => {
@@ -90,6 +90,7 @@ export function DateRangePicker({
               backgroundColor: currentTheme.inputBackground,
               color: currentTheme.text,
               borderColor: currentTheme.inputBorder,
+              colorScheme: mode === 'dark' ? 'dark' : 'light',
             }}
           />
         </div>
@@ -113,6 +114,7 @@ export function DateRangePicker({
               backgroundColor: currentTheme.inputBackground,
               color: currentTheme.text,
               borderColor: currentTheme.inputBorder,
+              colorScheme: mode === 'dark' ? 'dark' : 'light',
             }}
           />
         </div>

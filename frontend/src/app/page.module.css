@@ -1,20 +1,39 @@
 .main {
   min-height: 100vh;
   padding: 2rem 0;
+  position: relative;
+}
+
+.themeToggle {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 2rem;
+  user-select: none;
+  text-decoration: none;
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+
+.themeToggle:hover {
+  opacity: 0.8;
 }
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
+  padding-top: 1rem;
 }
 
 .header > div {
-  flex: 1;
   text-align: center;
-  transform: translateX(-23px); /* half of theme icons */
 }
 
 .header h1 {
@@ -27,18 +46,6 @@
 .header p {
   font-size: 1rem;
   margin: 0;
-}
-
-.header .themeToggle {
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 2rem;
-  user-select: none;
-  text-decoration: none;
-  z-index: 2;
 }
 
 .filterCard {
