@@ -5,6 +5,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { Recall, ProcessedImage } from '@/services/api';
 import { ImageModal } from './ImageModal';
+import { RecallWithDisplay } from '@/types/display';
+import { getRecallImages } from '@/utils/imageUtils';
 import styles from './RecallList.module.css';
 
 interface RecallListProps {
@@ -249,8 +251,11 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               // Get display data
               const display = (recall as any).display;
               
+              // Get combined images (processed + uploaded)
+              const allImages = getRecallImages(recall as RecallWithDisplay);
+              
               // Get card-specific images
-              let cardImages = recall.processedImages || [];
+              let cardImages = allImages;
               if (splitIndex !== -1 && display?.cardSplits?.[splitIndex]) {
                 const split = display.cardSplits[splitIndex];
                 cardImages = cardImages.slice(split.startIndex, split.endIndex);

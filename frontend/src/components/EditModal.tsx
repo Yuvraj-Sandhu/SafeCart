@@ -3,6 +3,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { RecallWithDisplay, CardSplit, SplitPreview, UploadedImage } from '@/types/display';
 import { api } from '@/services/api';
+import { getRecallImages } from '@/utils/imageUtils';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
@@ -23,8 +24,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const images = recall.processedImages || [];
-  const hasImages = images.length > 0;
+  // Get combined images (processed + uploaded)
+  const allImages = getRecallImages(recall);
+  const hasImages = allImages.length > 0;
 
   // Generate split previews whenever splits change
   useEffect(() => {
@@ -40,7 +42,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     const previews: SplitPreview[] = [];
     
     // Main card preview (from 0 to first split)
-    let mainImages = cardSplits[0] ? images.slice(0, cardSplits[0].startIndex) : images;
+    let mainImages = cardSplits[0] ? allImages.slice(0, cardSplits[0].startIndex) : allImages;
     
     // Apply primary image reordering for main card
     if (primaryImageIndex >= 0 && primaryImageIndex < mainImages.length) {
@@ -53,12 +55,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       title: previewTitle || recall.field_title,
       images: mainImages,
       startIndex: 0,
-      endIndex: cardSplits[0]?.startIndex || images.length
+      endIndex: cardSplits[0]?.startIndex || allImages.length
     });
 
     // Split card previews
     cardSplits.forEach((split, index) => {
-      let splitImages = images.slice(split.startIndex, split.endIndex);
+      let splitImages = allImages.slice(split.startIndex, split.endIndex);
       
       // Apply primary image reordering for this split
       if (split.primaryImageIndex !== undefined && split.primaryImageIndex >= 0 && split.primaryImageIndex < splitImages.length) {
@@ -82,8 +84,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     if (!hasImages) return;
     
     const lastSplit = cardSplits[cardSplits.length - 1];
-    const startIndex = lastSplit ? lastSplit.endIndex : Math.floor(images.length / 2);
-    const endIndex = images.length;
+    const startIndex = lastSplit ? lastSplit.endIndex : Math.floor(allImages.length / 2);
+    const endIndex = allImages.length;
     
     if (startIndex < endIndex) {
       setCardSplits([...cardSplits, {
@@ -287,7 +289,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             <div className={styles.originalInfo}>
               <p><strong>Title:</strong> {recall.field_title}</p>
               <p><strong>Recall Number:</strong> {recall.field_recall_number}</p>
-              <p><strong>Images:</strong> {images.length}</p>
+              <p><strong>Images:</strong> {allImages.length}</p>
             </div>
           </div>
 
@@ -317,7 +319,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               </p>
               <div className={styles.imageGrid}>
                 {/* Show only images that will be in the main card */}
-                {(cardSplits.length > 0 ? images.slice(0, cardSplits[0].startIndex) : images).map((img, index) => (
+                {(cardSplits.length > 0 ? allImages.slice(0, cardSplits[0].startIndex) : allImages).map((img, index) => (
                   <div 
                     key={index}
                     className={`${styles.imageThumb} ${primaryImageIndex === index ? styles.selected : ''}`}
@@ -464,7 +466,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 variant="secondary" 
                 size="small" 
                 onClick={handleAddSplit}
-                disabled={cardSplits.length >= images.length - 1}
+                disabled={cardSplits.length >= allImages.length - 1}
               >
                 + Add Split Point
               </Button>
@@ -494,7 +496,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       <input
                         type="number"
                         min={split.startIndex + 1}
-                        max={index === cardSplits.length - 1 ? images.length : cardSplits[index + 1]?.startIndex || images.length}
+                        max={index === cardSplits.length - 1 ? allImages.length : cardSplits[index + 1]?.startIndex || allImages.length}
                         value={split.endIndex}
                         onChange={(e) => handleSplitChange(index, 'endIndex', parseInt(e.target.value))}
                         className={styles.numberInput}
@@ -524,7 +526,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   <div style={{ marginTop: '1rem' }}>
                     <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>Primary Image for this Split:</h5>
                     <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-                      {images.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
+                      {allImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
                         <div 
                           key={imgIndex}
                           className={`${styles.imageThumb} ${split.primaryImageIndex === imgIndex ? styles.selected : ''}`}
@@ -564,7 +566,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                     variant="secondary" 
                     size="small" 
                     onClick={() => handleRemoveSplit(index)}
-                    className={styles.removeButton}
+                    className={styles.removeSplitButton}
                   >
                     Remove Split
                   </Button>

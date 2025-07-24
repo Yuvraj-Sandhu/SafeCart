@@ -165,40 +165,64 @@
 }
 
 .pending {
-  opacity: 0.8;
+  position: relative;
+  overflow: hidden;
 }
 
 .pending::after {
   content: '';
   position: absolute;
-  bottom: 4px;
-  left: 4px;
-  right: 4px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--color-primary) 0%, transparent 100%);
-  animation: pendingPulse 2s ease-in-out infinite;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
-@keyframes pendingPulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+.pending::before {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  width: 30%;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 2px;
+  animation: loadingBar 5s ease-in-out infinite;
+  box-shadow: 0 0 4px var(--color-primary);
+}
+
+@keyframes loadingBar {
+  0% {
+    left: -30%;
+  }
+  50% {
+    left: 100%;
+  }
+  50.01% {
+    left: -30%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .removeButton {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
   border: none;
-  border-radius: 50%;
+  border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
+  font-size: 1.5rem;
+  font-weight: normal;
   cursor: pointer;
   transition: opacity 0.2s;
+  font-family: Arial, sans-serif;
 }
 
 .removeButton:hover {
@@ -242,8 +266,8 @@
   font-size: 0.875rem;
 }
 
-.removeButton {
-  margin-top: 0.75rem;
+.removeSplitButton {
+  margin-top: 1.25rem;
 }
 
 .previewCards {

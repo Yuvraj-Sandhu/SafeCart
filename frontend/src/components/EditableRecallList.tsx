@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { RecallWithDisplay } from '@/types/display';
 import { ImageModal } from './ImageModal';
+import { getRecallImages } from '@/utils/imageUtils';
 import styles from './RecallList.module.css';
 import editStyles from './EditableRecallList.module.css';
 
@@ -254,7 +255,10 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
               const display = recall.display;
               
               // Get card-specific images
-              let cardImages = recall.processedImages || [];
+              // Get combined images (processed + uploaded)
+              const allImages = getRecallImages(recall);
+              
+              let cardImages = allImages;
               if (splitIndex !== -1 && display?.cardSplits?.[splitIndex]) {
                 const split = display.cardSplits[splitIndex];
                 cardImages = cardImages.slice(split.startIndex, split.endIndex);
