@@ -481,17 +481,19 @@ export class FirebaseService {
         // Get the public URL
         const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
 
-        // Create the uploaded image metadata
-        const uploadedImage = {
+        // Create the uploaded image metadata (excluding undefined fields)
+        const uploadedImage: any = {
           filename: filename,
           originalName: file.originalname,
           type: 'uploaded-image' as const,
           storageUrl: publicUrl,
           uploadedAt: new Date().toISOString(),
           uploadedBy: 'current-user', // TODO: Get from auth context
-          size: file.size,
-          dimensions: undefined // Could be determined using Sharp if needed
+          size: file.size
         };
+
+        // Only add dimensions if we have them (avoid undefined values in Firestore)
+        // Could be determined using Sharp if needed in the future
 
         uploadedImages.push(uploadedImage);
         logger.info(`Uploaded image ${filename} for recall ${recallId}`);

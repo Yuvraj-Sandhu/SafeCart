@@ -210,14 +210,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       // Create pending file objects for preview and later upload
       const newPendingFiles = imageFiles.map(file => {
         const metadata: UploadedImage = {
-          filename: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${file.name}`,
+          filename: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}_${file.name}`,
           originalName: file.name,
           type: 'uploaded-image' as const,
           storageUrl: '', // Will be set after upload
           uploadedAt: new Date().toISOString(),
           uploadedBy: 'current-user', // TODO: Replace with actual user ID from auth context
-          size: file.size,
-          dimensions: undefined
+          size: file.size
         };
 
         return {

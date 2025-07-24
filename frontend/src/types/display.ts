@@ -69,10 +69,6 @@ export interface UploadedImage {
   uploadedAt: string;      // ISO timestamp of upload
   uploadedBy?: string;     // Email/ID of uploader
   size: number;           // File size in bytes
-  dimensions?: {
-    width: number;
-    height: number;
-  };
 }
 
 // Edit modal state
