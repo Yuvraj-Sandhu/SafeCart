@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Select } from '@/components/ui/Select';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
@@ -18,6 +18,7 @@ export default function InternalEditPage() {
   const { currentTheme, mode, toggleTheme } = useTheme();
   const { location, isLoading: isLocationLoading } = useUserLocation();
   const hasInitialSearched = useRef(false);
+  const hasUserInteracted = useRef(false);
   
   // Filter states
   const [selectedState, setSelectedState] = useState('');
@@ -46,7 +47,7 @@ export default function InternalEditPage() {
 
   // Auto-select state based on location
   useEffect(() => {
-    if (selectedState || isLocationLoading) return;
+    if (hasUserInteracted.current || isLocationLoading) return;
 
     const setDefaultStateAsync = async () => {
       const defaultState = await getDefaultState();
@@ -54,7 +55,7 @@ export default function InternalEditPage() {
     };
 
     setDefaultStateAsync();
-  }, [isLocationLoading, location, selectedState]);
+  }, [isLocationLoading, location]);
 
   // Auto-select Year to Date preset on page load
   useEffect(() => {
@@ -64,6 +65,12 @@ export default function InternalEditPage() {
     setStartDate(yearStart);
     setEndDate(currentDate);
   }, []);
+
+  // Wrapper function to handle state changes and mark user interaction
+  const handleStateChange = (newState: string) => {
+    hasUserInteracted.current = true;
+    setSelectedState(newState);
+  };
 
   const handleSearch = async () => {
     if (!selectedState) {
@@ -102,6 +109,7 @@ export default function InternalEditPage() {
   }, [selectedState, startDate, endDate]);
 
   const handleReset = () => {
+    hasUserInteracted.current = false; // Allow auto-location to work again
     setSelectedState('');
     setStartDate(null);
     setEndDate(null);
@@ -235,11 +243,11 @@ export default function InternalEditPage() {
               >
                 Select State
               </label>
-              <Select
+              <AutocompleteInput
                 options={US_STATES}
                 value={selectedState}
-                onChange={setSelectedState}
-                placeholder="Choose a state..."
+                onChange={handleStateChange}
+                placeholder="Enter your state..."
               />
             </div>
 

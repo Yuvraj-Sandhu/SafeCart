@@ -1,0 +1,120 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.inputContainer {
+  position: relative;
+  width: 100%;
+}
+
+.autocompleteText {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.75rem 3rem 0.75rem 1rem; /* Match input padding */
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 1rem;
+  pointer-events: none;
+  z-index: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 0.75rem 3rem 0.75rem 1rem; /* Add right padding for arrow */
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--color-borderFocus);
+  box-shadow: 0 0 0 3px var(--color-primaryLight);
+}
+
+.input:hover {
+  border-color: var(--color-borderFocus);
+}
+
+.dropdownArrow {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.dropdownArrow:hover {
+  background-color: var(--color-backgroundSecondary);
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  border: 1px solid;
+  border-radius: 0.5rem;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1px;
+}
+
+.option {
+  color: var(--color-text);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.option:last-child {
+  border-bottom: none;
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.option:hover,
+.option.highlighted {
+  background-color: var(--color-primaryLight) !important;
+  color: var(--color-textBlack);
+}
+
+/* Scrollbar styling */
+.dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdown::-webkit-scrollbar-track {
+  background: var(--color-backgroundSecondary);
+  border-radius: 3px;
+}
+
+.dropdown::-webkit-scrollbar-thumb {
+  background: var(--color-textTertiary);
+  border-radius: 3px;
+}
+
+.dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textSecondary);
+}

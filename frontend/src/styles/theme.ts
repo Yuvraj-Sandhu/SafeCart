@@ -14,6 +14,7 @@ export const theme = {
     text: '#111827',
     textSecondary: '#374151',
     textTertiary: '#9ca3af',
+    textBlack: '#111827',
     
     // Border colors
     border: '#e5e7eb',
@@ -58,6 +59,7 @@ export const theme = {
     text: '#f9fafb',
     textSecondary: '#d1d5db',
     textTertiary: '#9ca3af',
+    textBlack: '#111827',
     
     // Border colors
     border: '#374151',

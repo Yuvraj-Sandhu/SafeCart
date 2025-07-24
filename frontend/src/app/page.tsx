@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Select } from '@/components/ui/Select';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { RecallList } from '@/components/RecallList';
@@ -16,6 +16,7 @@ export default function Home() {
   const { currentTheme, mode, toggleTheme } = useTheme();
   const { location, isLoading: isLocationLoading } = useUserLocation();
   const hasInitialSearched = useRef(false);
+  const hasUserInteracted = useRef(false);
   
   // Filter states
   const [selectedState, setSelectedState] = useState('');
@@ -37,8 +38,8 @@ export default function Home() {
 
   // Auto-select state based on location
   useEffect(() => {
-    // Skip if already have a selected state or still loading location
-    if (selectedState || isLocationLoading) return;
+    // Skip if user has manually interacted with state selection or still loading location
+    if (hasUserInteracted.current || isLocationLoading) return;
 
     const setDefaultStateAsync = async () => {
       const defaultState = await getDefaultState();
@@ -46,7 +47,7 @@ export default function Home() {
     };
 
     setDefaultStateAsync();
-  }, [isLocationLoading, location, selectedState]); // Include selectedState to prevent re-runs
+  }, [isLocationLoading, location]); // Remove selectedState dependency
 
   // Auto-select Year to Date preset on page load
   useEffect(() => {
@@ -56,6 +57,12 @@ export default function Home() {
     setStartDate(yearStart);
     setEndDate(currentDate);
   }, []); // Run once on mount
+
+  // Wrapper function to handle state changes and mark user interaction
+  const handleStateChange = (newState: string) => {
+    hasUserInteracted.current = true;
+    setSelectedState(newState);
+  };
 
   const handleSearch = async () => {
     if (!selectedState) {
@@ -94,6 +101,7 @@ export default function Home() {
   }, [selectedState, startDate, endDate]);
 
   const handleReset = () => {
+    hasUserInteracted.current = false; // Allow auto-location to work again
     setSelectedState('');
     setStartDate(null);
     setEndDate(null);
@@ -177,11 +185,11 @@ export default function Home() {
               >
                 Select State
               </label>
-              <Select
+              <AutocompleteInput
                 options={US_STATES}
                 value={selectedState}
-                onChange={setSelectedState}
-                placeholder="Choose a state..."
+                onChange={handleStateChange}
+                placeholder="Enter your state..."
               />
             </div>
 
