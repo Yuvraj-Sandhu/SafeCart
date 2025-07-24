@@ -12,8 +12,8 @@
 }
 
 .modal {
-  max-width: 80vw;
-  max-height: 90vh;
+  max-width: 60vw;
+  max-height: 95vh;
   display: flex;
   flex-direction: column;
   border-radius: 1rem;
@@ -64,11 +64,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
-  max-height: 70vh;
+  min-height: 400px;
+  max-height: 60vh;
   overflow: hidden;
   position: relative;
-  user-select: none;;
+  user-select: none;
 }
 
 .image {

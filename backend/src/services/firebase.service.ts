@@ -416,14 +416,34 @@ export class FirebaseService {
     try {
       const docRef = this.recallsCollection.doc(recallId);
       
+      // Get current display data to handle uploaded image cleanup
+      const currentDoc = await docRef.get();
+      const currentDisplay = currentDoc.data()?.display;
+      const currentUploadedImages = currentDisplay?.uploadedImages || [];
+      
       if (displayData === undefined || displayData === null) {
-        // Remove the display field entirely
+        // Remove the display field entirely - delete all uploaded images
+        if (currentUploadedImages.length > 0) {
+          await this.deleteUploadedImages(recallId, currentUploadedImages);
+        }
+        
         await docRef.update({
           display: admin.firestore.FieldValue.delete(),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp()
         });
         logger.info(`Removed display data for recall ${recallId}`);
       } else {
+        // Check for removed uploaded images and delete them from storage
+        const newUploadedImages = displayData.uploadedImages || [];
+        const removedImages = currentUploadedImages.filter((current: any) => 
+          !newUploadedImages.find((newImg: any) => newImg.filename === current.filename)
+        );
+        
+        if (removedImages.length > 0) {
+          await this.deleteUploadedImages(recallId, removedImages);
+          logger.info(`Deleted ${removedImages.length} removed uploaded images from storage`);
+        }
+        
         // Update only the display field
         await docRef.update({
           display: displayData,
@@ -502,6 +522,36 @@ export class FirebaseService {
       return uploadedImages;
     } catch (error) {
       logger.error(`Error uploading images for recall ${recallId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deletes uploaded images from Firebase Storage
+   * 
+   * @param recallId - The recall ID to help construct storage paths
+   * @param uploadedImages - Array of uploaded images to delete
+   */
+  async deleteUploadedImages(recallId: string, uploadedImages: any[]): Promise<void> {
+    try {
+      const bucket = admin.storage().bucket();
+
+      for (const image of uploadedImages) {
+        if (image.type === 'uploaded-image' && image.filename) {
+          const storagePath = `recall-images/${recallId}/${image.filename}`;
+          
+          try {
+            const file = bucket.file(storagePath);
+            await file.delete();
+            logger.info(`Deleted uploaded image from storage: ${storagePath}`);
+          } catch (deleteError) {
+            logger.error(`Failed to delete image from storage: ${storagePath}`, deleteError);
+            // Continue with other deletions even if one fails
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error deleting uploaded images from storage:', error);
       throw error;
     }
   }
