@@ -326,7 +326,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                           }}
                           className={editStyles.editButton}
                           style={{ 
-                            right: cardImages.length > 1 ? '4rem' : '1rem'
+                            right: cardImages.length > 1 ? '5rem' : '1rem'
                           }}
                         >
                           Edit

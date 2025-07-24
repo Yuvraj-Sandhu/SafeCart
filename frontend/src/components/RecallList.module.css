@@ -120,12 +120,14 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  color: var(--color-text);
+  color: var(--color-buttonPrimaryText);
   font-size: 1rem;
   font-weight: 600;
   padding: 0.25rem 0.5rem;
   border-radius: 0.5rem;
   backdrop-filter: blur(8px);
+  min-width: 3rem;
+  text-align: center;
 }
 
 .cardContent {
