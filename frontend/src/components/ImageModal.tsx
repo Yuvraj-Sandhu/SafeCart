@@ -111,7 +111,7 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
+    if (zoom !== 1) { // Allow dragging when zoomed in OR zoomed out
       e.preventDefault(); // Prevent text selection
       setIsDragging(true);
       setDragStart({
@@ -122,10 +122,10 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
+    if (isDragging && zoom !== 1) {
       e.preventDefault();
       // Reduce drag speed by applying a multiplier (0.7 = 70% of original speed)
-      const dragSensitivity = 0.7;
+      const dragSensitivity = 1;
       const deltaX = (e.clientX - dragStart.x) * dragSensitivity;
       const deltaY = (e.clientY - dragStart.y) * dragSensitivity;
       
@@ -145,7 +145,7 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
 
   // Touch event handlers for mobile
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (zoom > 1 && e.touches.length === 1) {
+    if (zoom !== 1 && e.touches.length === 1) {
       e.preventDefault();
       const touch = e.touches[0];
       setIsDragging(true);
@@ -157,7 +157,7 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging && zoom > 1 && e.touches.length === 1) {
+    if (isDragging && zoom !== 1 && e.touches.length === 1) {
       e.preventDefault();
       const touch = e.touches[0];
       const dragSensitivity = 0.5;
@@ -240,8 +240,8 @@ export function ImageModal({ isOpen, images, currentIndex, onClose, recallTitle 
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{ 
-            cursor: isDragging ? 'grabbing' : (zoom > 1 ? 'grab' : 'zoom-in'),
-            touchAction: zoom > 1 ? 'none' : 'auto'
+            cursor: isDragging ? 'grabbing' : (zoom !== 1 ? 'grab' : 'zoom-in'),
+            touchAction: zoom !== 1 ? 'none' : 'auto'
           }}
         >
           <img

@@ -97,7 +97,7 @@
 
 .imageGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
 }
@@ -117,7 +117,7 @@
 }
 
 .imageThumb.selected {
-  border-width: 3px;
+  border-width: 5px;
 }
 
 .imageThumb img {
