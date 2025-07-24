@@ -123,10 +123,33 @@ async function analyzeStateStatistics() {
       const stateStats = {};
       const yearsInRange = getYearsInRange(timeframe.startYear, timeframe.endYear);
       
+      // First pass: collect nationwide recalls
+      const nationwideStats = {
+        totalRecalls: 0,
+        yearlyRecalls: {}
+      };
+      
+      // Initialize nationwide yearly counts
+      yearsInRange.forEach(year => {
+        nationwideStats.yearlyRecalls[year] = 0;
+      });
+      
       timeframeRecalls.forEach(recall => {
         const states = parseStates(recall.field_states);
         
+        // Check if this recall includes "Nationwide"
+        if (states.includes('Nationwide')) {
+          nationwideStats.totalRecalls++;
+          const recallYear = new Date(recall.field_recall_date).getFullYear();
+          if (nationwideStats.yearlyRecalls[recallYear] !== undefined) {
+            nationwideStats.yearlyRecalls[recallYear]++;
+          }
+        }
+        
         states.forEach(state => {
+          // Skip "Nationwide" - we'll add its counts to other states
+          if (state === 'Nationwide') return;
+          
           if (!stateStats[state]) {
             stateStats[state] = {
               totalRecalls: 0,
@@ -148,6 +171,17 @@ async function analyzeStateStatistics() {
           }
         });
       });
+      
+      // Second pass: add nationwide counts to each state
+      Object.keys(stateStats).forEach(state => {
+        stateStats[state].totalRecalls += nationwideStats.totalRecalls;
+        
+        yearsInRange.forEach(year => {
+          stateStats[state].yearlyRecalls[year] += nationwideStats.yearlyRecalls[year];
+        });
+      });
+      
+      console.log(`Found ${nationwideStats.totalRecalls} nationwide recalls that will be added to each state's count`);
       
       // Calculate averages and create final dataset
       const stateResults = [];
