@@ -377,7 +377,6 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                       <div 
                         className={editStyles.splitIndicator}
                         style={{
-                          backgroundColor: currentTheme.primaryLight,
                           color: currentTheme.primary,
                         }}
                       >

@@ -343,7 +343,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                   <div 
                     className={styles.splitIndicator}
                     style={{
-                      backgroundColor: currentTheme.primaryLight,
                       color: currentTheme.primary,
                     }}
                   >
