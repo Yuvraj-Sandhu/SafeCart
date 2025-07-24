@@ -20,6 +20,14 @@
   transition: opacity 0.2s ease;
 }
 
+@media (max-width: 640px) {
+  .themeToggle {
+    top: 1rem;
+    left: 1rem;
+    scale: 0.9;
+  }
+}
+
 .themeToggle:hover {
   opacity: 0.8;
 }
