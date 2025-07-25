@@ -25,6 +25,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import recallRoutes from './routes/recall.routes';
+import fdaRecallRoutes from './routes/fda-recall.routes';
 import { SyncService } from './services/sync.service';
 import logger from './utils/logger';
 
@@ -58,7 +59,8 @@ app.get('/health', (req, res) => {
 });
 
 // Mount API routes under /api prefix
-app.use('/api', recallRoutes);
+app.use('/api', recallRoutes);        // USDA recalls: /api/recalls/*
+app.use('/api/fda', fdaRecallRoutes); // FDA recalls: /api/fda/recalls/*
 
 /**
  * Global error handling middleware
