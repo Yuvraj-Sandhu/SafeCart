@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { RecallList } from '@/components/RecallList';
 import { US_STATES } from '@/data/states';
-import { api, filterRecallsByDateRange, Recall } from '@/services/api';
+import { api, filterUnifiedRecallsByDateRange } from '@/services/api';
+import { UnifiedRecall } from '@/types/recall.types';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { getDefaultState } from '@/services/geolocation';
 import styles from './page.module.css';
@@ -24,7 +25,7 @@ export default function Home() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   
   // Data states
-  const [recalls, setRecalls] = useState<Recall[]>([]);
+  const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -75,12 +76,12 @@ export default function Home() {
     setHasSearched(true);
 
     try {
-      const response = await api.getRecallsByState(selectedState);
+      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH');
       let filteredRecalls = response.data;
       
       // Apply date filtering if dates are selected
       if (startDate || endDate) {
-        filteredRecalls = filterRecallsByDateRange(filteredRecalls, startDate, endDate);
+        filteredRecalls = filterUnifiedRecallsByDateRange(filteredRecalls, startDate, endDate);
       }
       
       setRecalls(filteredRecalls);

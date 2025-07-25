@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { Recall, ProcessedImage } from '@/services/api';
+import { ProcessedImage } from '@/services/api';
+import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ImageModal';
-import { RecallWithDisplay } from '@/types/display';
-import { getRecallImages } from '@/utils/imageUtils';
+import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import styles from './RecallList.module.css';
 
 interface RecallListProps {
-  recalls: Recall[];
+  recalls: UnifiedRecall[];
   loading: boolean;
   error: string | null;
 }
@@ -44,13 +44,14 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
 
   // Filter recalls by search term
   const filteredRecalls = recalls.filter(recall =>
-    recall.field_title.toLowerCase().includes(searchTerm.toLowerCase())
+    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Create masonry columns with horizontal ordering (including split cards)
-  const createMasonryColumns = (recalls: Recall[]) => {
+  const createMasonryColumns = (recalls: UnifiedRecall[]) => {
     // Expand recalls that have display splits
-    const expandedRecalls: Array<{ recall: Recall, splitIndex: number }> = [];
+    const expandedRecalls: Array<{ recall: UnifiedRecall, splitIndex: number }> = [];
     
     recalls.forEach(recall => {
       const display = (recall as any).display;
@@ -67,7 +68,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
       }
     });
     
-    const columns: Array<Array<{ recall: Recall, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
+    const columns: Array<Array<{ recall: UnifiedRecall, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
     
     // Fill columns horizontally (round-robin) with expanded recalls
     expandedRecalls.forEach((expandedRecall, index) => {
@@ -78,10 +79,10 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     return columns;
   };
 
-  const handleViewDetails = (recall: Recall, cardId?: string) => {
-    if (recall.field_recall_url) {
-      // Open USDA website in new tab
-      window.open(recall.field_recall_url, '_blank', 'noopener,noreferrer');
+  const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
+    if (recall.recallUrl) {
+      // Open website in new tab
+      window.open(recall.recallUrl, '_blank', 'noopener,noreferrer');
     } else {
       // Toggle card expansion
       const targetId = cardId || recall.id;
@@ -122,6 +123,10 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     if (level.includes('medium') || level.includes('class ii')) return currentTheme.warning;
     if (level.includes('low') || level.includes('class iii')) return currentTheme.success;
     return currentTheme.textSecondary;
+  };
+
+  const getSourceColor = (source: 'USDA' | 'FDA') => {
+    return source === 'USDA' ? currentTheme.primary : currentTheme.success;
   };
 
   if (loading) {
@@ -252,7 +257,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               const display = (recall as any).display;
               
               // Get combined images (processed + uploaded)
-              const allImages = getRecallImages(recall as RecallWithDisplay);
+              const allImages = getUnifiedRecallImages(recall);
               
               // Get card-specific images
               let cardImages = allImages;
@@ -286,7 +291,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               const isExpanded = expandedCards.has(cardId);
               
               // Get display title
-              let displayTitle = recall.field_title;
+              let displayTitle = recall.productTitle;
               if (splitIndex !== -1 && display?.cardSplits?.[splitIndex]?.previewTitle) {
                 displayTitle = display.cardSplits[splitIndex].previewTitle;
               } else if (display?.previewTitle) {
@@ -357,15 +362,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                 
                 <div className={styles.recallHeader}>
                   <span 
-                    className={styles.riskLevel}
-                    style={{ 
-                      color: getRiskLevelColor(recall.field_risk_level),
-                      borderColor: getRiskLevelColor(recall.field_risk_level),
-                    }}
-                  >
-                    {recall.field_risk_level}
-                  </span>
-                  <span 
                     className={styles.activeStatus}
                     style={{ 
                       color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
@@ -373,6 +369,24 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     }}
                   >
                     {recall.isActive ? 'Active' : 'Closed'}
+                  </span>
+                  <span 
+                    className={styles.sourceTag}
+                    style={{ 
+                      color: getSourceColor(recall.source),
+                      borderColor: getSourceColor(recall.source),
+                    }}
+                  >
+                    {recall.source}
+                  </span>
+                  <span 
+                    className={styles.riskLevel}
+                    style={{ 
+                      color: getRiskLevelColor(recall.classification),
+                      borderColor: getRiskLevelColor(recall.classification),
+                    }}
+                  >
+                    {recall.classification}
                   </span>
                 </div>
                 
@@ -385,7 +399,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                 
                 <div className={styles.recallStates}>
                   <span style={{ color: currentTheme.text }}>
-                    {recall.field_states}
+                    {recall.affectedStates.join(', ')}
                   </span>
                 </div>
                 
@@ -394,32 +408,32 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
-                    {recall.field_establishment}
+                    {recall.recallingFirm}
                   </span>
                   <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
-                    {new Date(recall.field_recall_date).toLocaleDateString()}
+                    {new Date(recall.recallDate).toLocaleDateString()}
                   </span>
                 </div>
                 
                 {isExpanded && (
                   <div className={styles.expandedDetails}>
-                    {recall.field_recall_reason && (
+                    {recall.reasonForRecall && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Recall Reason</h4>
                         <p style={{ color: currentTheme.textSecondary }}>
-                          {recall.field_recall_reason}
+                          {recall.reasonForRecall}
                         </p>
                       </div>
                     )}
                     
-                    {recall.field_closed_date && (
+                    {recall.terminationDate && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                         <p style={{ color: currentTheme.textSecondary }}>
-                          {new Date(recall.field_closed_date).toLocaleDateString()}
+                          {new Date(recall.terminationDate).toLocaleDateString()}
                         </p>
                       </div>
                     )}
@@ -427,7 +441,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     <div className={styles.detailSection}>
                       <h4 style={{ color: currentTheme.text }}>Product Details</h4>
                       <p style={{ color: currentTheme.textSecondary }}>
-                        {recall.field_product_items}
+                        {recall.productDescription}
                       </p>
                     </div>
                     
@@ -436,7 +450,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                       <div 
                         style={{ color: currentTheme.textSecondary }}
                         dangerouslySetInnerHTML={{ 
-                          __html: recall.field_summary.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                          __html: (recall.reasonForRecall || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
                         }}
                       />
                     </div>
@@ -449,7 +463,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     variant="secondary"
                     onClick={() => handleViewDetails(recall, cardId)}
                   >
-                    {recall.field_recall_url ? 'Visit USDA Page' : (isExpanded ? 'Show Less' : 'View Details')}
+                    {recall.recallUrl ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
                   </Button>
                 </div>
               </div>

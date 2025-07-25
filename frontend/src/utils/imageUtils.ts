@@ -1,5 +1,6 @@
 import { ProcessedImage } from '@/services/api';
 import { UploadedImage, RecallWithDisplay } from '@/types/display';
+import { UnifiedRecall } from '@/types/recall.types';
 
 /**
  * Combines processed images and uploaded images into a single array
@@ -31,6 +32,27 @@ export function getRecallImages(recall: RecallWithDisplay): ProcessedImage[] {
   const processedImages = recall.processedImages || [];
   const uploadedImages = recall.display?.uploadedImages || [];
   return combineImages(processedImages, uploadedImages);
+}
+
+/**
+ * Gets combined images from a unified recall
+ */
+export function getUnifiedRecallImages(recall: UnifiedRecall): ProcessedImage[] {
+  // Get images from the UnifiedRecall structure
+  const processedImages = recall.images || [];
+  const uploadedImages = recall.display?.uploadedImages || [];
+  
+  // Convert UnifiedRecall images to ProcessedImage format if needed
+  const convertedImages: ProcessedImage[] = processedImages.map(img => ({
+    originalFilename: img.filename || 'unknown',
+    type: img.type as any,
+    sourceUrl: img.filename || '',
+    storageUrl: img.storageUrl,
+    size: 0, // Size not available in unified format
+    processedAt: new Date().toISOString()
+  }));
+  
+  return combineImages(convertedImages, uploadedImages);
 }
 
 /**

@@ -1,3 +1,5 @@
+import { UnifiedRecall, usdaToUnified, fdaToUnified, RecallResponse } from '@/types/recall.types';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://safecart-backend-984543935964.europe-west1.run.app/api';
 
 export interface ProcessedImage {
@@ -103,6 +105,24 @@ export const api = {
     return response.json();
   },
 
+  // Update FDA recall display data
+  async updateFDARecallDisplay(recallId: string, displayData: any): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/fda/recalls/${recallId}/display`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ display: displayData })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to update FDA recall display' }));
+      throw new Error(error.message || 'Failed to update FDA recall display');
+    }
+    
+    return response.json();
+  },
+
   async uploadImagesAndUpdateDisplay(
     recallId: string, 
     files: File[], 
@@ -133,6 +153,126 @@ export const api = {
     }
     
     return response.json();
+  },
+
+  // ========== FDA Recall Methods ==========
+  
+  // Get FDA recalls by state
+  async getFDARecallsByState(state: string, limit = 500): Promise<RecallResponse<UnifiedRecall>> {
+    const response = await fetch(`${API_BASE_URL}/fda/recalls/state/${state}?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch FDA recalls');
+    }
+    const data = await response.json();
+    
+    // Convert FDA format to unified format
+    const unifiedRecalls = data.data.map(fdaToUnified);
+    
+    return {
+      success: data.success,
+      data: unifiedRecalls,
+      total: unifiedRecalls.length,
+      source: 'FDA'
+    };
+  },
+
+  // Get all FDA recalls
+  async getAllFDARecalls(limit = 500): Promise<RecallResponse<UnifiedRecall>> {
+    const response = await fetch(`${API_BASE_URL}/fda/recalls/all?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch FDA recalls');
+    }
+    const data = await response.json();
+    
+    // Convert FDA format to unified format
+    const unifiedRecalls = data.data.map(fdaToUnified);
+    
+    return {
+      success: data.success,
+      data: unifiedRecalls,
+      total: unifiedRecalls.length,
+      source: 'FDA'
+    };
+  },
+
+  // ========== Unified Methods (USDA + FDA) ==========
+  
+  // Get recalls from both sources by state
+  async getUnifiedRecallsByState(state: string, source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH'): Promise<RecallResponse<UnifiedRecall>> {
+    const promises: Promise<RecallResponse<UnifiedRecall>>[] = [];
+    
+    if (source === 'USDA' || source === 'BOTH') {
+      promises.push(
+        api.getRecallsByState(state).then(data => ({
+          success: data.success,
+          data: data.data.map(usdaToUnified),
+          total: data.count,
+          source: 'USDA' as const
+        }))
+      );
+    }
+    
+    if (source === 'FDA' || source === 'BOTH') {
+      promises.push(api.getFDARecallsByState(state));
+    }
+    
+    const results = await Promise.all(promises);
+    
+    // Combine results
+    const allRecalls = results.flatMap(r => r.data);
+    
+    // Sort by recall date (newest first)
+    allRecalls.sort((a, b) => {
+      const dateA = new Date(a.recallDate);
+      const dateB = new Date(b.recallDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    return {
+      success: true,
+      data: allRecalls,
+      total: allRecalls.length,
+      source: source
+    };
+  },
+
+  // Get all recalls from both sources
+  async getAllUnifiedRecalls(source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH'): Promise<RecallResponse<UnifiedRecall>> {
+    const promises: Promise<RecallResponse<UnifiedRecall>>[] = [];
+    
+    if (source === 'USDA' || source === 'BOTH') {
+      promises.push(
+        api.getAllRecalls().then(data => ({
+          success: data.success,
+          data: data.data.map(usdaToUnified),
+          total: data.count,
+          source: 'USDA' as const
+        }))
+      );
+    }
+    
+    if (source === 'FDA' || source === 'BOTH') {
+      promises.push(api.getAllFDARecalls());
+    }
+    
+    const results = await Promise.all(promises);
+    
+    // Combine results
+    const allRecalls = results.flatMap(r => r.data);
+    
+    // Sort by recall date (newest first)
+    allRecalls.sort((a, b) => {
+      const dateA = new Date(a.recallDate);
+      const dateB = new Date(b.recallDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    return {
+      success: true,
+      data: allRecalls,
+      total: allRecalls.length,
+      source: source
+    };
   }
 };
 
@@ -146,6 +286,22 @@ export function filterRecallsByDateRange(
   
   return recalls.filter(recall => {
     const recallDate = new Date(recall.field_recall_date);
+    if (startDate && recallDate < startDate) return false;
+    if (endDate && recallDate > endDate) return false;
+    return true;
+  });
+}
+
+// Utility function to filter unified recalls by date range
+export function filterUnifiedRecallsByDateRange(
+  recalls: UnifiedRecall[],
+  startDate: Date | null,
+  endDate: Date | null
+): UnifiedRecall[] {
+  if (!startDate && !endDate) return recalls;
+  
+  return recalls.filter(recall => {
+    const recallDate = new Date(recall.recallDate);
     if (startDate && recallDate < startDate) return false;
     if (endDate && recallDate > endDate) return false;
     return true;

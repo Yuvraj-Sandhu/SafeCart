@@ -8,10 +8,11 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
 import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
-import { api, filterRecallsByDateRange } from '@/services/api';
+import { api, filterUnifiedRecallsByDateRange } from '@/services/api';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { getDefaultState } from '@/services/geolocation';
-import { RecallWithDisplay, EditModalState } from '@/types/display';
+import { UnifiedRecall } from '@/types/recall.types';
+import { EditModalState } from '@/types/display';
 import styles from '../../page.module.css';
 
 export default function InternalEditPage() {
@@ -26,14 +27,17 @@ export default function InternalEditPage() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   
   // Data states
-  const [recalls, setRecalls] = useState<RecallWithDisplay[]>([]);
+  const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [savingRecallId, setSavingRecallId] = useState<string | null>(null);
   
   // Edit modal state
-  const [editModal, setEditModal] = useState<EditModalState>({
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    recall: UnifiedRecall | null;
+  }>({
     isOpen: false,
     recall: null
   });
@@ -83,15 +87,15 @@ export default function InternalEditPage() {
     setHasSearched(true);
 
     try {
-      const response = await api.getRecallsByState(selectedState);
+      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH');
       let filteredRecalls = response.data;
       
       // Apply date filtering if dates are selected
       if (startDate || endDate) {
-        filteredRecalls = filterRecallsByDateRange(filteredRecalls, startDate, endDate);
+        filteredRecalls = filterUnifiedRecallsByDateRange(filteredRecalls, startDate, endDate);
       }
       
-      setRecalls(filteredRecalls as RecallWithDisplay[]);
+      setRecalls(filteredRecalls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
@@ -119,14 +123,14 @@ export default function InternalEditPage() {
     hasInitialSearched.current = false;
   };
 
-  const handleEdit = (recall: RecallWithDisplay) => {
+  const handleEdit = (recall: UnifiedRecall) => {
     setEditModal({
       isOpen: true,
       recall
     });
   };
 
-  const handleSaveEdit = async (updatedRecall: RecallWithDisplay) => {
+  const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
     try {
       // Set saving state
       setSavingRecallId(updatedRecall.id);
@@ -139,8 +143,12 @@ export default function InternalEditPage() {
       // Close modal immediately for better UX
       setEditModal({ isOpen: false, recall: null });
       
-      // Save to backend
-      await api.updateRecallDisplay(updatedRecall.id, updatedRecall.display);
+      // Save to backend - use appropriate API based on source
+      if (updatedRecall.source === 'USDA') {
+        await api.updateRecallDisplay(updatedRecall.id, updatedRecall.display);
+      } else {
+        await api.updateFDARecallDisplay(updatedRecall.id, updatedRecall.display);
+      }
       
       // Success - clear saving state
       setSavingRecallId(null);

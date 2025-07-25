@@ -3,20 +3,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { RecallWithDisplay } from '@/types/display';
+import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ImageModal';
-import { getRecallImages } from '@/utils/imageUtils';
+import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import styles from './RecallList.module.css';
 import editStyles from './EditableRecallList.module.css';
 
-// Use ProcessedImage from RecallWithDisplay for compatibility
-type ProcessedImage = NonNullable<RecallWithDisplay['processedImages']>[0];
+import { ProcessedImage } from '@/services/api';
 
 interface EditableRecallListProps {
-  recalls: RecallWithDisplay[];
+  recalls: UnifiedRecall[];
   loading: boolean;
   error: string | null;
-  onEdit: (recall: RecallWithDisplay) => void;
+  onEdit: (recall: UnifiedRecall) => void;
 }
 
 export function EditableRecallList({ recalls, loading, error, onEdit }: EditableRecallListProps) {
@@ -48,13 +47,14 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
 
   // Filter recalls by search term
   const filteredRecalls = recalls.filter(recall =>
-    recall.field_title.toLowerCase().includes(searchTerm.toLowerCase())
+    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Create masonry columns with horizontal ordering (including split cards)
-  const createMasonryColumns = (recalls: RecallWithDisplay[]) => {
+  const createMasonryColumns = (recalls: UnifiedRecall[]) => {
     // Expand recalls that have display splits
-    const expandedRecalls: Array<{ recall: RecallWithDisplay, splitIndex: number }> = [];
+    const expandedRecalls: Array<{ recall: UnifiedRecall, splitIndex: number }> = [];
     
     recalls.forEach(recall => {
       const display = recall.display;
@@ -71,7 +71,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
       }
     });
     
-    const columns: Array<Array<{ recall: RecallWithDisplay, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
+    const columns: Array<Array<{ recall: UnifiedRecall, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
     
     // Fill columns horizontally (round-robin) with expanded recalls
     expandedRecalls.forEach((expandedRecall, index) => {
@@ -82,10 +82,10 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
     return columns;
   };
 
-  const handleViewDetails = (recall: RecallWithDisplay, cardId?: string) => {
-    if (recall.field_recall_url) {
-      // Open USDA website in new tab
-      window.open(recall.field_recall_url, '_blank', 'noopener,noreferrer');
+  const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
+    if (recall.recallUrl) {
+      // Open website in new tab
+      window.open(recall.recallUrl, '_blank', 'noopener,noreferrer');
     } else {
       // Toggle card expansion
       const targetId = cardId || recall.id;
@@ -125,6 +125,10 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
     if (level.includes('medium') || level.includes('class ii')) return currentTheme.warning;
     if (level.includes('low') || level.includes('class iii')) return currentTheme.success;
     return currentTheme.textSecondary;
+  };
+
+  const getSourceColor = (source: 'USDA' | 'FDA') => {
+    return source === 'USDA' ? currentTheme.primary : currentTheme.success;
   };
 
   if (loading) {
@@ -256,7 +260,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
               
               // Get card-specific images
               // Get combined images (processed + uploaded)
-              const allImages = getRecallImages(recall);
+              const allImages = getUnifiedRecallImages(recall);
               
               let cardImages = allImages;
               if (splitIndex !== -1 && display?.cardSplits?.[splitIndex]) {
@@ -289,7 +293,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
               const isExpanded = expandedCards.has(cardId);
               
               // Get display title
-              let displayTitle = recall.field_title;
+              let displayTitle = recall.productTitle;
               if (splitIndex !== -1 && display?.cardSplits?.[splitIndex]?.previewTitle) {
                 displayTitle = display.cardSplits[splitIndex].previewTitle;
               } else if (display?.previewTitle) {
@@ -390,15 +394,6 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                     
                     <div className={styles.recallHeader}>
                       <span 
-                        className={styles.riskLevel}
-                        style={{ 
-                          color: getRiskLevelColor(recall.field_risk_level),
-                          borderColor: getRiskLevelColor(recall.field_risk_level),
-                        }}
-                      >
-                        {recall.field_risk_level}
-                      </span>
-                      <span 
                         className={styles.activeStatus}
                         style={{ 
                           color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
@@ -406,6 +401,24 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         }}
                       >
                         {recall.isActive ? 'Active' : 'Closed'}
+                      </span>
+                      <span 
+                        className={styles.sourceTag}
+                        style={{ 
+                          color: getSourceColor(recall.source),
+                          borderColor: getSourceColor(recall.source),
+                        }}
+                      >
+                        {recall.source}
+                      </span>
+                      <span 
+                        className={styles.riskLevel}
+                        style={{ 
+                          color: getRiskLevelColor(recall.classification),
+                          borderColor: getRiskLevelColor(recall.classification),
+                        }}
+                      >
+                        {recall.classification}
                       </span>
                     </div>
                     
@@ -418,7 +431,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                     
                     <div className={styles.recallStates}>
                       <span style={{ color: currentTheme.text }}>
-                        {recall.field_states}
+                        {recall.affectedStates.join(', ')}
                       </span>
                     </div>
                     
@@ -427,32 +440,32 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         className={styles.metaItem}
                         style={{ color: currentTheme.textSecondary }}
                       >
-                        {recall.field_establishment}
+                        {recall.recallingFirm}
                       </span>
                       <span 
                         className={styles.metaItem}
                         style={{ color: currentTheme.textSecondary }}
                       >
-                        {new Date(recall.field_recall_date).toLocaleDateString()}
+                        {new Date(recall.recallDate).toLocaleDateString()}
                       </span>
                     </div>
                     
                     {isExpanded && (
                       <div className={styles.expandedDetails}>
-                        {recall.field_recall_reason && (
+                        {recall.reasonForRecall && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Recall Reason</h4>
                             <p style={{ color: currentTheme.textSecondary }}>
-                              {recall.field_recall_reason}
+                              {recall.reasonForRecall}
                             </p>
                           </div>
                         )}
                         
-                        {recall.field_closed_date && (
+                        {recall.terminationDate && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                             <p style={{ color: currentTheme.textSecondary }}>
-                              {new Date(recall.field_closed_date).toLocaleDateString()}
+                              {new Date(recall.terminationDate).toLocaleDateString()}
                             </p>
                           </div>
                         )}
@@ -460,7 +473,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         <div className={styles.detailSection}>
                           <h4 style={{ color: currentTheme.text }}>Product Details</h4>
                           <p style={{ color: currentTheme.textSecondary }}>
-                            {recall.field_product_items}
+                            {recall.productDescription}
                           </p>
                         </div>
                         
@@ -469,7 +482,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                           <div 
                             style={{ color: currentTheme.textSecondary }}
                             dangerouslySetInnerHTML={{ 
-                              __html: recall.field_summary.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                              __html: (recall.reasonForRecall || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
                             }}
                           />
                         </div>
@@ -482,7 +495,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         variant="secondary"
                         onClick={() => handleViewDetails(recall, cardId)}
                       >
-                        {recall.field_recall_url ? 'Visit USDA Page' : (isExpanded ? 'Show Less' : 'View Details')}
+                        {recall.recallUrl ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
                       </Button>
                     </div>
                   </div>

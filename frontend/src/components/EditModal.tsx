@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { RecallWithDisplay, CardSplit, SplitPreview, UploadedImage } from '@/types/display';
+import { UnifiedRecall } from '@/types/recall.types';
+import { CardSplit, SplitPreview, UploadedImage } from '@/types/display';
 import { api } from '@/services/api';
+import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
-  recall: RecallWithDisplay;
+  recall: UnifiedRecall;
   onClose: () => void;
-  onSave: (updatedRecall: RecallWithDisplay) => void;
+  onSave: (updatedRecall: UnifiedRecall) => void;
 }
 
 export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
-  const [editedRecall, setEditedRecall] = useState<RecallWithDisplay>(recall);
+  const [editedRecall, setEditedRecall] = useState<UnifiedRecall>(recall);
   const [previewTitle, setPreviewTitle] = useState(recall.display?.previewTitle || '');
   const [primaryImageIndex, setPrimaryImageIndex] = useState(recall.display?.primaryImageIndex ?? -1);
   const [cardSplits, setCardSplits] = useState<CardSplit[]>(recall.display?.cardSplits || []);
@@ -24,7 +26,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get separate image arrays for editing (avoid duplication)
-  const processedImages = recall.processedImages || [];
+  const allImages = getUnifiedRecallImages(recall);
+  const processedImages = allImages;  // Use the processed images from getUnifiedRecallImages
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0;
 
   // Generate split previews whenever splits change
@@ -51,7 +54,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     
     previews.push({
       splitIndex: -1,
-      title: previewTitle || recall.field_title,
+      title: previewTitle || recall.productTitle,
       images: mainImages,
       startIndex: 0,
       endIndex: cardSplits[0]?.startIndex || processedImages.length
@@ -69,7 +72,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       
       previews.push({
         splitIndex: index,
-        title: split.previewTitle || `${recall.field_title} - Part ${index + 2}`,
+        title: split.previewTitle || `${recall.productTitle} - Part ${index + 2}`,
         images: splitImages,
         startIndex: split.startIndex,
         endIndex: split.endIndex
@@ -133,25 +136,46 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         lastEditedBy: 'current-user' // TODO: Get from auth context
       };
 
-      let finalRecall: RecallWithDisplay;
+      let finalRecall: UnifiedRecall;
 
       if (pendingFiles.length > 0) {
         // Upload new images and update display data
         const files = pendingFiles.map(pf => pf.file);
-        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
-        
-        // Clean up preview URLs
-        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-        setPendingFiles([]);
-        
-        // Update with response data
-        finalRecall = {
-          ...editedRecall,
-          display: response.data.displayData
-        };
+        // Use appropriate API based on source
+        if (recall.source === 'USDA') {
+          const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
+          
+          // Clean up preview URLs
+          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+          setPendingFiles([]);
+          
+          // Update with response data
+          finalRecall = {
+            ...editedRecall,
+            display: response.data.displayData
+          };
+        } else {
+          // FDA doesn't support image upload yet, so just update display data
+          await api.updateFDARecallDisplay(recall.id, displayData);
+          
+          // Clean up preview URLs
+          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+          setPendingFiles([]);
+          
+          // Update with display data only
+          finalRecall = {
+            ...editedRecall,
+            display: displayData
+          };
+        }
       } else {
         // No new images, just update display data
-        await api.updateRecallDisplay(recall.id, displayData);
+        // Use appropriate API based on source
+        if (recall.source === 'USDA') {
+          await api.updateRecallDisplay(recall.id, displayData);
+        } else {
+          await api.updateFDARecallDisplay(recall.id, displayData);
+        }
         finalRecall = {
           ...editedRecall,
           display: displayData
@@ -179,7 +203,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     setPendingFiles([]);
     
     // Create recall with empty display
-    const updatedRecall: RecallWithDisplay = {
+    const updatedRecall: UnifiedRecall = {
       ...editedRecall,
       display: undefined // Remove display object entirely
     };
@@ -286,8 +310,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           <div className={styles.section}>
             <h3>Original Information</h3>
             <div className={styles.originalInfo}>
-              <p><strong>Title:</strong> {recall.field_title}</p>
-              <p><strong>Recall Number:</strong> {recall.field_recall_number}</p>
+              <p><strong>Title:</strong> {recall.productTitle}</p>
+              <p><strong>Recall Number:</strong> {recall.recallNumber}</p>
               <p><strong>Images:</strong> {processedImages.length + uploadedImages.length + pendingFiles.length}</p>
             </div>
           </div>
@@ -511,7 +535,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                     type="text"
                     value={split.previewTitle || ''}
                     onChange={(e) => handleSplitChange(index, 'previewTitle', e.target.value)}
-                    placeholder={`${recall.field_title} - Part ${index + 2}`}
+                    placeholder={`${recall.productTitle} - Part ${index + 2}`}
                     className={styles.input}
                     style={{ 
                       backgroundColor: currentTheme.background,
