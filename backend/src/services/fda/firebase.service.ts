@@ -27,37 +27,81 @@ export class FDAFirebaseService {
    */
   async getRecallsByState(stateCode: string, options: FDAQueryOptions = {}): Promise<FDARecall[]> {
     try {
-      const { limit = 500, startDate, endDate } = options;
+      const { limit = 5000, startDate, endDate } = options;
       
-      let query = db.collection(FDA_RECALLS_COLLECTION)
+      // Get state-specific recalls
+      let stateQuery = db.collection(FDA_RECALLS_COLLECTION)
         .where('affectedStatesArray', 'array-contains', stateCode)
         .orderBy('report_date', 'desc');
 
       // Apply date filters if provided
       if (startDate) {
         const startDateStr = this.formatDateToYYYYMMDD(startDate);
-        query = query.where('report_date', '>=', startDateStr);
+        stateQuery = stateQuery.where('report_date', '>=', startDateStr);
       }
       
       if (endDate) {
         const endDateStr = this.formatDateToYYYYMMDD(endDate);
-        query = query.where('report_date', '<=', endDateStr);
+        stateQuery = stateQuery.where('report_date', '<=', endDateStr);
       }
 
-      query = query.limit(limit);
+      stateQuery = stateQuery.limit(limit);
+      const stateSnapshot = await stateQuery.get();
 
-      const snapshot = await query.get();
-      
-      const recalls: FDARecall[] = [];
-      snapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
-        recalls.push({
+      // Get nationwide recalls (only if not already requesting "Nationwide")
+      let nationwideSnapshot;
+      if (stateCode.toLowerCase() !== 'nationwide') {
+        let nationwideQuery = db.collection(FDA_RECALLS_COLLECTION)
+          .where('affectedStatesArray', 'array-contains', 'Nationwide')
+          .orderBy('report_date', 'desc');
+
+        // Apply same date filters to nationwide query
+        if (startDate) {
+          const startDateStr = this.formatDateToYYYYMMDD(startDate);
+          nationwideQuery = nationwideQuery.where('report_date', '>=', startDateStr);
+        }
+        
+        if (endDate) {
+          const endDateStr = this.formatDateToYYYYMMDD(endDate);
+          nationwideQuery = nationwideQuery.where('report_date', '<=', endDateStr);
+        }
+
+        nationwideQuery = nationwideQuery.limit(limit);
+        nationwideSnapshot = await nationwideQuery.get();
+      }
+
+      // Combine results
+      const stateRecalls: FDARecall[] = [];
+      stateSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
+        stateRecalls.push({
           id: doc.id,
           ...doc.data()
         } as FDARecall);
       });
 
-      logger.info(`Found ${recalls.length} FDA recalls for state: ${stateCode}`);
-      return recalls;
+      const nationwideRecalls: FDARecall[] = [];
+      if (nationwideSnapshot) {
+        nationwideSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
+          nationwideRecalls.push({
+            id: doc.id,
+            ...doc.data()
+          } as FDARecall);
+        });
+      }
+
+      // Merge and remove duplicates (in case a recall affects both the state and is marked nationwide)
+      const allRecalls = [...stateRecalls, ...nationwideRecalls];
+      const uniqueRecalls = allRecalls.filter((recall, index, self) => 
+        index === self.findIndex(r => r.id === recall.id)
+      );
+
+      // Sort by date and limit results
+      const sortedRecalls = uniqueRecalls
+        .sort((a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime())
+        .slice(0, limit);
+
+      logger.info(`Found ${sortedRecalls.length} FDA recalls for state: ${stateCode} (${stateRecalls.length} state-specific + ${nationwideRecalls.length} nationwide)`);
+      return sortedRecalls;
     } catch (error) {
       logger.error('Error fetching FDA recalls by state:', error);
       throw error;
@@ -69,7 +113,7 @@ export class FDAFirebaseService {
    */
   async getAllRecalls(options: FDAQueryOptions = {}): Promise<FDARecall[]> {
     try {
-      const { limit = 500, startDate, endDate } = options;
+      const { limit = 10000, startDate, endDate } = options;
       
       let query = db.collection(FDA_RECALLS_COLLECTION)
         .orderBy('report_date', 'desc');
@@ -97,7 +141,6 @@ export class FDAFirebaseService {
         } as FDARecall);
       });
 
-      logger.info(`Found ${recalls.length} FDA recalls`);
       return recalls;
     } catch (error) {
       logger.error('Error fetching all FDA recalls:', error);
@@ -129,7 +172,7 @@ export class FDAFirebaseService {
   /**
    * Get FDA recalls by date range
    */
-  async getRecallsByDateRange(startDate: Date, endDate: Date, limit: number = 500): Promise<FDARecall[]> {
+  async getRecallsByDateRange(startDate: Date, endDate: Date, limit: number = 5000): Promise<FDARecall[]> {
     try {
       const startDateStr = this.formatDateToYYYYMMDD(startDate);
       const endDateStr = this.formatDateToYYYYMMDD(endDate);
@@ -150,7 +193,6 @@ export class FDAFirebaseService {
         } as FDARecall);
       });
 
-      logger.info(`Found ${recalls.length} FDA recalls between ${startDateStr} and ${endDateStr}`);
       return recalls;
     } catch (error) {
       logger.error('Error fetching FDA recalls by date range:', error);

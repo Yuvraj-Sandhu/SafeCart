@@ -340,6 +340,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     fill="none" 
                     stroke={currentTheme.textSecondary}
                     strokeWidth="1.5"
+                    style={{ opacity: 0.5 }}
                   >
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -362,15 +363,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                 
                 <div className={styles.recallHeader}>
                   <span 
-                    className={styles.activeStatus}
-                    style={{ 
-                      color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
-                      borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
-                    }}
-                  >
-                    {recall.isActive ? 'Active' : 'Closed'}
-                  </span>
-                  <span 
                     className={styles.sourceTag}
                     style={{ 
                       color: getSourceColor(recall.source),
@@ -387,6 +379,15 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     }}
                   >
                     {recall.classification}
+                  </span>
+                  <span 
+                    className={styles.activeStatus}
+                    style={{ 
+                      color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                      borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
+                    }}
+                  >
+                    {recall.isActive ? 'Active' : 'Closed'}
                   </span>
                 </div>
                 
@@ -445,15 +446,17 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                       </p>
                     </div>
                     
-                    <div className={styles.detailSection}>
-                      <h4 style={{ color: currentTheme.text }}>Summary</h4>
-                      <div 
-                        style={{ color: currentTheme.textSecondary }}
-                        dangerouslySetInnerHTML={{ 
-                          __html: (recall.reasonForRecall || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
-                        }}
-                      />
-                    </div>
+                    {recall.source === 'USDA' && (
+                      <div className={styles.detailSection}>
+                        <h4 style={{ color: currentTheme.text }}>Summary</h4>
+                        <div 
+                          style={{ color: currentTheme.textSecondary }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: (recall.reasonForRecall || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
                 

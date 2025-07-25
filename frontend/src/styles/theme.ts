@@ -1,3 +1,5 @@
+import { text } from "stream/consumers";
+
 export const theme = {
   light: {
     // Primary colors
@@ -15,6 +17,7 @@ export const theme = {
     textSecondary: '#374151',
     textTertiary: '#9ca3af',
     textBlack: '#111827',
+    textWhite: '#f9fafb',
     
     // Border colors
     border: '#e5e7eb',
@@ -60,6 +63,7 @@ export const theme = {
     textSecondary: '#d1d5db',
     textTertiary: '#9ca3af',
     textBlack: '#111827',
+    textWhite: '#f9fafb',
     
     // Border colors
     border: '#374151',

@@ -69,6 +69,7 @@
   overflow: hidden;
   position: relative;
   user-select: none;
+  background-color: var(--color-textWhite);
 }
 
 .image {
