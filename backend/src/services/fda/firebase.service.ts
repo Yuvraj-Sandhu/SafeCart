@@ -204,19 +204,44 @@ export class FDAFirebaseService {
    */
   async updateRecallDisplay(recallId: string, displayData: any): Promise<void> {
     try {
-      const updateData: any = {
-        display: displayData,
-        lastUpdated: new Date().toISOString()
-      };
-
-      if (displayData === undefined) {
-        // Remove display field completely
+      const docRef = db.collection(FDA_RECALLS_COLLECTION).doc(recallId);
+      
+      // Get current display data to handle uploaded image cleanup
+      const currentDoc = await docRef.get();
+      const currentDisplay = currentDoc.data()?.display;
+      const currentUploadedImages = currentDisplay?.uploadedImages || [];
+      
+      if (displayData === undefined || displayData === null) {
+        // Remove the display field entirely - delete all uploaded images
+        if (currentUploadedImages.length > 0) {
+          await this.deleteFDAUploadedImages(recallId, currentUploadedImages);
+        }
+        
         const FieldValue = require('firebase-admin').firestore.FieldValue;
-        updateData.display = FieldValue.delete();
+        await docRef.update({
+          display: FieldValue.delete(),
+          lastUpdated: new Date().toISOString()
+        });
+        logger.info(`Removed FDA display data for recall ${recallId}`);
+      } else {
+        // Check for removed uploaded images and delete them from storage
+        const newUploadedImages = displayData.uploadedImages || [];
+        const removedImages = currentUploadedImages.filter((current: any) => 
+          !newUploadedImages.find((newImg: any) => newImg.filename === current.filename)
+        );
+        
+        if (removedImages.length > 0) {
+          await this.deleteFDAUploadedImages(recallId, removedImages);
+          logger.info(`Deleted ${removedImages.length} removed FDA uploaded images from storage`);
+        }
+        
+        // Update only the display field
+        await docRef.update({
+          display: displayData,
+          lastUpdated: new Date().toISOString()
+        });
+        logger.info(`Updated FDA recall display data for ID: ${recallId}`);
       }
-
-      await db.collection(FDA_RECALLS_COLLECTION).doc(recallId).update(updateData);
-      logger.info(`Updated FDA recall display data for ID: ${recallId}`);
     } catch (error) {
       logger.error('Error updating FDA recall display:', error);
       throw error;
