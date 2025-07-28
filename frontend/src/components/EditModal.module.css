@@ -35,6 +35,13 @@
   font-size: 1.5rem;
 }
 
+@media (max-width: 768px) {
+  .modalHeader {
+    padding: 0.5rem;
+    padding-left: 1rem;
+  }
+}
+
 .closeButton {
   background: none;
   border: none;
@@ -100,6 +107,13 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .imageGrid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
 }
 
 .imageThumb {
@@ -307,4 +321,29 @@
   gap: 1rem;
   padding: 1.5rem;
   border-top: 1px solid var(--color-card-border);
+}
+
+.modalFooterButtons {
+  display: flex;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .modalFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    border-top: 1px solid var(--color-card-border);
+  }
+
+  .modalFooter button {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .modalFooterButtons {
+    gap: 0.5rem;
+  }
 }

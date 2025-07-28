@@ -562,7 +562,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   {/* Primary Image Selection for this Split */}
                   <div style={{ marginTop: '1rem' }}>
                     <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>Primary Image for this Split:</h5>
-                    <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+                    <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
                       {allImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
                         <div 
                           key={imgIndex}
@@ -652,7 +652,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               Reset All
             </Button>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className={styles.modalFooterButtons}>
             <Button variant="secondary" onClick={onClose}>
               Cancel
             </Button>
