@@ -53,7 +53,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     const previews: SplitPreview[] = [];
     
     // Main card preview (from 0 to first split)
-    let mainImages = cardSplits[0] ? processedImages.slice(0, cardSplits[0].startIndex) : processedImages;
+    let mainImages = cardSplits[0] ? allImages.slice(0, cardSplits[0].startIndex) : allImages;
     
     // Apply primary image reordering for main card
     if (primaryImageIndex >= 0 && primaryImageIndex < mainImages.length) {
@@ -66,12 +66,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       title: previewTitle || recall.productTitle,
       images: mainImages,
       startIndex: 0,
-      endIndex: cardSplits[0]?.startIndex || processedImages.length
+      endIndex: cardSplits[0]?.startIndex || allImages.length
     });
 
     // Split card previews
     cardSplits.forEach((split, index) => {
-      let splitImages = processedImages.slice(split.startIndex, split.endIndex);
+      let splitImages = allImages.slice(split.startIndex, split.endIndex);
       
       // Apply primary image reordering for this split
       if (split.primaryImageIndex !== undefined && split.primaryImageIndex >= 0 && split.primaryImageIndex < splitImages.length) {
@@ -95,7 +95,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Always allow adding splits now
     
     const lastSplit = cardSplits[cardSplits.length - 1];
-    const totalImages = processedImages.length + uploadedImages.length;
+    const totalImages = allImages.length;
     const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImages / 2));
     const endIndex = Math.max(startIndex + 1, totalImages);
     
@@ -503,7 +503,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 variant="secondary" 
                 size="small" 
                 onClick={handleAddSplit}
-                disabled={cardSplits.length >= processedImages.length - 1}
+                disabled={cardSplits.length >= allImages.length - 1}
               >
                 + Add Split Point
               </Button>
@@ -533,7 +533,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       <input
                         type="number"
                         min={split.startIndex + 1}
-                        max={index === cardSplits.length - 1 ? processedImages.length : cardSplits[index + 1]?.startIndex || processedImages.length}
+                        max={index === cardSplits.length - 1 ? allImages.length : cardSplits[index + 1]?.startIndex || allImages.length}
                         value={split.endIndex}
                         onChange={(e) => handleSplitChange(index, 'endIndex', parseInt(e.target.value))}
                         className={styles.numberInput}
@@ -563,7 +563,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   <div style={{ marginTop: '1rem' }}>
                     <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>Primary Image for this Split:</h5>
                     <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
-                      {processedImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
+                      {allImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
                         <div 
                           key={imgIndex}
                           className={`${styles.imageThumb} ${split.primaryImageIndex === imgIndex ? styles.selected : ''}`}
