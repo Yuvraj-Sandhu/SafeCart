@@ -52,18 +52,32 @@ const upload = multer({
  * 
  * @param stateCode - State name or abbreviation (e.g., "California", "CA")
  * @query limit - Maximum number of results (default: 100)
+ * @query startDate - Start date for filtering (ISO format)
+ * @query endDate - End date for filtering (ISO format)
  * 
  * @returns JSON response with recalls array
  * 
  * @example
- * GET /api/recalls/state/California?limit=50
+ * GET /api/recalls/state/California?limit=50&startDate=2024-01-01&endDate=2024-12-31
  */
 router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
   try {
     const { stateCode } = req.params;
     const limit = parseInt(req.query.limit as string) || 100;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
     
-    const recalls = await firebaseService.getRecallsByState(stateCode, limit);
+    let recalls = await firebaseService.getRecallsByState(stateCode, limit);
+    
+    // Apply date filtering if provided
+    if (startDate || endDate) {
+      recalls = recalls.filter(recall => {
+        const recallDate = new Date(recall.field_recall_date);
+        if (startDate && recallDate < new Date(startDate)) return false;
+        if (endDate && recallDate > new Date(endDate)) return false;
+        return true;
+      });
+    }
     res.json({
       success: true,
       count: recalls.length,
@@ -114,21 +128,35 @@ router.get('/recalls/recent', async (req: Request, res: Response) => {
 /**
  * GET /api/recalls/all
  * 
- * Retrieves all recalls from Firebase without any filtering
+ * Retrieves all recalls from Firebase with optional date filtering
  * 
  * @query limit - Maximum number of results (default: 5000)
+ * @query startDate - Start date for filtering (ISO format)
+ * @query endDate - End date for filtering (ISO format)
  * 
  * @returns JSON response with all recalls in database
  * 
  * @example
- * GET /api/recalls/all?limit=10000
+ * GET /api/recalls/all?limit=10000&startDate=2024-01-01&endDate=2024-12-31
  */
 router.get('/recalls/all', async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 5000;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
     
-    // Get all recalls without any filtering
-    const recalls = await firebaseService.getAllRecalls(limit);
+    // Get all recalls
+    let recalls = await firebaseService.getAllRecalls(limit);
+    
+    // Apply date filtering if provided
+    if (startDate || endDate) {
+      recalls = recalls.filter(recall => {
+        const recallDate = new Date(recall.field_recall_date);
+        if (startDate && recallDate < new Date(startDate)) return false;
+        if (endDate && recallDate > new Date(endDate)) return false;
+        return true;
+      });
+    }
     
     res.json({
       success: true,

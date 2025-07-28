@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { RecallList } from '@/components/RecallList';
 import { US_STATES } from '@/data/states';
-import { api, filterUnifiedRecallsByDateRange } from '@/services/api';
+import { api } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { getDefaultState } from '@/services/geolocation';
@@ -50,12 +50,13 @@ export default function Home() {
     setDefaultStateAsync();
   }, [isLocationLoading, location]); // Remove selectedState dependency
 
-  // Auto-select Year to Date preset on page load
+  // Auto-select Last 30 Days preset on page load
   useEffect(() => {
     const currentDate = new Date();
-    const yearStart = new Date(currentDate.getFullYear(), 0, 1); // January 1st of current year
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(currentDate.getDate() - 30);
     
-    setStartDate(yearStart);
+    setStartDate(thirtyDaysAgo);
     setEndDate(currentDate);
   }, []); // Run once on mount
 
@@ -76,15 +77,13 @@ export default function Home() {
     setHasSearched(true);
 
     try {
-      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH');
-      let filteredRecalls = response.data;
+      // Format dates for API
+      const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
+      const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      // Apply date filtering if dates are selected
-      if (startDate || endDate) {
-        filteredRecalls = filterUnifiedRecallsByDateRange(filteredRecalls, startDate, endDate);
-      }
+      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
       
-      setRecalls(filteredRecalls);
+      setRecalls(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);

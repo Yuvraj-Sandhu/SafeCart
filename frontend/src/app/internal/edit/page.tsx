@@ -8,7 +8,7 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
 import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
-import { api, filterUnifiedRecallsByDateRange } from '@/services/api';
+import { api } from '@/services/api';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { getDefaultState } from '@/services/geolocation';
 import { UnifiedRecall } from '@/types/recall.types';
@@ -61,12 +61,13 @@ export default function InternalEditPage() {
     setDefaultStateAsync();
   }, [isLocationLoading, location]);
 
-  // Auto-select Year to Date preset on page load
+  // Auto-select Last 30 Days preset on page load
   useEffect(() => {
     const currentDate = new Date();
-    const yearStart = new Date(currentDate.getFullYear(), 0, 1);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(currentDate.getDate() - 30);
     
-    setStartDate(yearStart);
+    setStartDate(thirtyDaysAgo);
     setEndDate(currentDate);
   }, []);
 
@@ -87,15 +88,13 @@ export default function InternalEditPage() {
     setHasSearched(true);
 
     try {
-      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH');
-      let filteredRecalls = response.data;
+      // Format dates for API
+      const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
+      const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      // Apply date filtering if dates are selected
-      if (startDate || endDate) {
-        filteredRecalls = filterUnifiedRecallsByDateRange(filteredRecalls, startDate, endDate);
-      }
+      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
       
-      setRecalls(filteredRecalls);
+      setRecalls(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
