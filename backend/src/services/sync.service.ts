@@ -59,8 +59,8 @@ export class SyncService {
     const startTime = Date.now();
 
     try {
-      // Fetch recent recalls (last 30 days)
-      const recentRecalls = await this.usdaService.fetchRecentRecalls(30);
+      // Fetch recent recalls (last 60 days)
+      const recentRecalls = await this.usdaService.fetchRecentRecalls(60);
       logger.info(`Fetched ${recentRecalls.length} recent recalls`);
 
       // Save to Firebase

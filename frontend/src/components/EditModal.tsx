@@ -36,7 +36,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     size: 0,
     processedAt: new Date().toISOString()
   }));
-  const hasImages = processedImages.length > 0 || uploadedImages.length > 0;
+  const hasImages = processedImages.length > 0 || uploadedImages.length > 0 || pendingFiles.length > 0;
+  const showImageSections = true; // Always show image options for all recalls
 
   // Generate split previews whenever splits change
   useEffect(() => {
@@ -91,11 +92,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   };
 
   const handleAddSplit = () => {
-    if (!hasImages) return;
+    // Always allow adding splits now
     
     const lastSplit = cardSplits[cardSplits.length - 1];
-    const startIndex = lastSplit ? lastSplit.endIndex : Math.floor(processedImages.length / 2);
-    const endIndex = processedImages.length;
+    const totalImages = processedImages.length + uploadedImages.length;
+    const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImages / 2));
+    const endIndex = Math.max(startIndex + 1, totalImages);
     
     if (startIndex < endIndex) {
       setCardSplits([...cardSplits, {
@@ -163,17 +165,17 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             display: response.data.displayData
           };
         } else {
-          // FDA doesn't support image upload yet, so just update display data
-          await api.updateFDARecallDisplay(recall.id, displayData);
+          // FDA now supports image upload
+          const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, displayData);
           
           // Clean up preview URLs
           pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
           setPendingFiles([]);
           
-          // Update with display data only
+          // Update with response data
           finalRecall = {
             ...editedRecall,
-            display: displayData
+            display: response.data.displayData
           };
         }
       } else {
@@ -342,7 +344,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           </div>
 
           {/* Primary Image Selection for Main Card */}
-          {hasImages && (
+          {showImageSections && (
             <div className={styles.section}>
               <h3>Primary Image for Main Card</h3>
               <p className={styles.sectionDescription}>
@@ -490,7 +492,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           )}
 
           {/* Card Splitting */}
-          {hasImages && (
+          {showImageSections && (
             <div className={styles.section}>
               <h3>Card Splitting</h3>
               <p className={styles.sectionDescription}>

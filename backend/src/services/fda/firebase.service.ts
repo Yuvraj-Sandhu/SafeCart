@@ -260,6 +260,102 @@ export class FDAFirebaseService {
   }
 
   /**
+   * Uploads images to Firebase Storage for FDA recalls and returns metadata
+   * 
+   * This method handles the upload of user-submitted images to Firebase Storage
+   * and returns the metadata needed for the display array.
+   * 
+   * @param recallId - The FDA recall ID to associate images with
+   * @param files - Array of multer files to upload
+   * @returns Promise resolving to array of UploadedImage metadata
+   */
+  async uploadFDARecallImages(recallId: string, files: Express.Multer.File[]): Promise<any[]> {
+    try {
+      const bucket = admin.storage().bucket();
+      const uploadedImages = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 11);
+        const fileExtension = file.originalname.split('.').pop() || 'jpg';
+        const filename = `uploaded_${timestamp}_${randomString}_${i}.${fileExtension}`;
+        const storagePath = `fda-recall-images/${recallId}/${filename}`;
+
+        // Create a file reference in Firebase Storage
+        const fileRef = bucket.file(storagePath);
+
+        // Upload the file buffer
+        await fileRef.save(file.buffer, {
+          metadata: {
+            contentType: file.mimetype,
+            metadata: {
+              originalName: file.originalname,
+              uploadedAt: new Date().toISOString(),
+              recallId: recallId
+            }
+          }
+        });
+
+        // Make the file publicly readable
+        await fileRef.makePublic();
+
+        // Get the public URL
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+        // Create the uploaded image metadata (excluding undefined fields)
+        const uploadedImage: any = {
+          filename: filename,
+          originalName: file.originalname,
+          type: 'uploaded-image' as const,
+          storageUrl: publicUrl,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: 'current-user', // TODO: Get from auth context
+          size: file.size
+        };
+
+        uploadedImages.push(uploadedImage);
+        logger.info(`Uploaded FDA image ${filename} for recall ${recallId}`);
+      }
+
+      return uploadedImages;
+    } catch (error) {
+      logger.error(`Error uploading FDA images for recall ${recallId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deletes uploaded images from Firebase Storage for FDA recalls
+   * 
+   * @param recallId - The FDA recall ID to help construct storage paths
+   * @param uploadedImages - Array of uploaded images to delete
+   */
+  async deleteFDAUploadedImages(recallId: string, uploadedImages: any[]): Promise<void> {
+    try {
+      const bucket = admin.storage().bucket();
+
+      for (const image of uploadedImages) {
+        if (image.type === 'uploaded-image' && image.filename) {
+          const storagePath = `fda-recall-images/${recallId}/${image.filename}`;
+          
+          try {
+            const file = bucket.file(storagePath);
+            await file.delete();
+            logger.info(`Deleted FDA uploaded image from storage: ${storagePath}`);
+          } catch (deleteError) {
+            logger.error(`Failed to delete FDA image from storage: ${storagePath}`, deleteError);
+            // Continue with other deletions even if one fails
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error deleting FDA uploaded images from storage:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Format date to YYYYMMDD string for FDA date fields
    */
   private formatDateToYYYYMMDD(date: Date): string {

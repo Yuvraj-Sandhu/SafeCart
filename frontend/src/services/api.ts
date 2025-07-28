@@ -155,6 +155,39 @@ export const api = {
     return response.json();
   },
 
+  // Upload images for FDA recalls and update display data
+  async uploadFDAImagesAndUpdateDisplay(
+    recallId: string, 
+    files: File[], 
+    displayData: any
+  ): Promise<{ success: boolean; message: string; data: any }> {
+    const formData = new FormData();
+    
+    // Add files to form data
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    // Add display data as JSON string
+    formData.append('displayData', JSON.stringify(displayData));
+    
+    // TODO: Add user ID when auth is implemented
+    // formData.append('userId', userId);
+    
+    const response = await fetch(`${API_BASE_URL}/fda/recalls/${recallId}/upload-images`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header for FormData - browser will set it with boundary
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to upload FDA images' }));
+      throw new Error(error.message || 'Failed to upload FDA images');
+    }
+    
+    return response.json();
+  },
+
   // ========== FDA Recall Methods ==========
   
   // Get FDA recalls by state
