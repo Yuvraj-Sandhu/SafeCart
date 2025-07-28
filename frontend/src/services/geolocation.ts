@@ -27,24 +27,44 @@ export interface LocationData {
 // Get user location from IP
 export async function detectUserLocation(): Promise<LocationData | null> {
   try {
-    // Using ip-api.com free service (no API key required)
-    // Note: Free tier only supports HTTP
-    const response = await fetch('http://ip-api.com/json/?fields=status,country,countryCode,region,regionName,city,query');
+    // Try multiple geolocation services in order of preference
     
-    if (!response.ok) {
-      throw new Error('Failed to fetch location data');
+    // Option 1: Try ipapi.co (supports HTTPS)
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.country_code === 'US' && data.region_code) {
+          return {
+            state: data.region,
+            stateCode: data.region_code,
+            city: data.city,
+            ip: data.ip
+          };
+        }
+        // If not US, still return null but don't try fallback
+        return null;
+      }
+    } catch (e) {
+      console.warn('ipapi.co failed, trying fallback service');
     }
 
-    const data: IpApiResponse = await response.json();
-
-    // Check if request was successful and user is in US
-    if (data.status === 'success' && data.countryCode === 'US' && data.region) {
-      return {
-        state: data.regionName,
-        stateCode: data.region, // ip-api returns state code in 'region' field
-        city: data.city,
-        ip: data.query
-      };
+    // Option 2: Try Vercel's built-in headers (fallback only if option 1 failed)
+    try {
+      const response = await fetch('/api/location');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.country === 'US' && data.region) {
+          return {
+            state: data.region,
+            stateCode: data.regionCode,
+            city: data.city,
+            ip: data.ip
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Vercel location API not available');
     }
 
     return null;

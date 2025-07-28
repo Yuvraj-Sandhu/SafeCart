@@ -10,7 +10,6 @@ import { US_STATES } from '@/data/states';
 import { api } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { getDefaultState } from '@/services/geolocation';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -42,13 +41,23 @@ export default function Home() {
     // Skip if user has manually interacted with state selection or still loading location
     if (hasUserInteracted.current || isLocationLoading) return;
 
-    const setDefaultStateAsync = async () => {
-      const defaultState = await getDefaultState();
-      setSelectedState(defaultState);
-    };
-
-    setDefaultStateAsync();
-  }, [isLocationLoading, location]); // Remove selectedState dependency
+    if (location && location.stateCode) {
+      // Convert state code to full state name using the location from hook
+      const stateName = Object.entries(require('@/utils/stateMapping').STATE_NAME_TO_CODE).find(
+        ([name, code]) => code === location.stateCode
+      )?.[0];
+      
+      if (stateName) {
+        setSelectedState(stateName);
+        return;
+      }
+    }
+    
+    // Default to California if no location or location processing failed
+    if (!isLocationLoading) {
+      setSelectedState('California');
+    }
+  }, [isLocationLoading, location]); // Keep dependencies but avoid double API calls
 
   // Auto-select Last 30 Days preset on page load
   useEffect(() => {

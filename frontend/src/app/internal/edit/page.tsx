@@ -10,7 +10,6 @@ import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
 import { api } from '@/services/api';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { getDefaultState } from '@/services/geolocation';
 import { UnifiedRecall } from '@/types/recall.types';
 import { EditModalState } from '@/types/display';
 import styles from '../../page.module.css';
@@ -53,12 +52,22 @@ export default function InternalEditPage() {
   useEffect(() => {
     if (hasUserInteracted.current || isLocationLoading) return;
 
-    const setDefaultStateAsync = async () => {
-      const defaultState = await getDefaultState();
-      setSelectedState(defaultState);
-    };
-
-    setDefaultStateAsync();
+    if (location && location.stateCode) {
+      // Convert state code to full state name using the location from hook
+      const stateName = Object.entries(require('@/utils/stateMapping').STATE_NAME_TO_CODE).find(
+        ([name, code]) => code === location.stateCode
+      )?.[0];
+      
+      if (stateName) {
+        setSelectedState(stateName);
+        return;
+      }
+    }
+    
+    // Default to California if no location or location processing failed
+    if (!isLocationLoading) {
+      setSelectedState('California');
+    }
   }, [isLocationLoading, location]);
 
   // Auto-select Last 30 Days preset on page load
