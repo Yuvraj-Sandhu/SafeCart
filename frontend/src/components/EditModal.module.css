@@ -37,8 +37,8 @@
 
 @media (max-width: 768px) {
   .modalHeader {
-    padding: 0.5rem;
-    padding-left: 1rem;
+    padding: 1rem;
+    padding-left: 1.5rem;
   }
 }
 
@@ -334,13 +334,13 @@
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    padding: 0.5rem;
+    padding: 1rem;
     border-top: 1px solid var(--color-card-border);
   }
 
   .modalFooter button {
     padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    font-size: 1rem;
   }
 
   .modalFooterButtons {
