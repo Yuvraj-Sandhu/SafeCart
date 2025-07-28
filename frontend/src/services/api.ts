@@ -158,7 +158,7 @@ export const api = {
   // ========== FDA Recall Methods ==========
   
   // Get FDA recalls by state
-  async getFDARecallsByState(state: string, limit = 500): Promise<RecallResponse<UnifiedRecall>> {
+  async getFDARecallsByState(state: string, limit = 5000): Promise<RecallResponse<UnifiedRecall>> {
     const response = await fetch(`${API_BASE_URL}/fda/recalls/state/${state}?limit=${limit}`);
     if (!response.ok) {
       throw new Error('Failed to fetch FDA recalls');

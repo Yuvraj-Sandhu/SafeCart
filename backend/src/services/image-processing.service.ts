@@ -662,10 +662,27 @@ export class ImageProcessingService {
           
           if (labelUrls.length > 0) {
             // Check if images were actually processed successfully
-            const needsProcessing = !data.imagesProcessedAt || 
+            let needsProcessing = !data.imagesProcessedAt || 
                                   !data.processedImages || 
                                   data.processedImages.length === 0 ||
-                                  (data.totalImageCount === 0 && !data.hasErrors);
+                                  data.totalImageCount === 0;
+            
+            // Additional check for partial failures
+            if (!needsProcessing && data.processedImages && data.hasErrors) {
+              // Count how many non-error items we have (PDFs and successful images)
+              const nonErrorCount = data.processedImages.filter((img: any) => img.type !== 'error').length;
+              // If we have fewer successful/PDF items than URLs, we have partial failure
+              if (nonErrorCount < labelUrls.length) {
+                needsProcessing = true;
+              }
+              // Also check if the successful image count matches what we actually converted
+              const successfulImages = data.processedImages.filter((img: any) => 
+                img.type === 'pdf-page' || img.type === 'image'
+              ).length;
+              if (data.totalImageCount !== successfulImages) {
+                needsProcessing = true;
+              }
+            }
             
             if (needsProcessing) {
               recallsToProcess.push(doc);

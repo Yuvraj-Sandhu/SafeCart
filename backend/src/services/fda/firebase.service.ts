@@ -100,7 +100,6 @@ export class FDAFirebaseService {
         .sort((a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime())
         .slice(0, limit);
 
-      logger.info(`Found ${sortedRecalls.length} FDA recalls for state: ${stateCode} (${stateRecalls.length} state-specific + ${nationwideRecalls.length} nationwide)`);
       return sortedRecalls;
     } catch (error) {
       logger.error('Error fetching FDA recalls by state:', error);
