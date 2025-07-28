@@ -27,7 +27,15 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
 
   // Get separate image arrays for editing (avoid duplication)
   const allImages = getUnifiedRecallImages(recall);
-  const processedImages = allImages;  // Use the processed images from getUnifiedRecallImages
+  // Extract only the actual processed images (not uploaded ones) for the selection grid
+  const processedImages = (recall.images || []).map(img => ({
+    originalFilename: img.filename || 'unknown',
+    type: img.type as any,
+    sourceUrl: img.filename || '',
+    storageUrl: img.storageUrl,
+    size: 0,
+    processedAt: new Date().toISOString()
+  }));
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0;
 
   // Generate split previews whenever splits change
@@ -363,12 +371,15 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 ))}
                 
                 {/* Already Uploaded Images */}
-                {uploadedImages.map((img, index) => (
+                {uploadedImages.map((img, index) => {
+                  const adjustedIndex = processedImages.length + index; // Uploaded images come after processed images
+                  return (
                   <div 
                     key={`uploaded-${index}`}
-                    className={`${styles.imageThumb} ${styles.uploaded}`}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${primaryImageIndex === adjustedIndex ? styles.selected : ''}`}
+                    onClick={() => setPrimaryImageIndex(adjustedIndex)}
                     style={{ 
-                      borderColor: currentTheme.cardBorder,
+                      borderColor: primaryImageIndex === adjustedIndex ? currentTheme.primary : currentTheme.cardBorder,
                       position: 'relative'
                     }}
                   >
@@ -389,7 +400,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       ×
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {/* Pending Files (to be uploaded on save) */}
                 {pendingFiles.map((pendingFile, index) => (
