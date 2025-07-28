@@ -22,7 +22,7 @@ const PROGRESS_FILE = path.join(__dirname, '.fda-import-progress.json');
 
 // FDA API configuration
 const FDA_API_BASE = 'https://api.fda.gov/food/enforcement.json';
-const BATCH_SIZE = 100; // Firestore batch limit
+const BATCH_SIZE = 500; // Firestore batch limit (max 500 operations per batch)
 
 // Date range: 2023-01-01 to today
 const START_DATE = '20230101';
@@ -98,9 +98,16 @@ async function fetchFDARecalls(skip = 0, limit = 1000) {
   const url = `${FDA_API_BASE}?search=${searchQuery}&limit=${limit}&skip=${skip}`;
   
   console.log(`Fetching FDA recalls: skip=${skip}, limit=${limit}`);
+  console.log(`URL: ${url}`);
   
   try {
     const response = await fetch(url);
+    
+    // FDA API returns 404 when skip exceeds total available records
+    if (response.status === 404) {
+      console.log('Reached end of available FDA records (404 response)');
+      return { results: [], meta: { results: { total: 0 } } };
+    }
     
     if (!response.ok) {
       throw new Error(`FDA API error: ${response.status} ${response.statusText}`);
@@ -175,11 +182,18 @@ async function saveRecallsBatch(recalls, overwrite = false) {
   let currentBatch = db.batch();
   let operationCount = 0;
   
+  console.log(`Preparing to save ${recalls.length} recalls to Firestore...`);
+  
   for (const recall of recalls) {
     // Create a safe document ID by sanitizing recall_number and event_id
     const recallNumber = sanitizeDocumentId(recall.recall_number || 'UNKNOWN');
     const eventId = sanitizeDocumentId(recall.event_id || 'UNKNOWN');
     const docId = `${recallNumber}_${eventId}`;
+    
+    // Log first few doc IDs for debugging
+    if (operationCount < 3) {
+      console.log(`  Document ID: ${docId}`);
+    }
     
     const docRef = db.collection(FDA_RECALLS_COLLECTION).doc(docId);
     // If overwrite is true (from reset), don't merge. Otherwise, merge.
@@ -202,9 +216,26 @@ async function saveRecallsBatch(recalls, overwrite = false) {
   }
   
   // Execute all batches
+  console.log(`Saving ${recalls.length} recalls in ${batches.length} batch(es)...`);
+  
   for (let i = 0; i < batches.length; i++) {
-    await batches[i].commit();
-    console.log(`Committed batch ${i + 1}/${batches.length}`);
+    try {
+      await batches[i].commit();
+      console.log(`✓ Committed batch ${i + 1}/${batches.length}`);
+    } catch (error) {
+      console.error(`✗ Failed to commit batch ${i + 1}/${batches.length}:`, error);
+      
+      // Log more details about the error
+      if (error.code) {
+        console.error(`  Error code: ${error.code}`);
+      }
+      if (error.details) {
+        console.error(`  Error details: ${JSON.stringify(error.details)}`);
+      }
+      
+      // Re-throw to trigger the retry logic in main()
+      throw error;
+    }
   }
 }
 
@@ -277,8 +308,24 @@ async function main() {
         
         // Transform and save recalls
         const transformedRecalls = response.results.map(transformFDARecall);
+        
+        // Validate transformed recalls
+        const validRecalls = transformedRecalls.filter(recall => {
+          if (!recall.recall_number || !recall.event_id) {
+            console.warn('Skipping recall with missing recall_number or event_id:', recall);
+            return false;
+          }
+          return true;
+        });
+        
+        if (validRecalls.length !== transformedRecalls.length) {
+          console.warn(`Filtered out ${transformedRecalls.length - validRecalls.length} invalid recalls`);
+        }
+        
         // If reset was used, overwrite documents completely (don't merge)
-        await saveRecallsBatch(transformedRecalls, resetProgress);
+        if (validRecalls.length > 0) {
+          await saveRecallsBatch(validRecalls, resetProgress);
+        }
         
         recordsThisRun += response.results.length;
         totalProcessed += response.results.length;
@@ -305,8 +352,15 @@ async function main() {
           console.log('\nAll available records have been processed');
         } else {
           skip += response.results.length;
-          // Add delay to avoid rate limiting
-          await delay(1000);
+          
+          // Double-check if skip exceeds total available
+          if (totalAvailable > 0 && skip >= totalAvailable) {
+            console.log(`\nSkip value (${skip}) exceeds total available (${totalAvailable}). Stopping.`);
+            hasMore = false;
+          } else {
+            // Add delay to avoid rate limiting
+            await delay(1000);
+          }
         }
         
       } catch (error) {

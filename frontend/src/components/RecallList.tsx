@@ -7,6 +7,7 @@ import { ProcessedImage } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
+import { formatRecallDate } from '@/utils/dateUtils';
 import styles from './RecallList.module.css';
 
 interface RecallListProps {
@@ -126,7 +127,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
   };
 
   const getSourceColor = (source: 'USDA' | 'FDA') => {
-    return source === 'USDA' ? currentTheme.primary : currentTheme.success;
+    return source === 'USDA' ? currentTheme.primary : currentTheme.primary;
   };
 
   if (loading) {
@@ -398,11 +399,13 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                   {displayTitle}
                 </h3>
                 
+                {/* Commented out state names display - uncomment to show states again
                 <div className={styles.recallStates}>
                   <span style={{ color: currentTheme.text }}>
                     {recall.affectedStates.join(', ')}
                   </span>
                 </div>
+                */}
                 
                 <div className={styles.recallMeta}>
                   <span 
@@ -415,7 +418,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
-                    {new Date(recall.recallDate).toLocaleDateString()}
+                    {formatRecallDate(recall.recallDate)}
                   </span>
                 </div>
                 
@@ -434,7 +437,7 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                         <p style={{ color: currentTheme.textSecondary }}>
-                          {new Date(recall.terminationDate).toLocaleDateString()}
+                          {formatRecallDate(recall.terminationDate)}
                         </p>
                       </div>
                     )}
@@ -446,13 +449,13 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                       </p>
                     </div>
                     
-                    {recall.source === 'USDA' && (
+                    {recall.source === 'USDA' && recall.originalData?.field_summary && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Summary</h4>
                         <div 
                           style={{ color: currentTheme.textSecondary }}
                           dangerouslySetInnerHTML={{ 
-                            __html: (recall.reasonForRecall || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                            __html: (recall.originalData.field_summary || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
                           }}
                         />
                       </div>
