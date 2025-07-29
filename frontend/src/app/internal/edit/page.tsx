@@ -139,49 +139,18 @@ export default function InternalEditPage() {
   };
 
   const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
-    try {
-      // Set saving state
-      setSavingRecallId(updatedRecall.id);
-      
-      // Update local state optimistically
-      setRecalls(prev => prev.map(r => 
-        r.id === updatedRecall.id ? updatedRecall : r
-      ));
-      
-      // Close modal immediately for better UX
-      setEditModal({ isOpen: false, recall: null });
-      
-      // Save to backend - use appropriate API based on source
-      if (updatedRecall.source === 'USDA') {
-        await api.updateRecallDisplay(updatedRecall.id, updatedRecall.display);
-      } else {
-        await api.updateFDARecallDisplay(updatedRecall.id, updatedRecall.display);
-      }
-      
-      // Success - clear saving state
-      setSavingRecallId(null);
-      console.log('Display data saved successfully');
-      
-      // Optional: Show a success toast/notification instead of console.log
-      // showNotification({ type: 'success', message: 'Changes saved successfully' });
-      
-    } catch (error) {
-      console.error('Failed to save display data:', error);
-      
-      // Clear saving state
-      setSavingRecallId(null);
-      
-      // Revert the optimistic update on error
-      setRecalls(prev => prev.map(r => 
-        r.id === updatedRecall.id ? editModal.recall! : r
-      ));
-      
-      // Show error to user
-      alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      // Optionally reopen the modal with the original data
-      setEditModal({ isOpen: true, recall: editModal.recall });
-    }
+    // The EditModal has already saved the data to the backend,
+    // so we only need to update the local state here
+    
+    // Update local state with the new data
+    setRecalls(prev => prev.map(r => 
+      r.id === updatedRecall.id ? updatedRecall : r
+    ));
+    
+    // Close modal
+    setEditModal({ isOpen: false, recall: null });
+    
+    console.log('Display data updated successfully');
   };
 
   return (
