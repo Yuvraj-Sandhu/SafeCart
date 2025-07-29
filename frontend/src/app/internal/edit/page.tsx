@@ -25,6 +25,10 @@ export default function InternalEditPage() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   
+  // Advanced options states
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [filterNoImages, setFilterNoImages] = useState(false);
+  
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,12 +76,9 @@ export default function InternalEditPage() {
 
   // Auto-select Last 30 Days preset on page load
   useEffect(() => {
-    const currentDate = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(currentDate.getDate() - 30);
-    
-    setStartDate(thirtyDaysAgo);
-    setEndDate(currentDate);
+    const { startDate, endDate } = require('@/utils/easternTime').getLast30DaysEastern();
+    setStartDate(startDate);
+    setEndDate(endDate);
   }, []);
 
   // Wrapper function to handle state changes and mark user interaction
@@ -129,6 +130,10 @@ export default function InternalEditPage() {
     setError(null);
     setHasSearched(false);
     hasInitialSearched.current = false;
+    
+    // Reset advanced options
+    setShowAdvancedOptions(false);
+    setFilterNoImages(false);
   };
 
   const handleEdit = (recall: UnifiedRecall) => {
@@ -151,6 +156,24 @@ export default function InternalEditPage() {
     setEditModal({ isOpen: false, recall: null });
     
     console.log('Display data updated successfully');
+  };
+
+  // Filter recalls based on advanced options
+  const getFilteredRecalls = () => {
+    let filtered = recalls;
+
+    if (filterNoImages) {
+      filtered = filtered.filter(recall => {
+        // Check both processed images and uploaded images
+        const hasProcessedImages = recall.images && recall.images.length > 0;
+        const hasUploadedImages = recall.display?.uploadedImages && recall.display.uploadedImages.length > 0;
+        
+        // Return recalls that have NO images (neither processed nor uploaded)
+        return !hasProcessedImages && !hasUploadedImages;
+      });
+    }
+
+    return filtered;
   };
 
   return (
@@ -246,6 +269,48 @@ export default function InternalEditPage() {
             </div>
           </div>
 
+          {/* Advanced Options */}
+          <div className={styles.advancedOptions}>
+            <div 
+              className={styles.advancedToggle}
+              onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+              style={{ 
+                color: currentTheme.textTertiary,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                fontSize: '0.875rem',
+                marginBottom: showAdvancedOptions ? '1rem' : '0'
+              }}
+            >
+              Advanced options {showAdvancedOptions ? '▲' : '▼'}
+            </div>
+            
+            {showAdvancedOptions && (
+              <div className={styles.advancedFilters}>
+                <div 
+                  className={styles.filterOption}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="filterNoImagesInput"
+                    checked={filterNoImages}
+                    onChange={(e) => setFilterNoImages(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="filterNoImagesInput" className={styles.toggleSwitch}></label>
+                  <span>Show only recalls without images</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className={styles.filterActions}>
             <Button onClick={handleSearch} disabled={loading}>
               {loading ? 'Searching...' : 'Search Recalls'}
@@ -259,7 +324,7 @@ export default function InternalEditPage() {
         {hasSearched && (
           <div className={styles.results}>
             <EditableRecallList
-              recalls={recalls}
+              recalls={getFilteredRecalls()}
               loading={loading}
               error={error}
               onEdit={handleEdit}

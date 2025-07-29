@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
+import { getEasternDate, createEasternDate } from '@/utils/easternTime';
 import styles from './DateRangePicker.module.css';
 
 interface DateRangePickerProps {
@@ -21,37 +22,38 @@ export function DateRangePicker({
   const { currentTheme, mode } = useTheme();
   const [showPresets, setShowPresets] = useState(false);
 
+
   const handlePreset = (preset: string) => {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    const today = getEasternDate();
+    const todayEnd = createEasternDate(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
     
     switch (preset) {
       case 'thisMonth': {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const start = createEasternDate(today.getFullYear(), today.getMonth(), 1);
         onStartDateChange(start);
-        onEndDateChange(today);
+        onEndDateChange(todayEnd);
         break;
       }
       case 'lastMonth': {
-        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const end = new Date(today.getFullYear(), today.getMonth(), 0);
-        end.setHours(23, 59, 59, 999);
+        const start = createEasternDate(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        const end = createEasternDate(today.getFullYear(), today.getMonth() - 1, lastDayOfLastMonth, 23, 59, 59);
         onStartDateChange(start);
         onEndDateChange(end);
         break;
       }
       case 'yearToDate': {
-        const start = new Date(today.getFullYear(), 0, 1);
+        const start = createEasternDate(today.getFullYear(), 0, 1);
         onStartDateChange(start);
-        onEndDateChange(today);
+        onEndDateChange(todayEnd);
         break;
       }
       case 'last30Days': {
-        const start = new Date(today);
-        start.setDate(start.getDate() - 30);
-        start.setHours(0, 0, 0, 0);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const start = createEasternDate(thirtyDaysAgo.getFullYear(), thirtyDaysAgo.getMonth(), thirtyDaysAgo.getDate());
         onStartDateChange(start);
-        onEndDateChange(today);
+        onEndDateChange(todayEnd);
         break;
       }
       case 'clear': {
@@ -65,7 +67,35 @@ export function DateRangePicker({
 
   const formatDateForInput = (date: Date | null) => {
     if (!date) return '';
-    return date.toISOString().split('T')[0];
+    // Format date in Eastern Time for the input
+    const easternDate = new Date(date.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const year = easternDate.getFullYear();
+    const month = String(easternDate.getMonth() + 1).padStart(2, '0');
+    const day = String(easternDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateInputChange = (value: string, isStartDate: boolean) => {
+    if (!value) {
+      if (isStartDate) {
+        onStartDateChange(null);
+      } else {
+        onEndDateChange(null);
+      }
+      return;
+    }
+
+    // Parse the date input as Eastern Time
+    const [year, month, day] = value.split('-').map(Number);
+    const easternDate = createEasternDate(year, month - 1, day);
+    
+    if (isStartDate) {
+      onStartDateChange(easternDate);
+    } else {
+      // Set end date to end of day in Eastern Time
+      const endOfDay = createEasternDate(year, month - 1, day, 23, 59, 59);
+      onEndDateChange(endOfDay);
+    }
   };
 
   return (
@@ -82,10 +112,7 @@ export function DateRangePicker({
             type="date"
             className={styles.dateInput}
             value={formatDateForInput(startDate)}
-            onChange={(e) => {
-              const date = e.target.value ? new Date(e.target.value) : null;
-              onStartDateChange(date);
-            }}
+            onChange={(e) => handleDateInputChange(e.target.value, true)}
             style={{
               backgroundColor: currentTheme.inputBackground,
               color: currentTheme.text,
@@ -106,10 +133,7 @@ export function DateRangePicker({
             type="date"
             className={styles.dateInput}
             value={formatDateForInput(endDate)}
-            onChange={(e) => {
-              const date = e.target.value ? new Date(e.target.value) : null;
-              onEndDateChange(date);
-            }}
+            onChange={(e) => handleDateInputChange(e.target.value, false)}
             style={{
               backgroundColor: currentTheme.inputBackground,
               color: currentTheme.text,
