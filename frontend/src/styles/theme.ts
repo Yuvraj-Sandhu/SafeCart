@@ -15,12 +15,12 @@ export const theme = {
     // Text colors
     text: '#111827',
     textSecondary: '#374151',
-    textTertiary: '#9ca3af',
+    textTertiary: '#374151',
     textBlack: '#111827',
     textWhite: '#f9fafb',
     
     // Border colors
-    border: '#e5e7eb',
+    border: '#c5c7cb',
     borderFocus: '#9ca3af',
     
     // Status colors
@@ -40,7 +40,7 @@ export const theme = {
     inputBorder: '#d1d5db',
     buttonPrimary: '#15803d',
     buttonPrimaryText: '#ffffff',
-    buttonSecondary: '#f3f4f6',
+    buttonSecondary: '#faf7f2',
     buttonSecondaryText: '#374151',
     
     // Shadows

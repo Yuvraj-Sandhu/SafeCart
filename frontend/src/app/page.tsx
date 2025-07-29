@@ -61,12 +61,9 @@ export default function Home() {
 
   // Auto-select Last 30 Days preset on page load
   useEffect(() => {
-    const currentDate = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(currentDate.getDate() - 30);
-    
-    setStartDate(thirtyDaysAgo);
-    setEndDate(currentDate);
+    const { startDate, endDate } = require('@/utils/easternTime').getLast30DaysEastern();
+    setStartDate(startDate);
+    setEndDate(endDate);
   }, []); // Run once on mount
 
   // Wrapper function to handle state changes and mark user interaction
