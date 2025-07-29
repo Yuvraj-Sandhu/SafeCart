@@ -301,7 +301,7 @@ export const api = {
     }
     
     if (source === 'FDA' || source === 'BOTH') {
-      promises.push(api.getAllFDARecalls(500, startDate, endDate));
+      promises.push(api.getAllFDARecalls(5000, startDate, endDate));
     }
     
     const results = await Promise.all(promises);
