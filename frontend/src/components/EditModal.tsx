@@ -203,26 +203,38 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     }
   };
 
-  const handleReset = () => {
-    // Clear all display data
-    setPreviewTitle('');
-    setPreviewUrl('');
-    setPrimaryImageIndex(-1);
-    setCardSplits([]);
-    setUploadedImages([]);
-    
-    // Clean up pending files and their preview URLs
-    pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-    setPendingFiles([]);
-    
-    // Create recall with empty display
-    const updatedRecall: UnifiedRecall = {
-      ...editedRecall,
-      display: undefined // Remove display object entirely
-    };
-    
-    // Save the reset state
-    onSave(updatedRecall);
+  const handleReset = async () => {
+    try {
+      // Clear all display data in state
+      setPreviewTitle('');
+      setPreviewUrl('');
+      setPrimaryImageIndex(-1);
+      setCardSplits([]);
+      setUploadedImages([]);
+      
+      // Clean up pending files and their preview URLs
+      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      setPendingFiles([]);
+      
+      // Make API call to clear display data based on source
+      if (recall.source === 'USDA') {
+        await api.updateRecallDisplay(recall.id, undefined);
+      } else {
+        await api.updateFDARecallDisplay(recall.id, undefined);
+      }
+      
+      // Create recall with empty display for local state
+      const updatedRecall: UnifiedRecall = {
+        ...editedRecall,
+        display: undefined // Remove display object entirely
+      };
+      
+      // Update local state
+      onSave(updatedRecall);
+    } catch (error) {
+      console.error('Reset failed:', error);
+      alert(`Failed to reset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleUploadClick = () => {
