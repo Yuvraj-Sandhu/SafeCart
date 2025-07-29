@@ -28,6 +28,8 @@ export default function InternalEditPage() {
   // Advanced options states
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [filterNoImages, setFilterNoImages] = useState(false);
+  const [showUSDARecalls, setShowUSDARecalls] = useState(true);
+  const [showFDARecalls, setShowFDARecalls] = useState(true);
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
@@ -102,7 +104,15 @@ export default function InternalEditPage() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+      let response;
+      
+      if (selectedState === 'ALL') {
+        // Get all recalls from all states
+        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr);
+      } else {
+        // Get recalls for specific state
+        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+      }
       
       setRecalls(response.data);
     } catch (err) {
@@ -134,6 +144,8 @@ export default function InternalEditPage() {
     // Reset advanced options
     setShowAdvancedOptions(false);
     setFilterNoImages(false);
+    setShowUSDARecalls(true);
+    setShowFDARecalls(true);
   };
 
   const handleEdit = (recall: UnifiedRecall) => {
@@ -162,6 +174,16 @@ export default function InternalEditPage() {
   const getFilteredRecalls = () => {
     let filtered = recalls;
 
+    // Filter by source (USDA/FDA)
+    if (!showUSDARecalls || !showFDARecalls) {
+      filtered = filtered.filter(recall => {
+        if (recall.source === 'USDA' && !showUSDARecalls) return false;
+        if (recall.source === 'FDA' && !showFDARecalls) return false;
+        return true;
+      });
+    }
+
+    // Filter by image presence
     if (filterNoImages) {
       filtered = filtered.filter(recall => {
         // Check both processed images and uploaded images
@@ -294,7 +316,8 @@ export default function InternalEditPage() {
                     alignItems: 'center',
                     gap: '0.75rem',
                     color: currentTheme.text,
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
                   }}
                 >
                   <input 
@@ -306,6 +329,49 @@ export default function InternalEditPage() {
                   />
                   <label htmlFor="filterNoImagesInput" className={styles.toggleSwitch}></label>
                   <span>Show only recalls without images</span>
+                </div>
+                
+                <div 
+                  className={styles.filterOption}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="showUSDARecallsInput"
+                    checked={showUSDARecalls}
+                    onChange={(e) => setShowUSDARecalls(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="showUSDARecallsInput" className={styles.toggleSwitch}></label>
+                  <span>USDA recalls</span>
+                </div>
+                
+                <div 
+                  className={styles.filterOption}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="showFDARecallsInput"
+                    checked={showFDARecalls}
+                    onChange={(e) => setShowFDARecalls(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="showFDARecallsInput" className={styles.toggleSwitch}></label>
+                  <span>FDA recalls</span>
                 </div>
               </div>
             )}
