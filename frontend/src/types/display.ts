@@ -11,6 +11,7 @@ export interface DisplayData {
   primaryImageIndex?: number; // Index of the primary image to show first on main card (relative to main card's image range)
   cardSplits?: CardSplit[];   // Array defining how to split cards
   previewTitle?: string;      // Override title for the main card
+  previewUrl?: string;        // Override URL for recall links (Visit USDA/FDA page)
   uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
   lastEditedBy?: string;      // Email/ID of last editor
   lastEditedAt?: string;      // ISO timestamp of last edit

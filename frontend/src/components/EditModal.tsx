@@ -17,6 +17,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
   const [editedRecall, setEditedRecall] = useState<UnifiedRecall>(recall);
   const [previewTitle, setPreviewTitle] = useState(recall.display?.previewTitle || '');
+  const [previewUrl, setPreviewUrl] = useState(recall.display?.previewUrl || '');
   const [primaryImageIndex, setPrimaryImageIndex] = useState(recall.display?.primaryImageIndex ?? -1);
   const [cardSplits, setCardSplits] = useState<CardSplit[]>(recall.display?.cardSplits || []);
   const [splitPreviews, setSplitPreviews] = useState<SplitPreview[]>([]);
@@ -139,6 +140,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       // Prepare display data without uploaded images (they'll be added by the API)
       const displayData = {
         previewTitle: previewTitle || undefined,
+        previewUrl: previewUrl || undefined,
         primaryImageIndex: primaryImageIndex >= 0 ? primaryImageIndex : undefined,
         cardSplits: cardSplits.length > 0 ? cardSplits : undefined,
         uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined, // Existing uploaded images
@@ -204,6 +206,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const handleReset = () => {
     // Clear all display data
     setPreviewTitle('');
+    setPreviewUrl('');
     setPrimaryImageIndex(-1);
     setCardSplits([]);
     setUploadedImages([]);
@@ -334,6 +337,26 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               value={previewTitle}
               onChange={(e) => setPreviewTitle(e.target.value)}
               placeholder="Leave empty to use original title"
+              className={styles.input}
+              style={{ 
+                backgroundColor: currentTheme.background,
+                borderColor: currentTheme.cardBorder,
+                color: currentTheme.text
+              }}
+            />
+          </div>
+
+          {/* Recall URL */}
+          <div className={styles.section}>
+            <h3>Recall URL</h3>
+            <p className={styles.sectionDescription}>
+              Override the recall URL. If set, this URL will be used when users click "Visit USDA Page" or "Visit FDA Page"
+            </p>
+            <input
+              type="url"
+              value={previewUrl}
+              onChange={(e) => setPreviewUrl(e.target.value)}
+              placeholder="Leave empty to use default URL behavior"
               className={styles.input}
               style={{ 
                 backgroundColor: currentTheme.background,

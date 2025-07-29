@@ -42,6 +42,7 @@ export interface UnifiedRecall {
   display?: {
     primaryImageIndex?: number;
     previewTitle?: string;
+    previewUrl?: string;
     uploadedImages?: any[];
     cardSplits?: any[];
   };

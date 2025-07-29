@@ -84,9 +84,14 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
   };
 
   const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
-    if (recall.recallUrl) {
+    // Check if there's a custom URL in display data
+    const display = (recall as any).display;
+    const previewUrl = display?.previewUrl;
+    const effectiveUrl = previewUrl || recall.recallUrl;
+    
+    if (effectiveUrl) {
       // Open website in new tab
-      window.open(recall.recallUrl, '_blank', 'noopener,noreferrer');
+      window.open(effectiveUrl, '_blank', 'noopener,noreferrer');
     } else {
       // Toggle card expansion
       const targetId = cardId || recall.id;
@@ -501,7 +506,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                         variant="secondary"
                         onClick={() => handleViewDetails(recall, cardId)}
                       >
-                        {recall.recallUrl ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
+                        {(display?.previewUrl || recall.recallUrl) ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
                       </Button>
                     </div>
                   </div>
