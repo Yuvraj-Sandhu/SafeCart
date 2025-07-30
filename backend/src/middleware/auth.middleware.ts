@@ -20,6 +20,15 @@ export const authenticate = async (
   try {
     const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
     
+    // Debug logging for token issues
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth middleware - Cookies:', Object.keys(req.cookies));
+      console.log('Auth middleware - Token found:', !!token);
+      if (!token) {
+        console.log('Auth middleware - No token in cookies or headers');
+      }
+    }
+    
     if (!token) {
       res.status(401).json({ success: false, message: 'No token provided' });
       return;
@@ -29,6 +38,9 @@ export const authenticate = async (
     req.user = payload;
     next();
   } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth middleware - Token verification failed:', error);
+    }
     res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
