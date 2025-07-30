@@ -26,6 +26,30 @@ const storage = admin.storage();
 
 const PENDING_CHANGES_COLLECTION = 'pending_changes';
 
+// Helper function to recursively remove undefined values
+function removeUndefinedValues(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedValues).filter(item => item !== undefined);
+  }
+  
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const cleanedValue = removeUndefinedValues(value);
+      if (cleanedValue !== undefined) {
+        cleaned[key] = cleanedValue;
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
+
 export class PendingChangesService {
   // Create a new pending change
   static async createPendingChange(
@@ -34,20 +58,28 @@ export class PendingChangesService {
   ): Promise<PendingChange> {
     const pendingChangeRef = db.collection(PENDING_CHANGES_COLLECTION).doc();
     
-    const pendingChange: PendingChange = {
+    // Build the pending change object - only include currentDisplay if it exists
+    const pendingChange: any = {
       id: pendingChangeRef.id,
       recallId: data.recallId,
       recallSource: data.recallSource,
       proposedBy,
       proposedAt: new Date().toISOString(),
       status: 'pending',
-      currentDisplay: data.currentDisplay,
       proposedDisplay: data.proposedDisplay
     };
     
-    await pendingChangeRef.set(pendingChange);
+    // Only add currentDisplay if it's not undefined
+    if (data.currentDisplay !== undefined) {
+      pendingChange.currentDisplay = data.currentDisplay;
+    }
     
-    return pendingChange;
+    // Remove all undefined values recursively before saving to Firestore
+    const cleanedPendingChange = removeUndefinedValues(pendingChange);
+    
+    await pendingChangeRef.set(cleanedPendingChange);
+    
+    return cleanedPendingChange;
   }
 
   // Get pending changes for a specific recall
