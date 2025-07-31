@@ -58,7 +58,7 @@ export class PendingChangesService {
   ): Promise<PendingChange> {
     const pendingChangeRef = db.collection(PENDING_CHANGES_COLLECTION).doc();
     
-    // Build the pending change object - only include currentDisplay if it exists
+    // Build the pending change object with full recall data
     const pendingChange: any = {
       id: pendingChangeRef.id,
       recallId: data.recallId,
@@ -66,13 +66,9 @@ export class PendingChangesService {
       proposedBy,
       proposedAt: new Date().toISOString(),
       status: 'pending',
+      originalRecall: data.originalRecall, // Store full recall data
       proposedDisplay: data.proposedDisplay
     };
-    
-    // Only add currentDisplay if it's not undefined
-    if (data.currentDisplay !== undefined) {
-      pendingChange.currentDisplay = data.currentDisplay;
-    }
     
     // Remove all undefined values recursively before saving to Firestore
     const cleanedPendingChange = removeUndefinedValues(pendingChange);

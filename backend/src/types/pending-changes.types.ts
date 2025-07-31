@@ -14,17 +14,17 @@ export interface PendingChange {
   reviewedAt?: string;
   rejectionReason?: string;
   
-  // Current state snapshot (for comparison)
-  currentDisplay?: DisplayData;
+  // Full recall data for display without additional API calls
+  originalRecall: any; // Contains complete USDA or FDA recall data
   
-  // Proposed changes
+  // Proposed changes to the display field
   proposedDisplay: DisplayData;
 }
 
 export interface CreatePendingChangeRequest {
   recallId: string;
   recallSource: 'USDA' | 'FDA';
-  currentDisplay?: DisplayData;
+  originalRecall: any; // Full recall data to store
   proposedDisplay: DisplayData;
 }
 
