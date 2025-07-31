@@ -91,6 +91,23 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   }));
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0 || pendingFiles.length > 0;
   const showImageSections = true; // Always show image options for all recalls
+  
+  // Total image count including pending files for split calculations
+  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length;
+  
+  // Combined array of all images for split display (including pending)
+  const allImagesIncludingPending = [
+    ...allImages,
+    ...pendingFiles.map(pf => ({
+      storageUrl: pf.previewUrl,
+      filename: pf.metadata.filename,
+      originalFilename: pf.metadata.originalName,
+      sourceUrl: pf.previewUrl,
+      type: 'pending' as any,
+      size: pf.metadata.size,
+      processedAt: pf.metadata.uploadedAt
+    }))
+  ];
 
   // Generate split previews whenever splits change
   useEffect(() => {
@@ -106,7 +123,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     const previews: SplitPreview[] = [];
     
     // Main card preview (from 0 to first split)
-    let mainImages = cardSplits[0] ? allImages.slice(0, cardSplits[0].startIndex) : allImages;
+    let mainImages = cardSplits[0] ? allImagesIncludingPending.slice(0, cardSplits[0].startIndex) : allImagesIncludingPending;
     
     // Apply primary image reordering for main card
     if (primaryImageIndex >= 0 && primaryImageIndex < mainImages.length) {
@@ -119,12 +136,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       title: previewTitle || recall.productTitle,
       images: mainImages,
       startIndex: 0,
-      endIndex: cardSplits[0]?.startIndex || allImages.length
+      endIndex: cardSplits[0]?.startIndex || allImagesIncludingPending.length
     });
 
     // Split card previews
     cardSplits.forEach((split, index) => {
-      let splitImages = allImages.slice(split.startIndex, split.endIndex);
+      let splitImages = allImagesIncludingPending.slice(split.startIndex, split.endIndex);
       
       // Apply primary image reordering for this split
       if (split.primaryImageIndex !== undefined && split.primaryImageIndex >= 0 && split.primaryImageIndex < splitImages.length) {
@@ -148,9 +165,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Always allow adding splits now
     
     const lastSplit = cardSplits[cardSplits.length - 1];
-    const totalImages = allImages.length;
-    const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImages / 2));
-    const endIndex = Math.max(startIndex + 1, totalImages);
+    const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImageCount / 2));
+    const endIndex = Math.max(startIndex + 1, totalImageCount);
     
     if (startIndex < endIndex) {
       setCardSplits([...cardSplits, {
@@ -525,17 +541,23 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             <div className={styles.section}>
               <h3>Primary Image for Main Card</h3>
               <p className={styles.sectionDescription}>
-                Select which image should appear first in the main card. Only images that will be shown in the main card are available.
+                Select which image should appear first in the main card. Images in splits are shown greyed out and not selectable.
               </p>
               <div className={styles.imageGrid}>
-                {/* Show only images that will be in the main card */}
-                {(cardSplits.length > 0 ? processedImages.slice(0, cardSplits[0].startIndex) : processedImages).map((img, index) => (
+                {/* Show ALL processed images, but grey out ones in splits */}
+                {processedImages.map((img, index) => {
+                  const isInSplit = cardSplits.length > 0 && index >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
+                  return (
                   <div 
                     key={index}
-                    className={`${styles.imageThumb} ${primaryImageIndex === index ? styles.selected : ''}`}
-                    onClick={() => setPrimaryImageIndex(index)}
+                    className={`${styles.imageThumb} ${primaryImageIndex === index && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(index)}
                     style={{ 
-                      borderColor: primaryImageIndex === index ? currentTheme.primary : currentTheme.cardBorder
+                      borderColor: primaryImageIndex === index && isSelectable ? currentTheme.primary : currentTheme.cardBorder,
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -547,19 +569,25 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                     />
                     <span className={styles.imageNumber}>#{index + 1}</span>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {/* Already Uploaded Images */}
                 {uploadedImages.map((img, index) => {
                   const adjustedIndex = processedImages.length + index; // Uploaded images come after processed images
+                  const isInSplit = cardSplits.length > 0 && adjustedIndex >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
                   return (
                   <div 
                     key={`uploaded-${index}`}
-                    className={`${styles.imageThumb} ${styles.uploaded} ${primaryImageIndex === adjustedIndex ? styles.selected : ''}`}
-                    onClick={() => setPrimaryImageIndex(adjustedIndex)}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${primaryImageIndex === adjustedIndex && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(adjustedIndex)}
                     style={{ 
-                      borderColor: primaryImageIndex === adjustedIndex ? currentTheme.primary : currentTheme.cardBorder,
-                      position: 'relative'
+                      borderColor: primaryImageIndex === adjustedIndex && isSelectable ? currentTheme.primary : currentTheme.cardBorder,
+                      position: 'relative',
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -583,14 +611,22 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 })}
                 
                 {/* Pending Files (to be uploaded on save) */}
-                {pendingFiles.map((pendingFile, index) => (
+                {pendingFiles.map((pendingFile, index) => {
+                  const adjustedIndex = processedImages.length + uploadedImages.length + index; // Pending files come after uploaded images
+                  const isInSplit = cardSplits.length > 0 && adjustedIndex >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
+                  return (
                   <div 
                     key={`pending-${index}`}
-                    className={`${styles.imageThumb} ${styles.uploaded} ${styles.pending}`}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${styles.pending} ${primaryImageIndex === adjustedIndex && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(adjustedIndex)}
                     style={{ 
-                      borderColor: currentTheme.primary,
-                      borderStyle: 'dashed',
-                      position: 'relative'
+                      borderColor: primaryImageIndex === adjustedIndex && isSelectable ? currentTheme.primary : currentTheme.primary,
+                      borderStyle: primaryImageIndex === adjustedIndex && isSelectable ? 'solid' : 'dashed',
+                      position: 'relative',
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -612,7 +648,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       ×
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {/* Upload Button */}
                 <div 
@@ -680,7 +717,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 variant="secondary" 
                 size="small" 
                 onClick={handleAddSplit}
-                disabled={cardSplits.length >= allImages.length - 1}
+                disabled={cardSplits.length >= totalImageCount - 1}
               >
                 + Add Split Point
               </Button>
@@ -710,7 +747,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       <input
                         type="number"
                         min={split.startIndex + 1}
-                        max={index === cardSplits.length - 1 ? allImages.length : cardSplits[index + 1]?.startIndex || allImages.length}
+                        max={index === cardSplits.length - 1 ? totalImageCount : cardSplits[index + 1]?.startIndex || totalImageCount}
                         value={split.endIndex}
                         onChange={(e) => handleSplitChange(index, 'endIndex', parseInt(e.target.value))}
                         className={styles.numberInput}
@@ -740,7 +777,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   <div style={{ marginTop: '1rem' }}>
                     <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>Primary Image for this Split:</h5>
                     <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
-                      {allImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
+                      {allImagesIncludingPending.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
                         <div 
                           key={imgIndex}
                           className={`${styles.imageThumb} ${split.primaryImageIndex === imgIndex ? styles.selected : ''}`}
