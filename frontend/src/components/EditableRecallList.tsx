@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
+import { PendingBadge } from './PendingBadge';
 import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
+import { usePendingChanges } from '@/hooks/usePendingChanges';
 import styles from './RecallList.module.css';
 import editStyles from './EditableRecallList.module.css';
 
@@ -17,10 +19,12 @@ interface EditableRecallListProps {
   loading: boolean;
   error: string | null;
   onEdit: (recall: UnifiedRecall) => void;
+  hidePendingBadges?: boolean;
 }
 
-export function EditableRecallList({ recalls, loading, error, onEdit }: EditableRecallListProps) {
+export function EditableRecallList({ recalls, loading, error, onEdit, hidePendingBadges = false }: EditableRecallListProps) {
   const { currentTheme } = useTheme();
+  const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
   const [selectedImageModal, setSelectedImageModal] = useState<{
     images: ProcessedImage[];
     currentIndex: number;
@@ -427,6 +431,13 @@ export function EditableRecallList({ recalls, loading, error, onEdit }: Editable
                       >
                         {recall.isActive ? 'Active' : 'Closed'}
                       </span>
+                      
+                      {/* Show pending badge only on main card */}
+                      {!hidePendingBadges && splitIndex === -1 && hasPendingChanges(recall.id, recall.source) && (
+                        <PendingBadge 
+                          count={getPendingChangesForRecall(recall.id, recall.source).length}
+                        />
+                      )}
                     </div>
                     
                     <h3 

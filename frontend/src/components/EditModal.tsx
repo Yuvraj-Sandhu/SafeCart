@@ -1,29 +1,81 @@
+/**
+ * EditModal Component
+ * 
+ * A comprehensive modal component for editing recall display properties with role-based functionality.
+ * Supports both USDA and FDA recalls with different behavior based on user permissions:
+ * 
+ * - **Admin Users**: Changes are applied immediately to live data
+ * - **Member Users**: Changes are submitted as pending changes for admin approval
+ * 
+ * Features:
+ * - Preview title and URL overrides
+ * - Primary image selection with visual grid interface
+ * - Card splitting functionality with range controls
+ * - Image upload with drag-and-drop support
+ * - Real-time preview of changes
+ * - Role-aware UI messaging and button text
+ * 
+ * @component
+ * @example
+ * ```tsx
+ * <EditModal
+ *   recall={selectedRecall}
+ *   onClose={() => setModalOpen(false)}
+ *   onSave={handleRecallUpdate}
+ * />
+ * ```
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/Button';
 import { UnifiedRecall } from '@/types/recall.types';
 import { CardSplit, SplitPreview, UploadedImage } from '@/types/display';
 import { api } from '@/services/api';
+import { pendingChangesApi } from '@/services/pending-changes.api';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
+  /** The recall object to edit (supports both USDA and FDA recalls) */
   recall: UnifiedRecall;
+  /** Callback function to close the modal */
   onClose: () => void;
+  /** Callback function called after successful save (admin) or submission (member) */
   onSave: (updatedRecall: UnifiedRecall) => void;
 }
 
 export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
+  const { user } = useAuth();
+  
+  // Core state management
   const [editedRecall, setEditedRecall] = useState<UnifiedRecall>(recall);
+  
+  // Display customization states
+  /** Custom title override for the recall */
   const [previewTitle, setPreviewTitle] = useState(recall.display?.previewTitle || '');
+  /** Custom URL override for the recall's "Visit USDA/FDA Page" link */
   const [previewUrl, setPreviewUrl] = useState(recall.display?.previewUrl || '');
+  /** Index of the primary image to display first (-1 = no primary image) */
   const [primaryImageIndex, setPrimaryImageIndex] = useState(recall.display?.primaryImageIndex ?? -1);
+  
+  // Card splitting functionality states
+  /** Array of card split configurations */
   const [cardSplits, setCardSplits] = useState<CardSplit[]>(recall.display?.cardSplits || []);
+  /** Generated previews for each split configuration */
   const [splitPreviews, setSplitPreviews] = useState<SplitPreview[]>([]);
+  
+  // Image management states
+  /** Existing uploaded images (already stored in Firebase) */
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(recall.display?.uploadedImages || []);
+  /** New files selected for upload with preview URLs */
   const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string; metadata: UploadedImage }[]>([]);
+  /** Upload operation status */
   const [isUploading, setIsUploading] = useState(false);
+  
+  // File input reference for programmatic triggering
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get separate image arrays for editing (avoid duplication)
@@ -133,74 +185,154 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     setCardSplits(newSplits);
   };
 
+  /**
+   * Main save handler that routes to appropriate save method based on user role.
+   * Admins save changes directly, while members create pending changes for approval.
+   */
   const handleSave = async () => {
     try {
       setIsUploading(true);
 
-      // Prepare display data without uploaded images (they'll be added by the API)
+      // Prepare display data object with only defined values
       const displayData = {
         previewTitle: previewTitle || undefined,
         previewUrl: previewUrl || undefined,
         primaryImageIndex: primaryImageIndex >= 0 ? primaryImageIndex : undefined,
         cardSplits: cardSplits.length > 0 ? cardSplits : undefined,
-        uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined, // Existing uploaded images
-        lastEditedAt: new Date().toISOString(),
-        lastEditedBy: 'current-user' // TODO: Get from auth context
+        uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined,
       };
 
-      let finalRecall: UnifiedRecall;
-
-      if (pendingFiles.length > 0) {
-        // Upload new images and update display data
-        const files = pendingFiles.map(pf => pf.file);
-        // Use appropriate API based on source
-        if (recall.source === 'USDA') {
-          const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
-          
-          // Clean up preview URLs
-          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-          setPendingFiles([]);
-          
-          // Update with response data
-          finalRecall = {
-            ...editedRecall,
-            display: response.data.displayData
-          };
-        } else {
-          // FDA now supports image upload
-          const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, displayData);
-          
-          // Clean up preview URLs
-          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-          setPendingFiles([]);
-          
-          // Update with response data
-          finalRecall = {
-            ...editedRecall,
-            display: response.data.displayData
-          };
-        }
+      // Role-based routing: Admins save directly, members create pending changes
+      if (user?.role === 'admin') {
+        await handleAdminSave(displayData);
       } else {
-        // No new images, just update display data
-        // Use appropriate API based on source
-        if (recall.source === 'USDA') {
-          await api.updateRecallDisplay(recall.id, displayData);
-        } else {
-          await api.updateFDARecallDisplay(recall.id, displayData);
-        }
-        finalRecall = {
-          ...editedRecall,
-          display: displayData
-        };
+        await handleMemberSave(displayData);
       }
-      
-      onSave(finalRecall);
     } catch (error) {
       console.error('Save failed:', error);
       alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  /**
+   * Admin save handler - applies changes immediately to live data.
+   * Handles both image upload and display data updates for USDA and FDA recalls.
+   * 
+   * @param displayData - The display customization data to save
+   */
+  const handleAdminSave = async (displayData: any) => {
+    let finalRecall: UnifiedRecall;
+
+    if (pendingFiles.length > 0) {
+      // Upload new images and update display data in one operation
+      const files = pendingFiles.map(pf => pf.file);
+      
+      // Use source-appropriate API endpoint
+      if (recall.source === 'USDA') {
+        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
+        
+        // Clean up memory from preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update local state with server response
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      } else {
+        // FDA image upload support
+        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, displayData);
+        
+        // Clean up memory from preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update local state with server response
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      }
+    } else {
+      // No new images - only update display customization data
+      if (recall.source === 'USDA') {
+        await api.updateRecallDisplay(recall.id, displayData);
+      } else {
+        await api.updateFDARecallDisplay(recall.id, displayData);
+      }
+      
+      // Update local state with new display data
+      finalRecall = {
+        ...editedRecall,
+        display: displayData
+      };
+    }
+    
+    // Notify parent component and close modal
+    onSave(finalRecall);
+    alert('Changes saved successfully!');
+  };
+
+  /**
+   * Member save handler - creates pending changes for admin approval.
+   * Images are uploaded immediately but display changes remain pending until approved.
+   * 
+   * @param displayData - The display customization data to submit for approval
+   */
+  const handleMemberSave = async (displayData: any) => {
+    // Process image uploads first (images go to permanent storage immediately)
+    let finalDisplayData = displayData;
+    
+    if (pendingFiles.length > 0) {
+      const files = pendingFiles.map(pf => pf.file);
+      
+      // Upload images to permanent storage (but display changes remain pending)
+      if (recall.source === 'USDA') {
+        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, {});
+        // Merge newly uploaded images with proposed display data
+        finalDisplayData = {
+          ...displayData,
+          uploadedImages: [
+            ...(displayData.uploadedImages || []),
+            ...(response.data.displayData?.uploadedImages || [])
+          ]
+        };
+      } else {
+        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, {});
+        // Merge newly uploaded images with proposed display data
+        finalDisplayData = {
+          ...displayData,
+          uploadedImages: [
+            ...(displayData.uploadedImages || []),
+            ...(response.data.displayData?.uploadedImages || [])
+          ]
+        };
+      }
+      
+      // Clean up memory from preview URLs
+      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      setPendingFiles([]);
+    }
+
+    // Submit changes for admin approval
+    // Clean up any undefined values in the proposed display data
+    const cleanProposedDisplay = JSON.parse(JSON.stringify(finalDisplayData, (key, value) => 
+      value === undefined ? null : value
+    ));
+    
+    await pendingChangesApi.createPendingChange({
+      recallId: recall.id,
+      recallSource: recall.source,
+      originalRecall: recall, // Store full recall data to avoid additional API calls
+      proposedDisplay: cleanProposedDisplay
+    });
+
+    // Close modal without updating parent state (changes are pending)
+    alert('Changes submitted for approval! An admin will review your changes.');
+    onClose();
   };
 
   const handleReset = async () => {
@@ -216,21 +348,28 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
       setPendingFiles([]);
       
-      // Make API call to clear display data based on source
-      if (recall.source === 'USDA') {
-        await api.updateRecallDisplay(recall.id, undefined);
+      // Only admins can directly reset data
+      if (user?.role === 'admin') {
+        // Make API call to clear display data based on source
+        if (recall.source === 'USDA') {
+          await api.updateRecallDisplay(recall.id, undefined);
+        } else {
+          await api.updateFDARecallDisplay(recall.id, undefined);
+        }
+        
+        // Create recall with empty display for local state
+        const updatedRecall: UnifiedRecall = {
+          ...editedRecall,
+          display: undefined // Remove display object entirely
+        };
+        
+        // Update local state
+        onSave(updatedRecall);
+        alert('Reset completed successfully!');
       } else {
-        await api.updateFDARecallDisplay(recall.id, undefined);
+        // Members can only reset the form locally
+        alert('Form reset. Note: Only admins can permanently reset recall data.');
       }
-      
-      // Create recall with empty display for local state
-      const updatedRecall: UnifiedRecall = {
-        ...editedRecall,
-        display: undefined // Remove display object entirely
-      };
-      
-      // Update local state
-      onSave(updatedRecall);
     } catch (error) {
       console.error('Reset failed:', error);
       alert(`Failed to reset: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -320,7 +459,21 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         }}
       >
         <div className={styles.modalHeader}>
-          <h2>Edit Recall Display</h2>
+          <div>
+            <h2>Edit Recall Display</h2>
+            {user && (
+              <p style={{ 
+                fontSize: '0.875rem', 
+                color: currentTheme.textSecondary,
+                margin: '0.25rem 0 0 0'
+              }}>
+                {user.role === 'admin' 
+                  ? 'Changes will be applied immediately' 
+                  : 'Changes will be submitted for admin approval'
+                }
+              </p>
+            )}
+          </div>
           <button 
             className={styles.closeButton} 
             onClick={onClose}
@@ -684,7 +837,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 border: 'none'
               }}
             >
-              Reset All
+              {user?.role === 'admin' ? 'Reset All' : 'Reset Form'}
             </Button>
           </div>
           <div className={styles.modalFooterButtons}>
@@ -695,8 +848,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               {isUploading 
                 ? (pendingFiles.length > 0 
                   ? `Uploading ${pendingFiles.length} image${pendingFiles.length > 1 ? 's' : ''}...` 
-                  : 'Saving...') 
-                : `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                  : (user?.role === 'admin' ? 'Saving...' : 'Submitting...')) 
+                : (user?.role === 'admin' 
+                  ? `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                  : `Submit for Approval${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                )
               }
             </Button>
           </div>

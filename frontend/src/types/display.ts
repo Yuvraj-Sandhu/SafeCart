@@ -7,14 +7,24 @@ export interface CardSplit {
   primaryImageIndex?: number; // Primary image index relative to this split's image range
 }
 
+export interface UserInfo {
+  uid: string;
+  username: string;
+  email: string;
+}
+
 export interface DisplayData {
   primaryImageIndex?: number; // Index of the primary image to show first on main card (relative to main card's image range)
   cardSplits?: CardSplit[];   // Array defining how to split cards
   previewTitle?: string;      // Override title for the main card
   previewUrl?: string;        // Override URL for recall links (Visit USDA/FDA page)
   uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
-  lastEditedBy?: string;      // Email/ID of last editor
-  lastEditedAt?: string;      // ISO timestamp of last edit
+  
+  // Approval audit fields
+  proposedBy?: UserInfo;      // Who proposed these changes
+  proposedAt?: string;        // When changes were proposed
+  approvedBy?: UserInfo;      // Who approved these changes
+  approvedAt?: string;        // When changes were approved
 }
 
 // Extended Recall type with display data
