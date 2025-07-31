@@ -497,13 +497,13 @@ export function EditableRecallList({ recalls, loading, error, onEdit, hidePendin
                           </p>
                         </div>
                         
-                        {recall.source === 'USDA' && recall.originalData?.field_summary && (
+                        {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Summary</h4>
                             <div 
                               style={{ color: currentTheme.textSecondary }}
                               dangerouslySetInnerHTML={{ 
-                                __html: (recall.originalData.field_summary || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                                __html: ((recall.originalData?.field_summary || recall.productDescription) || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
                               }}
                             />
                           </div>

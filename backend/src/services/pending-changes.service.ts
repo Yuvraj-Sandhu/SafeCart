@@ -107,17 +107,31 @@ export class PendingChangesService {
       pendingChangeId = pendingChangeRef.id;
     }
     
-    // Build the pending change object with full recall data
-    const pendingChange: any = {
-      id: pendingChangeId,
-      recallId: data.recallId,
-      recallSource: data.recallSource,
-      proposedBy,
-      proposedAt: new Date().toISOString(),
-      status: 'pending',
-      originalRecall: data.originalRecall, // Store full recall data
-      proposedDisplay: data.proposedDisplay
-    };
+    let pendingChange: any;
+    
+    if (!existingSnapshot.empty) {
+      // Update existing pending change - only update proposedDisplay and timestamp
+      const existingData = existingSnapshot.docs[0].data() as PendingChange;
+      pendingChange = {
+        ...existingData, // Keep existing data
+        id: pendingChangeId,
+        proposedAt: new Date().toISOString(), // Update timestamp
+        proposedDisplay: data.proposedDisplay // Update only the proposed display
+        // DON'T update originalRecall - keep the existing one
+      };
+    } else {
+      // Create new pending change with full data
+      pendingChange = {
+        id: pendingChangeId,
+        recallId: data.recallId,
+        recallSource: data.recallSource,
+        proposedBy,
+        proposedAt: new Date().toISOString(),
+        status: 'pending',
+        originalRecall: data.originalRecall, // Store full recall data
+        proposedDisplay: data.proposedDisplay
+      };
+    }
     
     // Remove all undefined values recursively before saving to Firestore
     const cleanedPendingChange = removeUndefinedValues(pendingChange);

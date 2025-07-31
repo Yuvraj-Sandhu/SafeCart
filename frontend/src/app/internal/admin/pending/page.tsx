@@ -63,7 +63,7 @@ export default function AdminPendingPage() {
             
             // Create a UnifiedRecall object using the original recall data
             const recall: UnifiedRecall = {
-              id: change.recallId,
+              id: change.recallId, // Use ORIGINAL recall ID for consistency
               recallNumber: originalRecall?.recallNumber || change.recallId,
               source: change.recallSource,
               isActive: originalRecall?.isActive ?? true,
@@ -76,7 +76,7 @@ export default function AdminPendingPage() {
               affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || ['Admin Review Required'],
               images: originalRecall?.images || originalRecall?.processedImages || [],
               display: change.proposedDisplay, // The proposed changes for review
-              originalData: change // Store the pending change for reference
+              originalData: change // Store pending change for approve/reject actions
             };
 
             return recall;
@@ -333,9 +333,8 @@ export default function AdminPendingPage() {
                 <Button
                   variant="primary"
                   onClick={() => {
-                    const pendingChange = editModal.recall?.originalData as PendingChange;
-                    if (pendingChange) {
-                      handleApprove(pendingChange.id);
+                    if (editModal.recall?.originalData) {
+                      handleApprove(editModal.recall.originalData.id); // Use pending change ID from originalData
                       closeEditModal();
                     }
                   }}
@@ -347,9 +346,8 @@ export default function AdminPendingPage() {
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    const pendingChange = editModal.recall?.originalData as PendingChange;
-                    if (pendingChange) {
-                      handleReject(pendingChange.id);
+                    if (editModal.recall?.originalData) {
+                      handleReject(editModal.recall.originalData.id); // Use pending change ID from originalData
                       closeEditModal();
                     }
                   }}

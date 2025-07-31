@@ -74,7 +74,7 @@ export default function MemberPendingPage() {
             
             // Create a UnifiedRecall object using the original recall data
             const recall: UnifiedRecall = {
-              id: change.recallId,
+              id: change.recallId, // Use ORIGINAL recall ID so EditModal can find existing pending change
               recallNumber: originalRecall?.recallNumber || change.recallId,
               source: change.recallSource,
               isActive: originalRecall?.isActive ?? true,
@@ -87,7 +87,7 @@ export default function MemberPendingPage() {
               affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || ['Pending Review'],
               images: originalRecall?.images || originalRecall?.processedImages || [],
               display: change.proposedDisplay, // The proposed changes for editing
-              originalData: change // Store the pending change for reference
+              originalData: change // Store pending change for reference
             };
 
             return recall;

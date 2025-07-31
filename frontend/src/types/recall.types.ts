@@ -47,8 +47,8 @@ export interface UnifiedRecall {
     cardSplits?: any[];
   };
   
-  // Original data reference
-  originalData: any; // Keep reference to original USDA or FDA data
+  // Original data reference (for pending changes, this contains the PendingChange object)
+  originalData?: any; // Keep reference to original USDA/FDA data or PendingChange object
 }
 
 /**
