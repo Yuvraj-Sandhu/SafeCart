@@ -160,6 +160,11 @@ router.put('/recalls/:id/display', authenticate, async (req: Request, res: Respo
       };
     }
     
+    // If display is explicitly undefined or null, ensure we pass that through
+    if (displayData === undefined || displayData === null) {
+      auditedDisplay = undefined;
+    }
+    
     await fdaFirebaseService.updateRecallDisplay(id, auditedDisplay);
     
     res.json({

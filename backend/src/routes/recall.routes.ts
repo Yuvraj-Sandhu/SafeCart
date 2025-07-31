@@ -459,6 +459,11 @@ router.put('/recalls/:id/display', authenticate, async (req: Request, res: Respo
       };
     }
     
+    // If display is explicitly undefined or null, ensure we pass that through
+    if (display === undefined || display === null) {
+      auditedDisplay = undefined;
+    }
+    
     // Update display data
     await firebaseService.updateRecallDisplay(id, auditedDisplay);
     

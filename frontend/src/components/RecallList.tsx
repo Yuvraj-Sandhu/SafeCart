@@ -356,16 +356,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               )}
               
               <div className={styles.cardContent}>
-                {splitIndex !== -1 && (
-                  <div 
-                    className={styles.splitIndicator}
-                    style={{
-                      color: currentTheme.primary,
-                    }}
-                  >
-                    Part {splitIndex + 2}
-                  </div>
-                )}
                 
                 <div className={styles.recallHeader}>
                   <span 
