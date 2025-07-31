@@ -1,10 +1,34 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import { PendingChangesService } from '../services/pending-changes.service';
+import { FirebaseService } from '../services/firebase.service';
+import { FDAFirebaseService } from '../services/fda/firebase.service';
 import { CreatePendingChangeRequest } from '../types/pending-changes.types';
 import logger from '../utils/logger';
 
 const router = Router();
+
+// Initialize Firebase services for image uploads
+const firebaseService = new FirebaseService();
+const fdaFirebaseService = new FDAFirebaseService();
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 10 // Maximum 10 files per request
+  },
+  fileFilter: (req, file, cb) => {
+    // Only accept image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // All routes require authentication
 router.use(authenticate);
@@ -43,6 +67,111 @@ router.post('/', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create pending change'
+    });
+  }
+});
+
+/**
+ * POST /api/pending-changes/:id/upload-images
+ * 
+ * Upload images for a pending change WITHOUT modifying the live recall
+ * This ensures members can upload images that only become live after admin approval
+ */
+router.post('/:id/upload-images', upload.array('images', 10), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+
+    const { id: pendingChangeId } = req.params;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No images provided'
+      });
+    }
+
+    // Get the pending change
+    const pendingChange = await PendingChangesService.getPendingChange(pendingChangeId);
+    if (!pendingChange) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pending change not found'
+      });
+    }
+
+    // Ensure user owns this pending change (members can only edit their own)
+    if (req.user.role === 'member' && pendingChange.proposedBy.uid !== req.user.uid) {
+      return res.status(403).json({
+        success: false,  
+        message: 'You can only upload images to your own pending changes'
+      });
+    }
+
+    logger.info(`Uploading ${files.length} images for pending change ${pendingChangeId}`);
+    
+    // Upload images to Firebase Storage (same storage location as live recalls)
+    let uploadedImages;
+    if (pendingChange.recallSource === 'USDA') {
+      uploadedImages = await firebaseService.uploadRecallImages(pendingChange.recallId, files);
+    } else {
+      uploadedImages = await fdaFirebaseService.uploadFDARecallImages(pendingChange.recallId, files);
+    }
+
+    // Parse display data from form data
+    let displayData;
+    try {
+      displayData = req.body.displayData ? JSON.parse(req.body.displayData) : {};
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid display data format'
+      });
+    }
+
+    // Update PENDING CHANGE with uploaded images (NOT the live recall)
+    const updatedProposedDisplay = {
+      ...displayData,
+      uploadedImages: [
+        ...(displayData.uploadedImages || []),
+        ...uploadedImages
+      ],
+      lastEditedAt: new Date().toISOString(),
+      lastEditedBy: req.user.username
+    };
+
+    // Update only the pending change document
+    const updatedPendingChange = await PendingChangesService.createPendingChange(
+      {
+        recallId: pendingChange.recallId,
+        recallSource: pendingChange.recallSource,
+        originalRecall: pendingChange.originalRecall, // Keep existing original recall
+        proposedDisplay: updatedProposedDisplay
+      },
+      {
+        uid: req.user.uid,
+        username: req.user.username,
+        email: req.user.email
+      }
+    );
+
+    logger.info(`Successfully uploaded ${uploadedImages.length} images for pending change ${pendingChangeId}`);
+    
+    res.json({
+      success: true,
+      message: `Successfully uploaded ${uploadedImages.length} images to pending change`,
+      data: {
+        uploadedImages,
+        pendingChange: updatedPendingChange
+      }
+    });
+  } catch (error) {
+    logger.error('Error uploading images to pending change:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload images'
     });
   }
 });

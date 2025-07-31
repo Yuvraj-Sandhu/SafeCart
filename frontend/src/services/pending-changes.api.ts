@@ -91,4 +91,35 @@ export const pendingChangesApi = {
       throw new Error('Failed to reject change');
     }
   },
+
+  // Upload images for a pending change (without modifying live recall)
+  async uploadImagesToPendingChange(
+    pendingChangeId: string, 
+    files: File[], 
+    displayData: any
+  ): Promise<{ uploadedImages: any[]; pendingChange: PendingChange }> {
+    const formData = new FormData();
+    
+    // Add files to form data
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    // Add display data as JSON string
+    formData.append('displayData', JSON.stringify(displayData));
+
+    const response = await fetch(`${API_BASE_URL}/pending-changes/${pendingChangeId}/upload-images`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to upload images to pending change');
+    }
+
+    const result = await response.json();
+    return result.data;
+  },
 };

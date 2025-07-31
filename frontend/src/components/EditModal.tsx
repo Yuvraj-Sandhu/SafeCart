@@ -278,57 +278,39 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
 
   /**
    * Member save handler - creates pending changes for admin approval.
-   * Images are uploaded immediately but display changes remain pending until approved.
+   * Images are uploaded to pending change only (NOT to live recall).
    * 
    * @param displayData - The display customization data to submit for approval
    */
   const handleMemberSave = async (displayData: any) => {
-    // Process image uploads first (images go to permanent storage immediately)
-    let finalDisplayData = displayData;
-    
-    if (pendingFiles.length > 0) {
-      const files = pendingFiles.map(pf => pf.file);
-      
-      // Upload images to permanent storage (but display changes remain pending)
-      if (recall.source === 'USDA') {
-        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, {});
-        // Merge newly uploaded images with proposed display data
-        finalDisplayData = {
-          ...displayData,
-          uploadedImages: [
-            ...(displayData.uploadedImages || []),
-            ...(response.data.displayData?.uploadedImages || [])
-          ]
-        };
-      } else {
-        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, {});
-        // Merge newly uploaded images with proposed display data
-        finalDisplayData = {
-          ...displayData,
-          uploadedImages: [
-            ...(displayData.uploadedImages || []),
-            ...(response.data.displayData?.uploadedImages || [])
-          ]
-        };
-      }
-      
-      // Clean up memory from preview URLs
-      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-      setPendingFiles([]);
-    }
-
-    // Submit changes for admin approval
     // Clean up any undefined values in the proposed display data
-    const cleanProposedDisplay = JSON.parse(JSON.stringify(finalDisplayData, (key, value) => 
+    const cleanProposedDisplay = JSON.parse(JSON.stringify(displayData, (key, value) => 
       value === undefined ? null : value
     ));
     
-    await pendingChangesApi.createPendingChange({
+    // Step 1: Create/update pending change WITHOUT images first
+    const pendingChange = await pendingChangesApi.createPendingChange({
       recallId: recall.id,
       recallSource: recall.source,
       originalRecall: recall, // Store full recall data to avoid additional API calls
       proposedDisplay: cleanProposedDisplay
     });
+
+    // Step 2: If there are pending files, upload them to the pending change
+    if (pendingFiles.length > 0) {
+      const files = pendingFiles.map(pf => pf.file);
+      
+      // Upload images to PENDING CHANGE (not live recall)
+      const uploadResponse = await pendingChangesApi.uploadImagesToPendingChange(
+        pendingChange.id,
+        files,
+        cleanProposedDisplay
+      );
+      
+      // Clean up memory from preview URLs
+      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      setPendingFiles([]);
+    }
 
     // Close modal without updating parent state (changes are pending)
     alert('Changes submitted for approval! An admin will review your changes.');
