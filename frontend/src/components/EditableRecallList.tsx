@@ -19,10 +19,11 @@ interface EditableRecallListProps {
   loading: boolean;
   error: string | null;
   onEdit: (recall: UnifiedRecall) => void;
+  onReview?: (recall: UnifiedRecall) => void; // New prop for approve/reject action
   hidePendingBadges?: boolean;
 }
 
-export function EditableRecallList({ recalls, loading, error, onEdit, hidePendingBadges = false }: EditableRecallListProps) {
+export function EditableRecallList({ recalls, loading, error, onEdit, onReview, hidePendingBadges = false }: EditableRecallListProps) {
   const { currentTheme } = useTheme();
   const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
   const [selectedImageModal, setSelectedImageModal] = useState<{
@@ -331,6 +332,24 @@ export function EditableRecallList({ recalls, loading, error, onEdit, hidePendin
                         className={styles.recallImage}
                         loading="lazy"
                       />
+                      {/* Review button before image count - only show on main card */}
+                      {splitIndex === -1 && onReview && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReview(recall);
+                          }}
+                          className={editStyles.editButton}
+                          style={{ 
+                            right: cardImages.length > 1 ? '9rem' : '5rem',
+                            backgroundColor: currentTheme.warning,
+                            color: 'white'
+                          }}
+                        >
+                          Review
+                        </button>
+                      )}
+                      
                       {/* Edit button before image count - only show on main card */}
                       {splitIndex === -1 && (
                         <button
@@ -373,6 +392,24 @@ export function EditableRecallList({ recalls, loading, error, onEdit, hidePendin
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <polyline points="21 15 16 10 5 21"/>
                       </svg>
+                      {/* Review button for cards without images - only show on main card */}
+                      {splitIndex === -1 && onReview && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReview(recall);
+                          }}
+                          className={editStyles.editButton}
+                          style={{
+                            right: '5rem',
+                            backgroundColor: currentTheme.warning,
+                            color: 'white'
+                          }}
+                        >
+                          Review
+                        </button>
+                      )}
+                      
                       {/* Edit button for cards without images - only show on main card */}
                       {splitIndex === -1 && (
                         <button

@@ -6,6 +6,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Header } from '@/components/Header';
 import { EditableRecallList } from '@/components/EditableRecallList';
+import { RecallList } from '@/components/RecallList';
 import { EditModal } from '@/components/EditModal';
 import { Button } from '@/components/ui/Button';
 import { pendingChangesApi } from '@/services/pending-changes.api';
@@ -98,10 +99,24 @@ export default function AdminPendingPage() {
   }, []);
 
   const handleEditRecall = (recall: UnifiedRecall) => {
+    // Create a recall with proposed changes pre-applied for direct editing
+    const recallWithProposedChanges: UnifiedRecall = {
+      ...recall.originalData?.originalRecall || recall,
+      display: recall.display // Apply the proposed display changes
+    };
+    
+    setEditModal({
+      isOpen: true,
+      recall: recallWithProposedChanges,
+      mode: 'edit' // Allow direct editing with proposed changes pre-applied
+    });
+  };
+
+  const handleReviewRecall = (recall: UnifiedRecall) => {
     setEditModal({
       isOpen: true,
       recall,
-      mode: 'view' // Admins start in view mode to review changes
+      mode: 'view' // Show approve/reject interface
     });
   };
 
@@ -276,89 +291,169 @@ export default function AdminPendingPage() {
                 loading={false}
                 error={null}
                 onEdit={handleEditRecall}
+                onReview={handleReviewRecall}
                 hidePendingBadges={true}
               />
             </div>
           )}
         </div>
 
-        {/* Admin Review Modal */}
+        {/* Edit/Review Modal */}
         {editModal.isOpen && editModal.recall && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '2rem'
-          }}>
-            <div style={{
-              backgroundColor: currentTheme.cardBackground,
-              border: `1px solid ${currentTheme.cardBorder}`,
-              borderRadius: '1rem',
-              padding: '2rem',
-              maxWidth: '600px',
-              width: '100%',
-              maxHeight: '80vh',
-              overflow: 'auto'
-            }}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ color: currentTheme.text, margin: '0 0 1rem 0' }}>
-                  Review Pending Change
-                </h3>
-                <p style={{ color: currentTheme.textSecondary, margin: '0 0 1rem 0' }}>
-                  Recall ID: {editModal.recall.id}
-                </p>
-                <p style={{ color: currentTheme.textSecondary, margin: 0 }}>
-                  {editModal.recall.recallingFirm}
-                </p>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                gap: '1rem',
-                justifyContent: 'flex-end'
+          <>
+            {editModal.mode === 'edit' ? (
+              // Show EditModal for direct editing with proposed changes pre-applied
+              <EditModal
+                recall={editModal.recall}
+                onClose={closeEditModal}
+                onSave={handleSaveEdit}
+              />
+            ) : (
+              // Show before/after comparison for review
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backdropFilter: 'blur(6px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '2rem'
               }}>
-                <Button
-                  variant="secondary"
-                  onClick={closeEditModal}
-                >
-                  Close
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    if (editModal.recall?.originalData) {
-                      handleApprove(editModal.recall.originalData.id); // Use pending change ID from originalData
-                      closeEditModal();
-                    }
-                  }}
-                  disabled={actionLoading !== null}
-                  style={{ backgroundColor: currentTheme.success }}
-                >
-                  {actionLoading ? 'Approving...' : 'Approve'}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    if (editModal.recall?.originalData) {
-                      handleReject(editModal.recall.originalData.id); // Use pending change ID from originalData
-                      closeEditModal();
-                    }
-                  }}
-                  disabled={actionLoading !== null}
-                  style={{ backgroundColor: currentTheme.danger, color: 'white' }}
-                >
-                  Reject
-                </Button>
+                <div style={{
+                  backgroundColor: currentTheme.background,
+                  border: `1px solid ${currentTheme.cardBorder}`,
+                  borderRadius: '1rem',
+                  padding: '2rem',
+                  maxWidth: '1200px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflow: 'auto'
+                }}>
+                  {/* Header */}
+                  <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                    <h3 style={{ color: currentTheme.text, margin: '0 0 0.5rem 0' }}>
+                      Review Pending Change
+                    </h3>
+                    <p style={{ color: currentTheme.textSecondary, margin: '0 0 0.5rem 0' }}>
+                      Recall ID: {editModal.recall.id}
+                    </p>
+                    <p style={{ color: currentTheme.textSecondary, margin: 0, fontSize: '0.875rem' }}>
+                      Submitted by: {editModal.recall.originalData?.proposedBy.username} on {new Date(editModal.recall.originalData?.proposedAt || '').toLocaleDateString()}
+                    </p>
+                  </div>
+                  
+                  {/* Before/After Comparison */}
+                  <div style={{ marginBottom: '2rem' }}>
+                    {/* BEFORE - Original Recall */}
+                    <div style={{ 
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      width: '100%'
+                    }}>
+                      <RecallList
+                        recalls={editModal.recall.originalData?.originalRecall ? [editModal.recall.originalData.originalRecall] : []}
+                        loading={false}
+                        error={null}
+                        hideSearch={true}
+                      />
+                    </div>
+                    
+                    {/* Downward Arrow */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      margin: '1.5rem 0'
+                    }}>
+                      <svg 
+                        viewBox="0 0 46 40" 
+                        style={{
+                          width: '40px',
+                          height: '35px',
+                          fill: currentTheme.primary,
+                          transform: 'rotate(90deg)'
+                        }}
+                      >
+                        <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
+                      </svg>
+                    </div>
+                    
+                    {/* AFTER - Proposed Changes */}
+                    <div style={{ 
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      width: '100%'
+                    }}>
+                      <RecallList
+                        recalls={editModal.recall.originalData?.originalRecall ? [{
+                          ...editModal.recall.originalData.originalRecall,
+                          display: editModal.recall.originalData.proposedDisplay
+                        }] : []}
+                        loading={false}
+                        error={null}
+                        hideSearch={true}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div style={{ 
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    padding: '1.5rem',
+                    borderTop: `1px solid ${currentTheme.cardBorder}`
+                  }}>
+                    <div></div> {/* Empty div for spacing */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '1.5rem'
+                    }}>
+                      <Button
+                        variant="secondary"
+                        onClick={closeEditModal}
+                      >
+                        Close
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          if (editModal.recall?.originalData) {
+                            handleApprove(editModal.recall.originalData.id);
+                            closeEditModal();
+                          }
+                        }}
+                        disabled={actionLoading !== null}
+                      >
+                        {actionLoading ? 'Approving...' : 'Approve Changes'}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          if (editModal.recall?.originalData) {
+                            handleReject(editModal.recall.originalData.id);
+                            closeEditModal();
+                          }
+                        }}
+                        disabled={actionLoading !== null}
+                        style={{ backgroundColor: currentTheme.danger, color: 'white' }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </main>
     </ProtectedRoute>
