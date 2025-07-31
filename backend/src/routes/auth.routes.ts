@@ -46,7 +46,7 @@ router.post('/login', async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // only secure in production (https)
-      sameSite: 'none', // always 'none' for cross-origin requests (localhost:3000 -> Cloud Run)
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // lax for local dev, none for production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/' // ensure cookie is available for all paths
     });
