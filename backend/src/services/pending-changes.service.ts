@@ -51,16 +51,65 @@ function removeUndefinedValues(obj: any): any {
 }
 
 export class PendingChangesService {
-  // Create a new pending change
+  // Create or update a pending change (overwrites existing pending change from same user for same recall)
   static async createPendingChange(
     data: CreatePendingChangeRequest,
     proposedBy: UserInfo
   ): Promise<PendingChange> {
-    const pendingChangeRef = db.collection(PENDING_CHANGES_COLLECTION).doc();
+    // Check if there's already a pending change for this recall from this user
+    const existingSnapshot = await db.collection(PENDING_CHANGES_COLLECTION)
+      .where('recallId', '==', data.recallId)
+      .where('recallSource', '==', data.recallSource)
+      .where('proposedBy.uid', '==', proposedBy.uid)
+      .where('status', '==', 'pending')
+      .get();
+    
+    let pendingChangeRef;
+    let pendingChangeId;
+    
+    if (!existingSnapshot.empty) {
+      // Update existing pending change
+      const existingDoc = existingSnapshot.docs[0];
+      pendingChangeRef = existingDoc.ref;
+      pendingChangeId = existingDoc.id;
+      
+      // Clean up old uploaded images that are not in the new proposed display
+      const existingData = existingDoc.data() as PendingChange;
+      const oldUploadedImages = existingData.proposedDisplay?.uploadedImages || [];
+      const newUploadedImages = data.proposedDisplay?.uploadedImages || [];
+      
+      // Find images that were removed
+      const imagesToDelete = oldUploadedImages.filter(oldImg => 
+        !newUploadedImages.some(newImg => newImg.filename === oldImg.filename)
+      );
+      
+      // Delete removed images from storage
+      if (imagesToDelete.length > 0) {
+        const deletePromises = imagesToDelete.map(async (img) => {
+          try {
+            const path = data.recallSource === 'USDA' 
+              ? `recall-images/${data.recallId}/${img.filename}`
+              : `fda-recall-images/${data.recallId}/${img.filename}`;
+            
+            const bucket = storage.bucket();
+            const file = bucket.file(path);
+            await file.delete();
+          } catch (error) {
+            console.error(`Failed to delete old image ${img.filename}:`, error);
+          }
+        });
+        
+        await Promise.all(deletePromises);
+      }
+    } else {
+      // Create new pending change
+      pendingChangeRef = db.collection(PENDING_CHANGES_COLLECTION).doc();
+      pendingChangeId = pendingChangeRef.id;
+    }
     
     // Build the pending change object with full recall data
     const pendingChange: any = {
-      id: pendingChangeRef.id,
+      id: pendingChangeId,
       recallId: data.recallId,
       recallSource: data.recallSource,
       proposedBy,
