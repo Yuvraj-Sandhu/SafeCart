@@ -292,9 +292,10 @@ export class FDAFirebaseService {
    * 
    * @param recallId - The FDA recall ID to associate images with
    * @param files - Array of multer files to upload
+   * @param uploadedBy - Optional username of the person uploading the images
    * @returns Promise resolving to array of UploadedImage metadata
    */
-  async uploadFDARecallImages(recallId: string, files: Express.Multer.File[]): Promise<any[]> {
+  async uploadFDARecallImages(recallId: string, files: Express.Multer.File[], uploadedBy?: string): Promise<any[]> {
     try {
       const bucket = admin.storage().bucket();
       const uploadedImages = [];
@@ -335,7 +336,7 @@ export class FDAFirebaseService {
           type: 'uploaded-image' as const,
           storageUrl: publicUrl,
           uploadedAt: new Date().toISOString(),
-          uploadedBy: 'current-user', // TODO: Get from auth context
+          uploadedBy: uploadedBy || 'unknown-user',
           size: file.size
         };
 

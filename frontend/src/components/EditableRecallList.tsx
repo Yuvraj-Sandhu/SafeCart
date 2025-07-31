@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
-import { PendingBadge } from './PendingBadge';
+import { PendingBadge } from './ui/PendingBadge';
 import { UnifiedRecall } from '@/types/recall.types';
-import { ImageModal } from './ImageModal';
+import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
 import { usePendingChanges } from '@/hooks/usePendingChanges';

@@ -21,6 +21,7 @@ import multer from 'multer';
 import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
 import { SyncService } from '../services/sync.service';
+import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -434,7 +435,7 @@ router.post('/recalls/batch', async (req: Request, res: Response) => {
  *   }
  * }
  */
-router.put('/recalls/:id/display', async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { display } = req.body;
@@ -448,8 +449,18 @@ router.put('/recalls/:id/display', async (req: Request, res: Response) => {
       });
     }
     
+    // Add audit information to display data if display data is provided
+    let auditedDisplay = display;
+    if (display && req.user) {
+      auditedDisplay = {
+        ...display,
+        lastEditedAt: new Date().toISOString(),
+        lastEditedBy: req.user.username
+      };
+    }
+    
     // Update display data
-    await firebaseService.updateRecallDisplay(id, display);
+    await firebaseService.updateRecallDisplay(id, auditedDisplay);
     
     logger.info(`Updated display data for recall ${id}`);
     
@@ -486,7 +497,7 @@ router.put('/recalls/:id/display', async (req: Request, res: Response) => {
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];
@@ -521,7 +532,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
     logger.info(`Uploading ${files.length} images for recall ${id}`);
     
     // Upload images to Firebase Storage and get metadata
-    const uploadedImages = await firebaseService.uploadRecallImages(id, files);
+    const uploadedImages = await firebaseService.uploadRecallImages(id, files, req.user?.username);
     
     // Update display data with uploaded images
     const updatedDisplayData = {
@@ -531,7 +542,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
         ...uploadedImages
       ],
       lastEditedAt: new Date().toISOString(),
-      lastEditedBy: req.body.userId || 'current-user' // TODO: Get from auth context
+      lastEditedBy: req.user?.username || 'unknown-user'
     };
     
     // Save updated display data to Firestore

@@ -36,7 +36,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
-import { PendingBadge } from './PendingBadge';
+import { PendingBadge } from './ui/PendingBadge';
 import styles from './UserMenu.module.css';
 
 export function UserMenu() {

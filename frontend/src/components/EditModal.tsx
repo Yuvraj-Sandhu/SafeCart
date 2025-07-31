@@ -223,6 +223,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
    * @param displayData - The display customization data to save
    */
   const handleAdminSave = async (displayData: any) => {
+    // Add admin audit information to display data
+    const auditedDisplayData = {
+      ...displayData,
+      lastEditedAt: new Date().toISOString(),
+      lastEditedBy: user?.username || 'admin'
+    };
+
     let finalRecall: UnifiedRecall;
 
     if (pendingFiles.length > 0) {
@@ -231,7 +238,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       
       // Use source-appropriate API endpoint
       if (recall.source === 'USDA') {
-        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
+        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, auditedDisplayData);
         
         // Clean up memory from preview URLs
         pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
@@ -244,7 +251,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         };
       } else {
         // FDA image upload support
-        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, displayData);
+        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, auditedDisplayData);
         
         // Clean up memory from preview URLs
         pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
@@ -259,15 +266,15 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     } else {
       // No new images - only update display customization data
       if (recall.source === 'USDA') {
-        await api.updateRecallDisplay(recall.id, displayData);
+        await api.updateRecallDisplay(recall.id, auditedDisplayData);
       } else {
-        await api.updateFDARecallDisplay(recall.id, displayData);
+        await api.updateFDARecallDisplay(recall.id, auditedDisplayData);
       }
       
       // Update local state with new display data
       finalRecall = {
         ...editedRecall,
-        display: displayData
+        display: auditedDisplayData
       };
     }
     
@@ -386,7 +393,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           type: 'uploaded-image' as const,
           storageUrl: '', // Will be set after upload
           uploadedAt: new Date().toISOString(),
-          uploadedBy: 'current-user', // TODO: Replace with actual user ID from auth context
+          uploadedBy: user?.username || 'unknown-user',
           size: file.size
         };
 

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { fdaFirebaseService } from '../services/fda/firebase.service';
 import { FDARecallResponse } from '../types/fda.types';
+import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -144,12 +145,22 @@ router.get('/recalls/:id', async (req: Request, res: Response) => {
  * Update FDA recall display data
  * PUT /api/fda/recalls/:id/display
  */
-router.put('/recalls/:id/display', async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const displayData = req.body.display;
     
-    await fdaFirebaseService.updateRecallDisplay(id, displayData);
+    // Add audit information to display data if display data is provided
+    let auditedDisplay = displayData;
+    if (displayData && req.user) {
+      auditedDisplay = {
+        ...displayData,
+        lastEditedAt: new Date().toISOString(),
+        lastEditedBy: req.user.username
+      };
+    }
+    
+    await fdaFirebaseService.updateRecallDisplay(id, auditedDisplay);
     
     res.json({
       success: true,
@@ -205,7 +216,7 @@ router.get('/stats', async (req: Request, res: Response) => {
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];
@@ -240,7 +251,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
     logger.info(`Uploading ${files.length} images for FDA recall ${id}`);
     
     // Upload images to Firebase Storage and get metadata
-    const uploadedImages = await fdaFirebaseService.uploadFDARecallImages(id, files);
+    const uploadedImages = await fdaFirebaseService.uploadFDARecallImages(id, files, req.user?.username);
     
     // Update display data with uploaded images
     const updatedDisplayData = {
@@ -250,7 +261,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
         ...uploadedImages
       ],
       lastEditedAt: new Date().toISOString(),
-      lastEditedBy: req.body.userId || 'current-user' // TODO: Get from auth context
+      lastEditedBy: req.user?.username || 'unknown-user'
     };
     
     // Save updated display data to Firestore

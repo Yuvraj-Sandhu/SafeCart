@@ -5,7 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { ProcessedImage } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
-import { ImageModal } from './ImageModal';
+import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
 import styles from './RecallList.module.css';
