@@ -45,8 +45,8 @@ router.post('/login', async (req, res) => {
     // Set cookie
     res.cookie('token', token, {
       httpOnly: true,
-      secure: true, // true for production (https)
-      sameSite: 'none', // none for cross-origin production (frontend on Vercel, backend on Cloud Run)
+      secure: process.env.NODE_ENV === 'production', // only secure in production (https)
+      sameSite: 'none', // always 'none' for cross-origin requests (localhost:3000 -> Cloud Run)
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/' // ensure cookie is available for all paths
     });

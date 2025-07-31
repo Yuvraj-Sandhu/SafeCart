@@ -102,6 +102,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ display: displayData })
     });
     
@@ -120,6 +121,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ display: displayData })
     });
     
@@ -146,11 +148,9 @@ export const api = {
     // Add display data as JSON string
     formData.append('displayData', JSON.stringify(displayData));
     
-    // TODO: Add user ID when auth is implemented
-    // formData.append('userId', userId);
-    
     const response = await fetch(`${API_BASE_URL}/recalls/${recallId}/upload-images`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
       // Note: Don't set Content-Type header for FormData - browser will set it with boundary
     });
@@ -179,11 +179,9 @@ export const api = {
     // Add display data as JSON string
     formData.append('displayData', JSON.stringify(displayData));
     
-    // TODO: Add user ID when auth is implemented
-    // formData.append('userId', userId);
-    
     const response = await fetch(`${API_BASE_URL}/fda/recalls/${recallId}/upload-images`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
       // Note: Don't set Content-Type header for FormData - browser will set it with boundary
     });
