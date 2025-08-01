@@ -36,7 +36,6 @@ export function initializeFirebase() {
     });
 
     isInitialized = true;
-    console.log('Firebase initialized successfully with storage bucket:', requiredVars.FIREBASE_STORAGE_BUCKET);
   } catch (error) {
     console.error('Failed to initialize Firebase:', error);
     throw error;

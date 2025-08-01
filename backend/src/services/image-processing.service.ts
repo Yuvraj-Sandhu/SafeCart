@@ -55,16 +55,7 @@ export class ImageProcessingService {
     // Get the bucket name and explicitly specify it
     const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'safecart-930e5.firebasestorage.app';
     
-    try {
-      this.storage = admin.storage().bucket(bucketName);
-      console.log('Successfully initialized storage bucket with name:', bucketName);
-    } catch (error) {
-      console.error('Failed to initialize storage bucket:', error);
-      console.error('Available Firebase apps:', admin.apps.length);
-      console.error('FIREBASE_STORAGE_BUCKET env var:', process.env.FIREBASE_STORAGE_BUCKET);
-      throw error;
-    }
-
+    this.storage = admin.storage().bucket(bucketName);
     this.tempDir = path.join(__dirname, '../../temp-images');
     this.db = admin.firestore();
     this.ensureTempDir();
