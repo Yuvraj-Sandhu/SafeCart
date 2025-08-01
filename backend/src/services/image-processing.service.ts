@@ -3,7 +3,11 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import dotenv from 'dotenv';
 import logger from '../utils/logger';
+
+// Load environment variables
+dotenv.config();
 
 // Types to match the original JS file structure
 interface ProcessedImage {
@@ -50,6 +54,18 @@ export class ImageProcessingService {
   private db: admin.firestore.Firestore;
 
   constructor() {
+    // Initialize Firebase if not already initialized
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+        }),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+      });
+    }
+
     this.storage = admin.storage().bucket();
     this.tempDir = path.join(__dirname, '../../temp-images');
     this.db = admin.firestore();
