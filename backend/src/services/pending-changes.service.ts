@@ -51,6 +51,23 @@ function removeUndefinedValues(obj: any): any {
 }
 
 export class PendingChangesService {
+  // Get all pending recall IDs for filtering
+  static async getPendingRecallIds(): Promise<Set<string>> {
+    const pendingSnapshot = await db.collection(PENDING_CHANGES_COLLECTION)
+      .where('status', '==', 'pending')
+      .select('recallId', 'recallSource')
+      .get();
+
+    const pendingIds = new Set<string>();
+    pendingSnapshot.forEach(doc => {
+      const data = doc.data();
+      // Create a composite key of recallId and source for unique identification
+      pendingIds.add(`${data.recallId}_${data.recallSource}`);
+    });
+
+    return pendingIds;
+  }
+
   // Create or update a pending change (overwrites existing pending change from same user for same recall)
   static async createPendingChange(
     data: CreatePendingChangeRequest,

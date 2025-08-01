@@ -113,11 +113,11 @@ export default function InternalEditPage() {
       let response;
       
       if (selectedState === 'ALL') {
-        // Get all recalls from all states
-        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr);
+        // Get all recalls from all states - exclude pending changes
+        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr, true);
       } else {
-        // Get recalls for specific state
-        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+        // Get recalls for specific state - exclude pending changes
+        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr, true);
       }
       
       setRecalls(response.data);

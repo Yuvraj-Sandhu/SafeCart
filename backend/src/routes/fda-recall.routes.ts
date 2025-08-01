@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { fdaFirebaseService } from '../services/fda/firebase.service';
 import { FDARecallResponse } from '../types/fda.types';
+import { PendingChangesService } from '../services/pending-changes.service';
 import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
@@ -32,16 +33,26 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
   try {
     const { stateCode } = req.params;
     const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
     
     // Parse date filters if provided
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
     
-    const recalls = await fdaFirebaseService.getRecallsByState(stateCode, {
+    let recalls = await fdaFirebaseService.getRecallsByState(stateCode, {
       limit,
       startDate,
       endDate
     });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
     
     const response: FDARecallResponse = {
       success: true,
@@ -70,16 +81,26 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
 router.get('/recalls/all', async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
     
     // Parse date filters if provided
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
     
-    const recalls = await fdaFirebaseService.getAllRecalls({
+    let recalls = await fdaFirebaseService.getAllRecalls({
       limit,
       startDate,
       endDate
     });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
     
     const response: FDARecallResponse = {
       success: true,

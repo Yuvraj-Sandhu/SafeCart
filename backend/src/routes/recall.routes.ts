@@ -21,6 +21,7 @@ import multer from 'multer';
 import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
 import { SyncService } from '../services/sync.service';
+import { PendingChangesService } from '../services/pending-changes.service';
 import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
@@ -67,6 +68,7 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 100;
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
+    const excludePending = req.query.excludePending === 'true';
     
     let recalls = await firebaseService.getRecallsByState(stateCode, limit);
     
@@ -79,6 +81,16 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
         return true;
       });
     }
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_USDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
+    
     res.json({
       success: true,
       count: recalls.length,
@@ -145,6 +157,7 @@ router.get('/recalls/all', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 5000;
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
+    const excludePending = req.query.excludePending === 'true';
     
     // Get all recalls
     let recalls = await firebaseService.getAllRecalls(limit);
@@ -156,6 +169,15 @@ router.get('/recalls/all', async (req: Request, res: Response) => {
         if (startDate && recallDate < new Date(startDate)) return false;
         if (endDate && recallDate > new Date(endDate)) return false;
         return true;
+      });
+    }
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_USDA`;
+        return !pendingIds.has(compositeId);
       });
     }
     
