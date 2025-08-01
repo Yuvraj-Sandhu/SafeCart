@@ -3,11 +3,8 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import dotenv from 'dotenv';
 import logger from '../utils/logger';
-
-// Load environment variables
-dotenv.config();
+import '../config/firebase'; // This will initialize Firebase
 
 // Types to match the original JS file structure
 interface ProcessedImage {
@@ -54,19 +51,20 @@ export class ImageProcessingService {
   private db: admin.firestore.Firestore;
 
   constructor() {
-    // Initialize Firebase if not already initialized
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-        }),
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET
-      });
+    // Firebase should already be initialized by the import above
+    // Get the bucket name and explicitly specify it
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'safecart-930e5.firebasestorage.app';
+    
+    try {
+      this.storage = admin.storage().bucket(bucketName);
+      console.log('Successfully initialized storage bucket with name:', bucketName);
+    } catch (error) {
+      console.error('Failed to initialize storage bucket:', error);
+      console.error('Available Firebase apps:', admin.apps.length);
+      console.error('FIREBASE_STORAGE_BUCKET env var:', process.env.FIREBASE_STORAGE_BUCKET);
+      throw error;
     }
 
-    this.storage = admin.storage().bucket();
     this.tempDir = path.join(__dirname, '../../temp-images');
     this.db = admin.firestore();
     this.ensureTempDir();
