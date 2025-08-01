@@ -25,6 +25,10 @@ export interface DisplayData {
   proposedAt?: string;        // When changes were proposed
   approvedBy?: UserInfo;      // Who approved these changes
   approvedAt?: string;        // When changes were approved
+  
+  // Direct edit audit fields
+  lastEditedBy?: string;      // Who last edited this recall (for direct admin edits)
+  lastEditedAt?: string;      // When this recall was last edited
 }
 
 // Extended Recall type with display data

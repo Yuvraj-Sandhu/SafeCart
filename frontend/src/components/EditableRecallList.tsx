@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { PendingBadge } from './ui/PendingBadge';
+import { ApprovedBadge } from './ui/ApprovedBadge';
 import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
@@ -474,6 +475,26 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                         <PendingBadge 
                           count={getPendingChangesForRecall(recall.id, recall.source).length}
                         />
+                      )}
+                      
+                      {/* Show approved badge only on main card when no pending changes */}
+                      {!hidePendingBadges && splitIndex === -1 && !hasPendingChanges(recall.id, recall.source) && (
+                        // Case 1: Member-proposed changes that were approved
+                        (recall.display?.approvedAt && recall.display?.approvedBy && recall.display?.proposedBy) ? (
+                          <ApprovedBadge 
+                            approvedBy={recall.display.approvedBy}
+                            proposedBy={recall.display.proposedBy}
+                            approvedAt={recall.display.approvedAt}
+                          />
+                        ) : (
+                          // Case 2: Direct admin edits (no approval workflow)
+                          recall.display?.lastEditedBy && recall.display?.lastEditedAt && (
+                            <ApprovedBadge 
+                              approvedBy={recall.display.lastEditedBy}
+                              approvedAt={recall.display.lastEditedAt}
+                            />
+                          )
+                        )
                       )}
                     </div>
                     
