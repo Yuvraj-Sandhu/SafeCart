@@ -32,9 +32,6 @@ export class FDASyncService {
    * @returns Promise that resolves when sync is complete
    */
   async performSync(days: number = 60): Promise<void> {
-    logger.info(`Starting FDA data sync for last ${days} days...`);
-    const startTime = Date.now();
-
     try {
       // Fetch recent recalls from FDA API
       const recentRecalls = await this.fdaApiService.fetchRecentRecalls(days);
@@ -47,9 +44,6 @@ export class FDASyncService {
 
       // Save to Firebase with custom field preservation
       await this.saveRecallsWithMerge(recentRecalls);
-
-      const duration = Date.now() - startTime;
-      logger.info(`FDA sync completed in ${duration}ms`);
     } catch (error) {
       logger.error('FDA sync failed:', error);
       throw error;
@@ -184,9 +178,9 @@ export class FDASyncService {
     for (let i = 0; i < batches.length; i++) {
       try {
         await batches[i].commit();
-        logger.info(`✓ Committed FDA batch ${i + 1}/${batches.length}`);
+        logger.info(`Committed FDA batch ${i + 1}/${batches.length}`);
       } catch (error) {
-        logger.error(`✗ Failed to commit FDA batch ${i + 1}/${batches.length}:`, error);
+        logger.error(`Failed to commit FDA batch ${i + 1}/${batches.length}:`, error);
         throw error;
       }
     }
