@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { ProcessedImage } from '@/services/api';
@@ -28,6 +28,10 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [displayedRecalls, setDisplayedRecalls] = useState<UnifiedRecall[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [batchNumbers, setBatchNumbers] = useState<Map<string, number>>(new Map());
+  const currentBatchRef = useRef(0);
 
   // Calculate column count based on screen size
   useEffect(() => {
@@ -44,33 +48,113 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
+  // Calculate items per batch based on column count
+  const getItemsPerBatch = useCallback(() => {
+    switch (columnCount) {
+      case 4: return 40;
+      case 3: return 30;
+      case 2: return 20;
+      default: return 10;
+    }
+  }, [columnCount]);
+
   // Filter recalls by search term (only if search is not hidden)
   const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
     recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Initialize displayed recalls
+  useEffect(() => {
+    const itemsPerBatch = getItemsPerBatch();
+    const initialRecalls = filteredRecalls.slice(0, itemsPerBatch);
+    setDisplayedRecalls(initialRecalls);
+    
+    // Reset batch numbers and assign batch 0 to initial recalls
+    currentBatchRef.current = 0;
+    const newBatchNumbers = new Map<string, number>();
+    initialRecalls.forEach(recall => {
+      newBatchNumbers.set(recall.id, 0);
+    });
+    setBatchNumbers(newBatchNumbers);
+  }, [filteredRecalls.length, columnCount, getItemsPerBatch]);
+
+  // Load more recalls when scrolling near bottom
+  const handleScroll = useCallback(() => {
+    if (loadingMore || displayedRecalls.length >= filteredRecalls.length) return;
+
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+
+    // Trigger when user scrolls past the content into the blank space
+    if (scrollY + windowHeight >= documentHeight - (windowHeight / 3) && displayedRecalls.length < filteredRecalls.length) {
+      setLoadingMore(true);
+      
+      // Simulate loading delay for smooth UX
+      setTimeout(() => {
+        const currentLength = displayedRecalls.length;
+        const itemsPerBatch = getItemsPerBatch();
+        const nextRecalls = filteredRecalls.slice(currentLength, currentLength + itemsPerBatch);
+        
+        // Increment batch number for new recalls
+        currentBatchRef.current += 1;
+        const currentBatch = currentBatchRef.current;
+        
+        // Update batch numbers for new recalls
+        setBatchNumbers(prev => {
+          const newMap = new Map(prev);
+          nextRecalls.forEach(recall => {
+            newMap.set(recall.id, currentBatch);
+          });
+          return newMap;
+        });
+        
+        setDisplayedRecalls(prev => [...prev, ...nextRecalls]);
+        setLoadingMore(false);
+      }, 500);
+    }
+  }, [displayedRecalls.length, filteredRecalls.length, loadingMore, getItemsPerBatch]);
+
+  // Add scroll event listener
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
   // Create masonry columns with horizontal ordering (including split cards)
   const createMasonryColumns = (recalls: UnifiedRecall[]) => {
     // Expand recalls that have display splits
-    const expandedRecalls: Array<{ recall: UnifiedRecall, splitIndex: number }> = [];
+    const expandedRecalls: Array<{ recall: UnifiedRecall, splitIndex: number, uniqueKey: string }> = [];
     
-    recalls.forEach(recall => {
+    recalls.forEach((recall, recallIndex) => {
       const display = (recall as any).display;
       if (display?.cardSplits && display.cardSplits.length > 0) {
         // Add main card
-        expandedRecalls.push({ recall, splitIndex: -1 });
+        expandedRecalls.push({ 
+          recall, 
+          splitIndex: -1, 
+          uniqueKey: `${recall.id}-main-${recallIndex}` 
+        });
         // Add split cards
         display.cardSplits.forEach((_: any, index: number) => {
-          expandedRecalls.push({ recall, splitIndex: index });
+          expandedRecalls.push({ 
+            recall, 
+            splitIndex: index,
+            uniqueKey: `${recall.id}-split-${index}-${recallIndex}`
+          });
         });
       } else {
         // No splits, just add the single card
-        expandedRecalls.push({ recall, splitIndex: -1 });
+        expandedRecalls.push({ 
+          recall, 
+          splitIndex: -1,
+          uniqueKey: `${recall.id}-single-${recallIndex}`
+        });
       }
     });
     
-    const columns: Array<Array<{ recall: UnifiedRecall, splitIndex: number }>> = Array(columnCount).fill(null).map(() => []);
+    const columns: Array<Array<{ recall: UnifiedRecall, splitIndex: number, uniqueKey: string }>> = Array(columnCount).fill(null).map(() => []);
     
     // Fill columns horizontally (round-robin) with expanded recalls
     expandedRecalls.forEach((expandedRecall, index) => {
@@ -219,7 +303,8 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
     );
   }
 
-  const masonryColumns = createMasonryColumns(filteredRecalls);
+  // Use displayedRecalls instead of filteredRecalls for masonry
+  const masonryColumns = createMasonryColumns(displayedRecalls);
 
   return (
     <div className={styles.container}>
@@ -265,11 +350,18 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
         {masonryColumns.map((column, columnIndex) => (
           <div key={columnIndex} className={styles.column}>
             {column.map((expandedRecall, cardIndex) => {
-              const { recall, splitIndex } = expandedRecall;
+              const { recall, splitIndex, uniqueKey } = expandedRecall;
               const cardId = splitIndex === -1 ? recall.id : `${recall.id}-${splitIndex}`;
               
               // Get display data
               const display = (recall as any).display;
+              
+              // Get batch number for this recall
+              const batchNumber = batchNumbers.get(recall.id) ?? 0;
+              
+              // Calculate item index within the batch for staggered animation
+              const recallsInBatch = displayedRecalls.filter(r => batchNumbers.get(r.id) === batchNumber);
+              const itemIndexInBatch = recallsInBatch.findIndex(r => r.id === recall.id);
               
               // Get combined images (processed + uploaded)
               const allImages = getUnifiedRecallImages(recall);
@@ -315,12 +407,13 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
               
               return (
                 <div
-                  key={cardId}
-                  className={styles.recallCard}
+                  key={uniqueKey}
+                  className={`${styles.recallCard} ${styles.batchAnimation} ${styles[`batch${batchNumber % 10}`]}`}
                   style={{
                     backgroundColor: currentTheme.cardBackground,
                     borderColor: currentTheme.cardBorder,
-                  }}
+                    '--item-index': itemIndexInBatch,
+                  } as React.CSSProperties}
                 >
               {firstImage ? (
                 <div 
@@ -483,6 +576,29 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
           </div>
         ))}
       </div>
+
+      {/* Loading more indicator */}
+      {loadingMore && displayedRecalls.length < filteredRecalls.length && (
+        <div className={styles.loadingMore}>
+          <div className={styles.spinner} />
+          <p style={{ color: currentTheme.textSecondary, marginTop: '0.5rem' }}>Loading more recalls...</p>
+        </div>
+      )}
+
+      {/* End of list indicator */}
+      {!loadingMore && displayedRecalls.length > 0 && displayedRecalls.length >= filteredRecalls.length && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '2rem', 
+          color: currentTheme.textSecondary,
+          fontSize: '0.875rem'
+        }}>
+          Showing all {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* Spacer to allow scrolling past the bottom */}
+      <div style={{ height: 'calc(100vh / 2)' }} />
 
       {/* Image Modal */}
       <ImageModal
