@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { USDAApiService } from './usda-api.service';
 import { FirebaseService } from './firebase.service';
 import { ImageProcessingService } from './image-processing.service';
+import { FDASyncService } from './fda/sync.service';
 import logger from '../utils/logger';
 import dotenv from 'dotenv';
 
@@ -9,17 +10,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Service for synchronizing USDA recall data with Firebase
+ * Service for synchronizing USDA and FDA recall data with Firebase
  * 
- * This service orchestrates the data flow between USDA API and Firebase:
+ * This service orchestrates the data flow between USDA/FDA APIs and Firebase:
  * - Scheduled automatic syncing every 12 hours (configurable)
  * - Manual sync triggering via API endpoints
  * - Historical data backfill for initial setup
- * - Rate limiting to respect USDA API usage
+ * - Rate limiting to respect API usage
  * 
  * The sync process:
  * 1. Fetches recent recalls from USDA API
- * 2. Fetches high-risk recalls separately (to ensure nothing is missed)
+ * 2. Fetches recent recalls from FDA API
  * 3. Processes and saves data to Firebase
  * 4. Logs performance metrics and errors
  * 
@@ -27,26 +28,29 @@ dotenv.config();
  * ```typescript
  * const syncService = new SyncService();
  * syncService.startAutoSync(); // Start scheduled syncing
- * await syncService.performSync(); // Manual sync
+ * await syncService.performSync(); // Manual sync for both USDA and FDA
  * ```
  */
 export class SyncService {
   private usdaService: USDAApiService;
   private firebaseService: FirebaseService;
   private imageProcessingService: ImageProcessingService;
+  private fdaSyncService: FDASyncService;
   private syncTask: cron.ScheduledTask | null = null;
+  private fdaSyncTask: cron.ScheduledTask | null = null;
 
   /**
-   * Initializes the sync service with USDA API and Firebase services
+   * Initializes the sync service with USDA/FDA API and Firebase services
    */
   constructor() {
     this.usdaService = new USDAApiService();
     this.firebaseService = new FirebaseService();
     this.imageProcessingService = new ImageProcessingService();
+    this.fdaSyncService = new FDASyncService();
   }
 
   /**
-   * Performs a regular sync of recent recalls
+   * Performs a regular sync of recent USDA recalls
    * 
    * This method is called both on schedule and when manually triggered.
    * It fetches recent data to ensure the Firebase database is up-to-date.
@@ -55,43 +59,86 @@ export class SyncService {
    * @throws Error if sync fails at any stage
    */
   async performSync(): Promise<void> {
-    logger.info('Starting data sync...');
+    logger.info('Starting USDA data sync...');
     const startTime = Date.now();
 
     try {
       // Fetch recent recalls (last 60 days)
       const recentRecalls = await this.usdaService.fetchRecentRecalls(60);
-      logger.info(`Fetched ${recentRecalls.length} recent recalls`);
+      logger.info(`Fetched ${recentRecalls.length} recent USDA recalls`);
 
       // Save to Firebase
       await this.firebaseService.saveRecalls(recentRecalls);
 
       // Process images for recent recalls
-      logger.info('Processing images for recent recalls...');
+      logger.info('Processing images for USDA recalls...');
       const imageResults = await this.imageProcessingService.processRecentRecalls(recentRecalls);
       const successfulImages = imageResults.filter(r => r.status === 'completed').length;
       const totalImages = imageResults.reduce((sum, r) => sum + r.successCount, 0);
-      logger.info(`Image processing completed: ${successfulImages} recalls processed, ${totalImages} images stored`);
+      logger.info(`USDA image processing completed: ${successfulImages} recalls processed, ${totalImages} images stored`);
 
       // Cleanup temp files
       await this.imageProcessingService.cleanup();
 
       const duration = Date.now() - startTime;
-      logger.info(`Sync completed in ${duration}ms`);
+      logger.info(`USDA sync completed in ${duration}ms`);
     } catch (error) {
-      logger.error('Sync failed:', error);
+      logger.error('USDA sync failed:', error);
       // Ensure cleanup happens even if sync fails
       try {
         await this.imageProcessingService.cleanup();
       } catch (cleanupError) {
-        logger.warn('Cleanup after sync failure failed:', cleanupError);
+        logger.warn('Cleanup after USDA sync failure failed:', cleanupError);
       }
       throw error;
     }
   }
 
   /**
-   * Performs historical data backfill for initial database setup
+   * Performs a sync of recent FDA recalls
+   * 
+   * This method fetches FDA recall data from the last 60 days and updates
+   * the Firebase database while preserving custom fields like display data.
+   * 
+   * @param days - Number of days to sync (default: 60)
+   * @returns Promise that resolves when FDA sync is complete
+   * @throws Error if sync fails
+   */
+  async performFDASync(days: number = 60): Promise<void> {
+    logger.info(`Starting FDA data sync for last ${days} days...`);
+    const startTime = Date.now();
+
+    try {
+      await this.fdaSyncService.performSync(days);
+      
+      const duration = Date.now() - startTime;
+      logger.info(`FDA sync completed in ${duration}ms`);
+    } catch (error) {
+      logger.error('FDA sync failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Performs FDA historical data sync
+   * 
+   * @param days - Number of days to sync (default: 365 for one year)
+   * @returns Promise that resolves when FDA historical sync is complete
+   */
+  async performFDAHistoricalSync(days: number = 365): Promise<void> {
+    logger.info(`Starting FDA historical sync for ${days} days...`);
+    
+    try {
+      await this.fdaSyncService.performHistoricalSync(days);
+      logger.info('FDA historical sync completed');
+    } catch (error) {
+      logger.error('FDA historical sync failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Performs historical data backfill for initial database setup (USDA)
    * 
    * This method is typically run once when setting up SafeCart to populate
    * the database with historical recall data. It fetches data for key states
@@ -231,6 +278,54 @@ export class SyncService {
   }
 
   /**
+   * Starts automatic FDA synchronization
+   * 
+   * Runs daily at 3:00 AM Eastern Time
+   * Can be disabled by setting ENABLE_FDA_AUTO_SYNC to false
+   */
+  startFDAAutoSync(): void {
+    if (process.env.ENABLE_FDA_AUTO_SYNC === 'false') {
+      logger.info('FDA auto-sync is disabled');
+      return;
+    }
+
+    const timezone = process.env.SYNC_TIMEZONE || 'America/New_York';
+    // Cron expression for 3:00 AM every day
+    const cronExpression = '0 3 * * *'; // minute=0, hour=3, every day
+
+    this.fdaSyncTask = cron.schedule(cronExpression, async () => {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', { 
+        timeZone: timezone,
+        dateStyle: 'short',
+        timeStyle: 'medium'
+      });
+      logger.info(`Running scheduled FDA sync at ${timeString} (${timezone})`);
+      
+      try {
+        await this.performFDASync(60); // Sync last 60 days
+      } catch (error) {
+        logger.error('Scheduled FDA sync failed:', error);
+      }
+    }, {
+      timezone: timezone
+    });
+
+    logger.info(`FDA auto-sync scheduled for 3:00 AM daily in ${timezone} timezone`);
+    
+    // Log the next scheduled run
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(3, 0, 0, 0);
+    const nextRunString = tomorrow.toLocaleString('en-US', {
+      timeZone: timezone,
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    });
+    logger.info(`Next FDA sync scheduled for: ${nextRunString} (${timezone})`);
+  }
+
+  /**
    * Stops the automatic synchronization task
    * 
    * Useful for graceful shutdown or when disabling auto-sync
@@ -238,7 +333,11 @@ export class SyncService {
   stopAutoSync(): void {
     if (this.syncTask) {
       this.syncTask.stop();
-      logger.info('Auto-sync stopped');
+      logger.info('USDA auto-sync stopped');
+    }
+    if (this.fdaSyncTask) {
+      this.fdaSyncTask.stop();
+      logger.info('FDA auto-sync stopped');
     }
   }
 }

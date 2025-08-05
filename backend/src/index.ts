@@ -114,6 +114,7 @@ app.listen(PORT, () => {
   // Initialize and start automatic synchronization
   const syncService = new SyncService();
   syncService.startAutoSync();
+  syncService.startFDAAutoSync();
   
   // Initial sync disabled to avoid startup delays in production
   logger.info('Initial sync disabled - use manual sync endpoints if needed');

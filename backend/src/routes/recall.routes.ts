@@ -305,6 +305,84 @@ router.post('/sync/historical', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/sync/fda/trigger
+ * 
+ * Triggers FDA data sync manually
+ * 
+ * Fetches FDA recall data from the last 60 days and updates Firebase
+ * while preserving custom fields like display data.
+ * 
+ * @body days - Number of days to sync (default: 60)
+ * 
+ * @returns JSON response confirming FDA sync has started
+ * 
+ * @example
+ * POST /api/sync/fda/trigger
+ * Content-Type: application/json
+ * { "days": 30 }
+ */
+router.post('/sync/fda/trigger', async (req: Request, res: Response) => {
+  try {
+    const { days = 60 } = req.body;
+    
+    res.json({
+      success: true,
+      message: `FDA sync started for last ${days} days`
+    });
+    
+    // Run FDA sync in background
+    syncService.performFDASync(days).catch(error => {
+      logger.error('Background FDA sync failed:', error);
+    });
+  } catch (error) {
+    logger.error('Error triggering FDA sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA sync'
+    });
+  }
+});
+
+/**
+ * POST /api/sync/fda/historical
+ * 
+ * Triggers FDA historical data sync
+ * 
+ * This is typically run once when setting up SafeCart to populate
+ * the database with historical FDA recall data.
+ * 
+ * @body days - Number of days to backfill (default: 365)
+ * 
+ * @returns JSON response confirming FDA historical sync has started
+ * 
+ * @example
+ * POST /api/sync/fda/historical
+ * Content-Type: application/json
+ * { "days": 730 }
+ */
+router.post('/sync/fda/historical', async (req: Request, res: Response) => {
+  try {
+    const { days = 365 } = req.body;
+    
+    res.json({
+      success: true,
+      message: `FDA historical sync started for ${days} days`
+    });
+    
+    // Run FDA historical sync in background
+    syncService.performFDAHistoricalSync(days).catch(error => {
+      logger.error('Background FDA historical sync failed:', error);
+    });
+  } catch (error) {
+    logger.error('Error triggering FDA historical sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA historical sync'
+    });
+  }
+});
+
+/**
  * GET /api/test/usda
  * 
  * Tests the connection to USDA API by fetching sample data
