@@ -176,9 +176,13 @@ router.post('/:id/upload-images', upload.array('images', 10), async (req, res) =
   }
 });
 
-// Get all pending changes (admin only)
-router.get('/', requireAdmin, async (req, res) => {
+// Get all pending changes (members and admins can see all for better collaboration)
+router.get('/', async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    
     const pendingChanges = await PendingChangesService.getAllPendingChanges();
     
     res.json({

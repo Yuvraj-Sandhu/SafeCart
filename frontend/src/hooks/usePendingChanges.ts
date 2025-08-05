@@ -58,16 +58,8 @@ export function usePendingChanges() {
         sharedError = null;
         notifySubscribers();
         
-        let changes: PendingChange[] = [];
-        
-        if (user.role === 'admin') {
-          // Admins see all pending changes
-          changes = await pendingChangesApi.getAllPendingChanges();
-        } else {
-          // Members see only their own pending changes
-          changes = await pendingChangesApi.getMyPendingChanges();
-        }
-        
+        // Both admins and members see all pending changes for better collaboration
+        const changes = await pendingChangesApi.getAllPendingChanges();
         sharedPendingChanges = changes;
         lastUserId = user.uid;
       } catch (err) {
