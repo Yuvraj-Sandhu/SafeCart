@@ -68,16 +68,15 @@ export class PendingChangesService {
     return pendingIds;
   }
 
-  // Create or update a pending change (overwrites existing pending change from same user for same recall)
+  // Create or update a pending change (overwrites existing pending change for same recall from any user)
   static async createPendingChange(
     data: CreatePendingChangeRequest,
     proposedBy: UserInfo
   ): Promise<PendingChange> {
-    // Check if there's already a pending change for this recall from this user
+    // Check if there's already a pending change for this recall from any user
     const existingSnapshot = await db.collection(PENDING_CHANGES_COLLECTION)
       .where('recallId', '==', data.recallId)
       .where('recallSource', '==', data.recallSource)
-      .where('proposedBy.uid', '==', proposedBy.uid)
       .where('status', '==', 'pending')
       .get();
     
@@ -127,11 +126,18 @@ export class PendingChangesService {
     let pendingChange: any;
     
     if (!existingSnapshot.empty) {
-      // Update existing pending change - only update proposedDisplay and timestamp
+      // Update existing pending change - overwrite with new user's changes
       const existingData = existingSnapshot.docs[0].data() as PendingChange;
+      
+      // Log when overwriting changes from a different user
+      if (existingData.proposedBy.uid !== proposedBy.uid) {
+        console.log(`Overwriting pending change for recall ${data.recallId} from ${existingData.proposedBy.username} with changes from ${proposedBy.username}`);
+      }
+      
       pendingChange = {
         ...existingData, // Keep existing data
         id: pendingChangeId,
+        proposedBy, // Update to the new user who made the changes
         proposedAt: new Date().toISOString(), // Update timestamp
         proposedDisplay: data.proposedDisplay // Update only the proposed display
         // DON'T update originalRecall - keep the existing one

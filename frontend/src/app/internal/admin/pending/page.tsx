@@ -10,6 +10,7 @@ import { RecallList } from '@/components/RecallList';
 import { EditModal } from '@/components/EditModal';
 import { Button } from '@/components/ui/Button';
 import { pendingChangesApi } from '@/services/pending-changes.api';
+import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { UnifiedRecall } from '@/types/recall.types';
 import { PendingChange } from '@/types/pending-changes.types';
 import styles from '../../../page.module.css';
@@ -18,11 +19,11 @@ export default function AdminPendingPage() {
   const { currentTheme } = useTheme();
   const router = useRouter();
 
-  // Data states
+  // Use shared pending changes hook to avoid duplicate API calls
+  const { pendingChanges, loading, error } = usePendingChanges();
+
+  // Local state for recalls display
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
-  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Edit modal state (for admin review and editing)
   const [editModal, setEditModal] = useState<{
@@ -38,65 +39,47 @@ export default function AdminPendingPage() {
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Fetch all pending changes for admin review
+  // Process pending changes from the shared hook into recalls for display
   useEffect(() => {
-    const fetchPendingData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    // Create UnifiedRecall objects from pending changes data for display
+    if (pendingChanges.length > 0) {
+      const recallsFromPendingChanges = pendingChanges.map((change): UnifiedRecall => {
+        // Use the full recall data from originalRecall
+        const originalRecall = change.originalRecall;
+        
+        // Extract title from proposed display or original recall
+        const displayTitle = change.proposedDisplay?.previewTitle || 
+                           originalRecall?.display?.previewTitle ||
+                           originalRecall?.productTitle ||
+                           originalRecall?.field_title ||
+                           `Recall ${change.recallId}`;
+        
+        // Create a UnifiedRecall object using the original recall data
+        const recall: UnifiedRecall = {
+          id: change.recallId, // Use ORIGINAL recall ID for consistency
+          recallNumber: originalRecall?.recallNumber || change.recallId,
+          source: change.recallSource,
+          isActive: originalRecall?.isActive ?? true,
+          classification: originalRecall?.classification || originalRecall?.field_risk_level || 'Pending Review',
+          recallingFirm: originalRecall?.recallingFirm || originalRecall?.recalling_firm || `Submitted by ${change.proposedBy.username}`,
+          productTitle: displayTitle,
+          productDescription: originalRecall?.productDescription || originalRecall?.field_summary || `Changes submitted on ${new Date(change.proposedAt).toLocaleDateString()}`,
+          reasonForRecall: originalRecall?.reasonForRecall || originalRecall?.reason_for_recall || 'Awaiting Admin Review',
+          recallDate: originalRecall?.recallDate || originalRecall?.report_date || change.proposedAt,
+          affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || ['Admin Review Required'],
+          images: originalRecall?.images || originalRecall?.processedImages || [],
+          display: change.proposedDisplay, // The proposed changes for review
+          originalData: change // Store pending change for approve/reject actions
+        };
 
-        // Get all pending changes
-        const allPendingChanges = await pendingChangesApi.getAllPendingChanges();
-        setPendingChanges(allPendingChanges);
+        return recall;
+      });
 
-        // Create UnifiedRecall objects from pending changes data for display
-        if (allPendingChanges.length > 0) {
-          const recallsFromPendingChanges = allPendingChanges.map((change): UnifiedRecall => {
-            // Use the full recall data from originalRecall
-            const originalRecall = change.originalRecall;
-            
-            // Extract title from proposed display or original recall
-            const displayTitle = change.proposedDisplay?.previewTitle || 
-                               originalRecall?.display?.previewTitle ||
-                               originalRecall?.productTitle ||
-                               originalRecall?.field_title ||
-                               `Recall ${change.recallId}`;
-            
-            // Create a UnifiedRecall object using the original recall data
-            const recall: UnifiedRecall = {
-              id: change.recallId, // Use ORIGINAL recall ID for consistency
-              recallNumber: originalRecall?.recallNumber || change.recallId,
-              source: change.recallSource,
-              isActive: originalRecall?.isActive ?? true,
-              classification: originalRecall?.classification || originalRecall?.field_risk_level || 'Pending Review',
-              recallingFirm: originalRecall?.recallingFirm || originalRecall?.recalling_firm || `Submitted by ${change.proposedBy.username}`,
-              productTitle: displayTitle,
-              productDescription: originalRecall?.productDescription || originalRecall?.field_summary || `Changes submitted on ${new Date(change.proposedAt).toLocaleDateString()}`,
-              reasonForRecall: originalRecall?.reasonForRecall || originalRecall?.reason_for_recall || 'Awaiting Admin Review',
-              recallDate: originalRecall?.recallDate || originalRecall?.report_date || change.proposedAt,
-              affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || ['Admin Review Required'],
-              images: originalRecall?.images || originalRecall?.processedImages || [],
-              display: change.proposedDisplay, // The proposed changes for review
-              originalData: change // Store pending change for approve/reject actions
-            };
-
-            return recall;
-          });
-
-          setRecalls(recallsFromPendingChanges);
-        } else {
-          setRecalls([]);
-        }
-      } catch (err) {
-        console.error('Failed to fetch pending data:', err);
-        setError('Failed to load pending changes');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPendingData();
-  }, []);
+      setRecalls(recallsFromPendingChanges);
+    } else {
+      setRecalls([]);
+    }
+  }, [pendingChanges]); // Depend on pendingChanges from the hook
 
   const handleEditRecall = (recall: UnifiedRecall) => {
     // Create a recall with proposed changes pre-applied for direct editing
