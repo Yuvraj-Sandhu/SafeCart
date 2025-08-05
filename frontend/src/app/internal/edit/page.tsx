@@ -22,7 +22,7 @@ export default function InternalEditPage() {
   const { currentTheme } = useTheme();
   const { user } = useAuth();
   const { location, isLoading: isLocationLoading } = useUserLocation();
-  const { totalPendingCount, refetch: refetchPendingChanges } = usePendingChanges();
+  const { totalPendingCount, refetch: refetchPendingChanges, hasPendingChanges } = usePendingChanges();
   const hasInitialSearched = useRef(false);
   const hasUserInteracted = useRef(false);
   
@@ -36,6 +36,7 @@ export default function InternalEditPage() {
   const [filterNoImages, setFilterNoImages] = useState(false);
   const [showUSDARecalls, setShowUSDARecalls] = useState(true);
   const [showFDARecalls, setShowFDARecalls] = useState(true);
+  const [showApproved, setShowApproved] = useState(true);
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
@@ -152,6 +153,7 @@ export default function InternalEditPage() {
     setFilterNoImages(false);
     setShowUSDARecalls(true);
     setShowFDARecalls(true);
+    setShowApproved(true);
   };
 
   const handleEdit = (recall: UnifiedRecall) => {
@@ -185,16 +187,33 @@ export default function InternalEditPage() {
   const getFilteredRecalls = () => {
     let filtered = recalls;
 
-    // Filter by source (USDA/FDA)
-    if (!showUSDARecalls || !showFDARecalls) {
+    // Special case: if both USDA and FDA are off but showApproved is on, show only approved recalls
+    if (!showUSDARecalls && !showFDARecalls && showApproved) {
       filtered = filtered.filter(recall => {
-        if (recall.source === 'USDA' && !showUSDARecalls) return false;
-        if (recall.source === 'FDA' && !showFDARecalls) return false;
-        return true;
+        return recall.display && (recall.display.approvedBy || recall.display.lastEditedBy);
       });
+    } else {
+      // Normal filtering logic
+      
+      // Filter by source (USDA/FDA)
+      if (!showUSDARecalls || !showFDARecalls) {
+        filtered = filtered.filter(recall => {
+          if (recall.source === 'USDA' && !showUSDARecalls) return false;
+          if (recall.source === 'FDA' && !showFDARecalls) return false;
+          return true;
+        });
+      }
+
+      // Filter by approved status (instant client-side filtering)
+      if (!showApproved) {
+        // Hide approved recalls - show only recalls that have NOT been approved/edited
+        filtered = filtered.filter(recall => {
+          return !recall.display || (!recall.display.approvedBy && !recall.display.lastEditedBy);
+        });
+      }
     }
 
-    // Filter by image presence
+    // Filter by image presence (always apply this filter)
     if (filterNoImages) {
       filtered = filtered.filter(recall => {
         // Check both processed images and uploaded images
@@ -318,7 +337,8 @@ export default function InternalEditPage() {
                     alignItems: 'center',
                     gap: '0.75rem',
                     color: currentTheme.text,
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
                   }}
                 >
                   <input 
@@ -330,6 +350,27 @@ export default function InternalEditPage() {
                   />
                   <label htmlFor="showFDARecallsInput" className={styles.toggleSwitch}></label>
                   <span>FDA recalls</span>
+                </div>
+                
+                <div 
+                  className={styles.filterOption}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="showApprovedInput"
+                    checked={showApproved}
+                    onChange={(e) => setShowApproved(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="showApprovedInput" className={styles.toggleSwitch}></label>
+                  <span>Show Approved</span>
                 </div>
               </div>
             )}

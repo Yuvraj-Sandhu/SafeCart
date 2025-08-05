@@ -29,6 +29,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { Button } from './ui/Button';
 import { UnifiedRecall } from '@/types/recall.types';
 import { CardSplit, SplitPreview, UploadedImage } from '@/types/display';
@@ -49,6 +50,7 @@ interface EditModalProps {
 export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
   const { user } = useAuth();
+  const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
   
   // Core state management
   const [editedRecall, setEditedRecall] = useState<UnifiedRecall>(recall);
@@ -297,6 +299,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Notify parent component and close modal
     onSave(finalRecall);
     alert('Changes saved successfully!');
+    
+    // Reload page for admins to show updated data
+    window.location.reload();
   };
 
   /**
@@ -337,7 +342,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
 
     // Close modal without updating parent state (changes are pending)
     alert('Changes submitted for approval! An admin will review your changes.');
-    onClose();
+    
+    // Reload page for members to show updated data (pending changes, badges, etc.)
+    window.location.reload();
   };
 
   const handleReset = async () => {
@@ -371,9 +378,29 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         // Update local state
         onSave(updatedRecall);
         alert('Reset completed successfully!');
+        
+        // Reload page for admins to show updated data
+        window.location.reload();
       } else {
-        // Members can only reset the form locally
-        alert('Form reset. Note: Only admins can permanently reset recall data.');
+        // For members, check if this recall has pending changes
+        if (hasPendingChanges(recall.id, recall.source)) {
+          // If it has pending changes, withdraw them (remove from pending queue)
+          const pendingChangesForRecall = getPendingChangesForRecall(recall.id, recall.source);
+          
+          if (pendingChangesForRecall.length > 0) {
+            // Withdraw the pending change (members can withdraw their own changes)
+            const pendingChangeId = pendingChangesForRecall[0].id;
+            await pendingChangesApi.withdrawPendingChange(pendingChangeId);
+            
+            alert('Pending changes removed! The recall has been returned to its original state.');
+            
+            // Reload page to show updated state
+            window.location.reload();
+          }
+        } else {
+          // No pending changes to remove
+          alert('Form reset. Note: Only admins can permanently reset recall data.');
+        }
       }
     } catch (error) {
       console.error('Reset failed:', error);
@@ -863,7 +890,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 border: 'none'
               }}
             >
-              {user?.role === 'admin' ? 'Reset All' : 'Reset Form'}
+              {user?.role === 'admin' ? 'Reset All' : 'Reset'}
             </Button>
           </div>
           <div className={styles.modalFooterButtons}>
