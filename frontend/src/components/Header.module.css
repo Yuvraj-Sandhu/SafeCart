@@ -1,0 +1,161 @@
+/* Header Container - Full-width 3-column flex layout */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100vw; /* Full viewport width */
+  min-height: 120px; /* Consistent height regardless of content */
+  padding: 1rem 2rem 0rem 2rem;
+  margin-bottom: 2rem;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Left Column - Theme Toggle */
+.leftColumn {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  min-width: 50px; /* Ensure space for theme toggle */
+  padding-left: 1rem;
+}
+
+/* Center Column - Title and Subtitle */
+.centerColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  min-height: 80px; /* Reserve space even without subtitle */
+}
+
+/* Right Column - User Menu */
+.rightColumn {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  min-width: 50px; /* Ensure space for user menu */
+  padding-right: 1rem;
+}
+
+/* Theme Toggle Button */
+.themeToggle {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  user-select: none;
+}
+
+.themeToggle:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.themeToggle:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.themeToggle:active {
+  transform: scale(0.95);
+}
+
+/* Title and Subtitle Styling */
+.centerColumn h1 {
+  margin: 0;
+  font-size: 4rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.centerColumn p {
+  margin: 0.5rem 0 0 0;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+/* Header Content (children) */
+.headerContent {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .centerColumn h1 {
+    font-size: 3rem;
+  }
+  
+  .themeToggle {
+    scale: 0.9;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .leftColumn {
+    padding-left: 0rem;
+  }
+
+  .rightColumn {
+    padding-right: 0rem;
+  }
+  
+  .centerColumn h1 {
+    font-size: 2.5rem;
+  }
+  
+  .centerColumn p {
+    font-size: 0.9rem;
+  }
+  
+  .themeToggle {
+    scale: 0.8;
+  }
+}
+
+/* Ensure consistent layout even with empty columns */
+.leftColumn:empty,
+.rightColumn:empty {
+  min-width: 120px;
+}
+
+/* Animation for smooth theme transitions */
+.themeToggle svg {
+  transition: all 0.3s ease;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .themeToggle {
+    transition: none;
+  }
+  
+  .themeToggle svg {
+    transition: none;
+  }
+  
+  .themeToggle:hover {
+    transform: none;
+  }
+  
+  .themeToggle:active {
+    transform: none;
+  }
+}

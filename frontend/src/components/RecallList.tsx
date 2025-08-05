@@ -5,7 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { ProcessedImage } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
-import { ImageModal } from './ImageModal';
+import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
 import styles from './RecallList.module.css';
@@ -14,9 +14,10 @@ interface RecallListProps {
   recalls: UnifiedRecall[];
   loading: boolean;
   error: string | null;
+  hideSearch?: boolean;
 }
 
-export function RecallList({ recalls, loading, error }: RecallListProps) {
+export function RecallList({ recalls, loading, error, hideSearch = false }: RecallListProps) {
   const { currentTheme } = useTheme();
   const [selectedImageModal, setSelectedImageModal] = useState<{
     images: ProcessedImage[];
@@ -43,8 +44,8 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
-  // Filter recalls by search term
-  const filteredRecalls = recalls.filter(recall =>
+  // Filter recalls by search term (only if search is not hidden)
+  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
     recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -172,38 +173,42 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
   if (filteredRecalls.length === 0 && searchTerm) {
     return (
       <div className={styles.container}>
-        <div className={styles.header}>
-          <h2 style={{ color: currentTheme.text }}>
-            Found 0 recalls (filtered from {recalls.length})
-          </h2>
-        </div>
-        
-        <div className={styles.searchSection}>
-          <div className={styles.searchContainer}>
-            <svg 
-              className={styles.searchIcon}
-              xmlns="http://www.w3.org/2000/svg" 
-              x="0px" y="0px" 
-              width="20" height="20" 
-              viewBox="0 0 50 50"
-              fill={currentTheme.textSecondary}
-            >
-              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
-            </svg>
-            <input
-              type="text"
-              placeholder="Search recalls by title..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={styles.searchInput}
-              style={{
-                backgroundColor: currentTheme.cardBackground,
-                color: currentTheme.text,
-                borderColor: currentTheme.cardBorder,
-              }}
-            />
-          </div>
-        </div>
+        {!hideSearch && (
+          <>
+            <div className={styles.header}>
+              <h2 style={{ color: currentTheme.text }}>
+                Found 0 recalls (filtered from {recalls.length})
+              </h2>
+            </div>
+            
+            <div className={styles.searchSection}>
+              <div className={styles.searchContainer}>
+                <svg 
+                  className={styles.searchIcon}
+                  xmlns="http://www.w3.org/2000/svg" 
+                  x="0px" y="0px" 
+                  width="20" height="20" 
+                  viewBox="0 0 50 50"
+                  fill={currentTheme.textSecondary}
+                >
+                  <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search recalls by title..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={styles.searchInput}
+                  style={{
+                    backgroundColor: currentTheme.cardBackground,
+                    color: currentTheme.text,
+                    borderColor: currentTheme.cardBorder,
+                  }}
+                />
+              </div>
+            </div>
+          </>
+        )}
         <div 
           className={styles.empty}
           style={{ color: currentTheme.textSecondary }}
@@ -218,39 +223,43 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2 style={{ color: currentTheme.text }}>
-          Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
-          {searchTerm && ` (filtered from ${recalls.length})`}
-        </h2>
-      </div>
-      
-      <div className={styles.searchSection}>
-        <div className={styles.searchContainer}>
-          <svg 
-            className={styles.searchIcon}
-            xmlns="http://www.w3.org/2000/svg" 
-            x="0px" y="0px" 
-            width="20" height="20" 
-            viewBox="0 0 50 50"
-            fill={currentTheme.textSecondary}
-          >
-            <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search recalls by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-            style={{
-              backgroundColor: currentTheme.cardBackground,
-              color: currentTheme.text,
-              borderColor: currentTheme.cardBorder,
-            }}
-          />
-        </div>
-      </div>
+      {!hideSearch && (
+        <>
+          <div className={styles.header}>
+            <h2 style={{ color: currentTheme.text }}>
+              Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
+              {searchTerm && ` (filtered from ${recalls.length})`}
+            </h2>
+          </div>
+          
+          <div className={styles.searchSection}>
+            <div className={styles.searchContainer}>
+              <svg 
+                className={styles.searchIcon}
+                xmlns="http://www.w3.org/2000/svg" 
+                x="0px" y="0px" 
+                width="20" height="20" 
+                viewBox="0 0 50 50"
+                fill={currentTheme.textSecondary}
+              >
+                <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search recalls by title..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
+                style={{
+                  backgroundColor: currentTheme.cardBackground,
+                  color: currentTheme.text,
+                  borderColor: currentTheme.cardBorder,
+                }}
+              />
+            </div>
+          </div>
+        </>
+      )}
       
       <div ref={containerRef} className={styles.masonry}>
         {masonryColumns.map((column, columnIndex) => (
@@ -356,16 +365,6 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
               )}
               
               <div className={styles.cardContent}>
-                {splitIndex !== -1 && (
-                  <div 
-                    className={styles.splitIndicator}
-                    style={{
-                      color: currentTheme.primary,
-                    }}
-                  >
-                    Part {splitIndex + 2}
-                  </div>
-                )}
                 
                 <div className={styles.recallHeader}>
                   <span 
@@ -454,13 +453,13 @@ export function RecallList({ recalls, loading, error }: RecallListProps) {
                       </p>
                     </div>
                     
-                    {recall.source === 'USDA' && recall.originalData?.field_summary && (
+                    {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Summary</h4>
                         <div 
                           style={{ color: currentTheme.textSecondary }}
                           dangerouslySetInnerHTML={{ 
-                            __html: (recall.originalData.field_summary || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
+                            __html: ((recall.originalData?.field_summary || recall.productDescription) || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ') 
                           }}
                         />
                       </div>

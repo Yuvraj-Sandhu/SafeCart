@@ -1,29 +1,81 @@
+/**
+ * EditModal Component
+ * 
+ * A comprehensive modal component for editing recall display properties with role-based functionality.
+ * Supports both USDA and FDA recalls with different behavior based on user permissions:
+ * 
+ * - **Admin Users**: Changes are applied immediately to live data
+ * - **Member Users**: Changes are submitted as pending changes for admin approval
+ * 
+ * Features:
+ * - Preview title and URL overrides
+ * - Primary image selection with visual grid interface
+ * - Card splitting functionality with range controls
+ * - Image upload with drag-and-drop support
+ * - Real-time preview of changes
+ * - Role-aware UI messaging and button text
+ * 
+ * @component
+ * @example
+ * ```tsx
+ * <EditModal
+ *   recall={selectedRecall}
+ *   onClose={() => setModalOpen(false)}
+ *   onSave={handleRecallUpdate}
+ * />
+ * ```
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/Button';
 import { UnifiedRecall } from '@/types/recall.types';
 import { CardSplit, SplitPreview, UploadedImage } from '@/types/display';
 import { api } from '@/services/api';
+import { pendingChangesApi } from '@/services/pending-changes.api';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
+  /** The recall object to edit (supports both USDA and FDA recalls) */
   recall: UnifiedRecall;
+  /** Callback function to close the modal */
   onClose: () => void;
+  /** Callback function called after successful save (admin) or submission (member) */
   onSave: (updatedRecall: UnifiedRecall) => void;
 }
 
 export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
+  const { user } = useAuth();
+  
+  // Core state management
   const [editedRecall, setEditedRecall] = useState<UnifiedRecall>(recall);
+  
+  // Display customization states
+  /** Custom title override for the recall */
   const [previewTitle, setPreviewTitle] = useState(recall.display?.previewTitle || '');
+  /** Custom URL override for the recall's "Visit USDA/FDA Page" link */
   const [previewUrl, setPreviewUrl] = useState(recall.display?.previewUrl || '');
+  /** Index of the primary image to display first (-1 = no primary image) */
   const [primaryImageIndex, setPrimaryImageIndex] = useState(recall.display?.primaryImageIndex ?? -1);
+  
+  // Card splitting functionality states
+  /** Array of card split configurations */
   const [cardSplits, setCardSplits] = useState<CardSplit[]>(recall.display?.cardSplits || []);
+  /** Generated previews for each split configuration */
   const [splitPreviews, setSplitPreviews] = useState<SplitPreview[]>([]);
+  
+  // Image management states
+  /** Existing uploaded images (already stored in Firebase) */
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(recall.display?.uploadedImages || []);
+  /** New files selected for upload with preview URLs */
   const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string; metadata: UploadedImage }[]>([]);
+  /** Upload operation status */
   const [isUploading, setIsUploading] = useState(false);
+  
+  // File input reference for programmatic triggering
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get separate image arrays for editing (avoid duplication)
@@ -39,6 +91,23 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   }));
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0 || pendingFiles.length > 0;
   const showImageSections = true; // Always show image options for all recalls
+  
+  // Total image count including pending files for split calculations
+  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length;
+  
+  // Combined array of all images for split display (including pending)
+  const allImagesIncludingPending = [
+    ...allImages,
+    ...pendingFiles.map(pf => ({
+      storageUrl: pf.previewUrl,
+      filename: pf.metadata.filename,
+      originalFilename: pf.metadata.originalName,
+      sourceUrl: pf.previewUrl,
+      type: 'pending' as any,
+      size: pf.metadata.size,
+      processedAt: pf.metadata.uploadedAt
+    }))
+  ];
 
   // Generate split previews whenever splits change
   useEffect(() => {
@@ -54,7 +123,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     const previews: SplitPreview[] = [];
     
     // Main card preview (from 0 to first split)
-    let mainImages = cardSplits[0] ? allImages.slice(0, cardSplits[0].startIndex) : allImages;
+    let mainImages = cardSplits[0] ? allImagesIncludingPending.slice(0, cardSplits[0].startIndex) : allImagesIncludingPending;
     
     // Apply primary image reordering for main card
     if (primaryImageIndex >= 0 && primaryImageIndex < mainImages.length) {
@@ -67,12 +136,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       title: previewTitle || recall.productTitle,
       images: mainImages,
       startIndex: 0,
-      endIndex: cardSplits[0]?.startIndex || allImages.length
+      endIndex: cardSplits[0]?.startIndex || allImagesIncludingPending.length
     });
 
     // Split card previews
     cardSplits.forEach((split, index) => {
-      let splitImages = allImages.slice(split.startIndex, split.endIndex);
+      let splitImages = allImagesIncludingPending.slice(split.startIndex, split.endIndex);
       
       // Apply primary image reordering for this split
       if (split.primaryImageIndex !== undefined && split.primaryImageIndex >= 0 && split.primaryImageIndex < splitImages.length) {
@@ -96,9 +165,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Always allow adding splits now
     
     const lastSplit = cardSplits[cardSplits.length - 1];
-    const totalImages = allImages.length;
-    const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImages / 2));
-    const endIndex = Math.max(startIndex + 1, totalImages);
+    const startIndex = lastSplit ? lastSplit.endIndex : Math.max(1, Math.floor(totalImageCount / 2));
+    const endIndex = Math.max(startIndex + 1, totalImageCount);
     
     if (startIndex < endIndex) {
       setCardSplits([...cardSplits, {
@@ -133,74 +201,143 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     setCardSplits(newSplits);
   };
 
+  /**
+   * Main save handler that routes to appropriate save method based on user role.
+   * Admins save changes directly, while members create pending changes for approval.
+   */
   const handleSave = async () => {
     try {
       setIsUploading(true);
 
-      // Prepare display data without uploaded images (they'll be added by the API)
+      // Prepare display data object with only defined values
       const displayData = {
         previewTitle: previewTitle || undefined,
         previewUrl: previewUrl || undefined,
         primaryImageIndex: primaryImageIndex >= 0 ? primaryImageIndex : undefined,
         cardSplits: cardSplits.length > 0 ? cardSplits : undefined,
-        uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined, // Existing uploaded images
-        lastEditedAt: new Date().toISOString(),
-        lastEditedBy: 'current-user' // TODO: Get from auth context
+        uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined,
       };
 
-      let finalRecall: UnifiedRecall;
-
-      if (pendingFiles.length > 0) {
-        // Upload new images and update display data
-        const files = pendingFiles.map(pf => pf.file);
-        // Use appropriate API based on source
-        if (recall.source === 'USDA') {
-          const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, displayData);
-          
-          // Clean up preview URLs
-          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-          setPendingFiles([]);
-          
-          // Update with response data
-          finalRecall = {
-            ...editedRecall,
-            display: response.data.displayData
-          };
-        } else {
-          // FDA now supports image upload
-          const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, displayData);
-          
-          // Clean up preview URLs
-          pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
-          setPendingFiles([]);
-          
-          // Update with response data
-          finalRecall = {
-            ...editedRecall,
-            display: response.data.displayData
-          };
-        }
+      // Role-based routing: Admins save directly, members create pending changes
+      if (user?.role === 'admin') {
+        await handleAdminSave(displayData);
       } else {
-        // No new images, just update display data
-        // Use appropriate API based on source
-        if (recall.source === 'USDA') {
-          await api.updateRecallDisplay(recall.id, displayData);
-        } else {
-          await api.updateFDARecallDisplay(recall.id, displayData);
-        }
-        finalRecall = {
-          ...editedRecall,
-          display: displayData
-        };
+        await handleMemberSave(displayData);
       }
-      
-      onSave(finalRecall);
     } catch (error) {
       console.error('Save failed:', error);
       alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  /**
+   * Admin save handler - applies changes immediately to live data.
+   * Handles both image upload and display data updates for USDA and FDA recalls.
+   * 
+   * @param displayData - The display customization data to save
+   */
+  const handleAdminSave = async (displayData: any) => {
+    // Add admin audit information to display data
+    const auditedDisplayData = {
+      ...displayData,
+      lastEditedAt: new Date().toISOString(),
+      lastEditedBy: user?.username || 'admin'
+    };
+
+    let finalRecall: UnifiedRecall;
+
+    if (pendingFiles.length > 0) {
+      // Upload new images and update display data in one operation
+      const files = pendingFiles.map(pf => pf.file);
+      
+      // Use source-appropriate API endpoint
+      if (recall.source === 'USDA') {
+        const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, auditedDisplayData);
+        
+        // Clean up memory from preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update local state with server response
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      } else {
+        // FDA image upload support
+        const response = await api.uploadFDAImagesAndUpdateDisplay(recall.id, files, auditedDisplayData);
+        
+        // Clean up memory from preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update local state with server response
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      }
+    } else {
+      // No new images - only update display customization data
+      if (recall.source === 'USDA') {
+        await api.updateRecallDisplay(recall.id, auditedDisplayData);
+      } else {
+        await api.updateFDARecallDisplay(recall.id, auditedDisplayData);
+      }
+      
+      // Update local state with new display data
+      finalRecall = {
+        ...editedRecall,
+        display: auditedDisplayData
+      };
+    }
+    
+    // Notify parent component and close modal
+    onSave(finalRecall);
+    alert('Changes saved successfully!');
+  };
+
+  /**
+   * Member save handler - creates pending changes for admin approval.
+   * Images are uploaded to pending change only (NOT to live recall).
+   * 
+   * @param displayData - The display customization data to submit for approval
+   */
+  const handleMemberSave = async (displayData: any) => {
+    // Clean up any undefined values in the proposed display data
+    const cleanProposedDisplay = JSON.parse(JSON.stringify(displayData, (key, value) => 
+      value === undefined ? null : value
+    ));
+    
+    // Step 1: Create/update pending change WITHOUT images first
+    const pendingChange = await pendingChangesApi.createPendingChange({
+      recallId: recall.id,
+      recallSource: recall.source,
+      originalRecall: recall, // Store full recall data to avoid additional API calls
+      proposedDisplay: cleanProposedDisplay
+    });
+
+    // Step 2: If there are pending files, upload them to the pending change
+    if (pendingFiles.length > 0) {
+      const files = pendingFiles.map(pf => pf.file);
+      
+      // Upload images to PENDING CHANGE (not live recall)
+      const uploadResponse = await pendingChangesApi.uploadImagesToPendingChange(
+        pendingChange.id,
+        files,
+        cleanProposedDisplay
+      );
+      
+      // Clean up memory from preview URLs
+      pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+      setPendingFiles([]);
+    }
+
+    // Close modal without updating parent state (changes are pending)
+    alert('Changes submitted for approval! An admin will review your changes.');
+    onClose();
   };
 
   const handleReset = async () => {
@@ -216,21 +353,28 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
       setPendingFiles([]);
       
-      // Make API call to clear display data based on source
-      if (recall.source === 'USDA') {
-        await api.updateRecallDisplay(recall.id, undefined);
+      // Only admins can directly reset data
+      if (user?.role === 'admin') {
+        // Make API call to clear display data based on source
+        if (recall.source === 'USDA') {
+          await api.updateRecallDisplay(recall.id, undefined);
+        } else {
+          await api.updateFDARecallDisplay(recall.id, undefined);
+        }
+        
+        // Create recall with empty display for local state
+        const updatedRecall: UnifiedRecall = {
+          ...editedRecall,
+          display: undefined // Remove display object entirely
+        };
+        
+        // Update local state
+        onSave(updatedRecall);
+        alert('Reset completed successfully!');
       } else {
-        await api.updateFDARecallDisplay(recall.id, undefined);
+        // Members can only reset the form locally
+        alert('Form reset. Note: Only admins can permanently reset recall data.');
       }
-      
-      // Create recall with empty display for local state
-      const updatedRecall: UnifiedRecall = {
-        ...editedRecall,
-        display: undefined // Remove display object entirely
-      };
-      
-      // Update local state
-      onSave(updatedRecall);
     } catch (error) {
       console.error('Reset failed:', error);
       alert(`Failed to reset: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -265,7 +409,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           type: 'uploaded-image' as const,
           storageUrl: '', // Will be set after upload
           uploadedAt: new Date().toISOString(),
-          uploadedBy: 'current-user', // TODO: Replace with actual user ID from auth context
+          uploadedBy: user?.username || 'unknown-user',
           size: file.size
         };
 
@@ -320,7 +464,21 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         }}
       >
         <div className={styles.modalHeader}>
-          <h2>Edit Recall Display</h2>
+          <div>
+            <h2>Edit Recall Display</h2>
+            {user && (
+              <p style={{ 
+                fontSize: '0.875rem', 
+                color: currentTheme.textSecondary,
+                margin: '0.25rem 0 0 0'
+              }}>
+                {user.role === 'admin' 
+                  ? 'Changes will be applied immediately' 
+                  : 'Changes will be submitted for admin approval'
+                }
+              </p>
+            )}
+          </div>
           <button 
             className={styles.closeButton} 
             onClick={onClose}
@@ -383,17 +541,23 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             <div className={styles.section}>
               <h3>Primary Image for Main Card</h3>
               <p className={styles.sectionDescription}>
-                Select which image should appear first in the main card. Only images that will be shown in the main card are available.
+                Select which image should appear first in the main card. Images in splits are shown greyed out and not selectable.
               </p>
               <div className={styles.imageGrid}>
-                {/* Show only images that will be in the main card */}
-                {(cardSplits.length > 0 ? processedImages.slice(0, cardSplits[0].startIndex) : processedImages).map((img, index) => (
+                {/* Show ALL processed images, but grey out ones in splits */}
+                {processedImages.map((img, index) => {
+                  const isInSplit = cardSplits.length > 0 && index >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
+                  return (
                   <div 
                     key={index}
-                    className={`${styles.imageThumb} ${primaryImageIndex === index ? styles.selected : ''}`}
-                    onClick={() => setPrimaryImageIndex(index)}
+                    className={`${styles.imageThumb} ${primaryImageIndex === index && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(index)}
                     style={{ 
-                      borderColor: primaryImageIndex === index ? currentTheme.primary : currentTheme.cardBorder
+                      borderColor: primaryImageIndex === index && isSelectable ? currentTheme.primary : currentTheme.cardBorder,
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -405,19 +569,25 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                     />
                     <span className={styles.imageNumber}>#{index + 1}</span>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {/* Already Uploaded Images */}
                 {uploadedImages.map((img, index) => {
                   const adjustedIndex = processedImages.length + index; // Uploaded images come after processed images
+                  const isInSplit = cardSplits.length > 0 && adjustedIndex >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
                   return (
                   <div 
                     key={`uploaded-${index}`}
-                    className={`${styles.imageThumb} ${styles.uploaded} ${primaryImageIndex === adjustedIndex ? styles.selected : ''}`}
-                    onClick={() => setPrimaryImageIndex(adjustedIndex)}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${primaryImageIndex === adjustedIndex && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(adjustedIndex)}
                     style={{ 
-                      borderColor: primaryImageIndex === adjustedIndex ? currentTheme.primary : currentTheme.cardBorder,
-                      position: 'relative'
+                      borderColor: primaryImageIndex === adjustedIndex && isSelectable ? currentTheme.primary : currentTheme.cardBorder,
+                      position: 'relative',
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -441,14 +611,22 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 })}
                 
                 {/* Pending Files (to be uploaded on save) */}
-                {pendingFiles.map((pendingFile, index) => (
+                {pendingFiles.map((pendingFile, index) => {
+                  const adjustedIndex = processedImages.length + uploadedImages.length + index; // Pending files come after uploaded images
+                  const isInSplit = cardSplits.length > 0 && adjustedIndex >= cardSplits[0].startIndex;
+                  const isSelectable = !isInSplit;
+                  
+                  return (
                   <div 
                     key={`pending-${index}`}
-                    className={`${styles.imageThumb} ${styles.uploaded} ${styles.pending}`}
+                    className={`${styles.imageThumb} ${styles.uploaded} ${styles.pending} ${primaryImageIndex === adjustedIndex && isSelectable ? styles.selected : ''}`}
+                    onClick={() => isSelectable && setPrimaryImageIndex(adjustedIndex)}
                     style={{ 
-                      borderColor: currentTheme.primary,
-                      borderStyle: 'dashed',
-                      position: 'relative'
+                      borderColor: primaryImageIndex === adjustedIndex && isSelectable ? currentTheme.primary : currentTheme.primary,
+                      borderStyle: primaryImageIndex === adjustedIndex && isSelectable ? 'solid' : 'dashed',
+                      position: 'relative',
+                      opacity: isInSplit ? 0.5 : 1,
+                      cursor: isSelectable ? 'pointer' : 'not-allowed'
                     }}
                   >
                     <img 
@@ -470,7 +648,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       ×
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 
                 {/* Upload Button */}
                 <div 
@@ -538,7 +717,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 variant="secondary" 
                 size="small" 
                 onClick={handleAddSplit}
-                disabled={cardSplits.length >= allImages.length - 1}
+                disabled={cardSplits.length >= totalImageCount - 1}
               >
                 + Add Split Point
               </Button>
@@ -568,7 +747,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                       <input
                         type="number"
                         min={split.startIndex + 1}
-                        max={index === cardSplits.length - 1 ? allImages.length : cardSplits[index + 1]?.startIndex || allImages.length}
+                        max={index === cardSplits.length - 1 ? totalImageCount : cardSplits[index + 1]?.startIndex || totalImageCount}
                         value={split.endIndex}
                         onChange={(e) => handleSplitChange(index, 'endIndex', parseInt(e.target.value))}
                         className={styles.numberInput}
@@ -598,7 +777,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   <div style={{ marginTop: '1rem' }}>
                     <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem' }}>Primary Image for this Split:</h5>
                     <div className={styles.imageGrid} style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
-                      {allImages.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
+                      {allImagesIncludingPending.slice(split.startIndex, split.endIndex).map((img, imgIndex) => (
                         <div 
                           key={imgIndex}
                           className={`${styles.imageThumb} ${split.primaryImageIndex === imgIndex ? styles.selected : ''}`}
@@ -684,7 +863,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 border: 'none'
               }}
             >
-              Reset All
+              {user?.role === 'admin' ? 'Reset All' : 'Reset Form'}
             </Button>
           </div>
           <div className={styles.modalFooterButtons}>
@@ -695,8 +874,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               {isUploading 
                 ? (pendingFiles.length > 0 
                   ? `Uploading ${pendingFiles.length} image${pendingFiles.length > 1 ? 's' : ''}...` 
-                  : 'Saving...') 
-                : `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                  : (user?.role === 'admin' ? 'Saving...' : 'Submitting...')) 
+                : (user?.role === 'admin' 
+                  ? `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                  : `Submit for Approval${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
+                )
               }
             </Button>
           </div>

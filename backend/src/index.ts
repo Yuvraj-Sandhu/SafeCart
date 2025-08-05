@@ -23,9 +23,12 @@
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import recallRoutes from './routes/recall.routes';
 import fdaRecallRoutes from './routes/fda-recall.routes';
+import authRoutes from './routes/auth.routes';
+import pendingChangesRoutes from './routes/pending-changes.routes';
 import { SyncService } from './services/sync.service';
 import logger from './utils/logger';
 
@@ -36,7 +39,26 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware setup
-app.use(cors()); // Enable CORS for all routes
+const allowedOrigins = [
+  'http://localhost:3000',              // Local development
+  'https://safecart.vercel.app',        // Vercel production
+  process.env.FRONTEND_URL              // Additional custom URL from env
+].filter(Boolean); // Remove any undefined values
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true // Allow cookies
+})); // Enable CORS for multiple origins
+app.use(cookieParser()); // Parse cookies
 app.use(express.json({ limit: '50mb' })); // Parse JSON request bodies with increased limit for batch operations
 app.use(express.urlencoded({ extended: true, limit: '50mb' })); // Parse URL-encoded request bodies
 
@@ -59,6 +81,8 @@ app.get('/health', (req, res) => {
 });
 
 // Mount API routes under /api prefix
+app.use('/api/auth', authRoutes);     // Authentication: /api/auth/*
+app.use('/api/pending-changes', pendingChangesRoutes); // Pending changes: /api/pending-changes/*
 app.use('/api', recallRoutes);        // USDA recalls: /api/recalls/*
 app.use('/api/fda', fdaRecallRoutes); // FDA recalls: /api/fda/recalls/*
 
@@ -80,7 +104,6 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
  * Start the Express server
  * 
  * Initializes the server and sets up data synchronization.
- * In production mode, performs an initial sync on startup.
  */
 app.listen(PORT, () => {
   logger.info(`SafeCart Backend Server running on port ${PORT}`);
@@ -91,16 +114,10 @@ app.listen(PORT, () => {
   // Initialize and start automatic synchronization
   const syncService = new SyncService();
   syncService.startAutoSync();
+  syncService.startFDAAutoSync();
   
-  // Perform initial sync in production to ensure fresh data
-  if (process.env.NODE_ENV === 'production') {
-    logger.info('Performing initial sync...');
-    syncService.performSync().catch(error => {
-      logger.error('Initial sync failed:', error);
-    });
-  } else {
-    logger.info('Development mode - skipping initial sync');
-  }
+  // Initial sync disabled to avoid startup delays in production
+  logger.info('Initial sync disabled - use manual sync endpoints if needed');
 });
 
 /**

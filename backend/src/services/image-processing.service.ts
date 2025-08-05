@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import logger from '../utils/logger';
+import '../config/firebase'; // This will initialize Firebase
 
 // Types to match the original JS file structure
 interface ProcessedImage {
@@ -50,7 +51,11 @@ export class ImageProcessingService {
   private db: admin.firestore.Firestore;
 
   constructor() {
-    this.storage = admin.storage().bucket();
+    // Firebase should already be initialized by the import above
+    // Get the bucket name and explicitly specify it
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'safecart-930e5.firebasestorage.app';
+    
+    this.storage = admin.storage().bucket(bucketName);
     this.tempDir = path.join(__dirname, '../../temp-images');
     this.db = admin.firestore();
     this.ensureTempDir();

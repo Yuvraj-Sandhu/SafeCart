@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { fdaFirebaseService } from '../services/fda/firebase.service';
 import { FDARecallResponse } from '../types/fda.types';
+import { PendingChangesService } from '../services/pending-changes.service';
+import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -31,16 +33,26 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
   try {
     const { stateCode } = req.params;
     const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
     
     // Parse date filters if provided
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
     
-    const recalls = await fdaFirebaseService.getRecallsByState(stateCode, {
+    let recalls = await fdaFirebaseService.getRecallsByState(stateCode, {
       limit,
       startDate,
       endDate
     });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
     
     const response: FDARecallResponse = {
       success: true,
@@ -69,16 +81,26 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
 router.get('/recalls/all', async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
     
     // Parse date filters if provided
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
     const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
     
-    const recalls = await fdaFirebaseService.getAllRecalls({
+    let recalls = await fdaFirebaseService.getAllRecalls({
       limit,
       startDate,
       endDate
     });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
     
     const response: FDARecallResponse = {
       success: true,
@@ -144,12 +166,27 @@ router.get('/recalls/:id', async (req: Request, res: Response) => {
  * Update FDA recall display data
  * PUT /api/fda/recalls/:id/display
  */
-router.put('/recalls/:id/display', async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const displayData = req.body.display;
     
-    await fdaFirebaseService.updateRecallDisplay(id, displayData);
+    // Add audit information to display data if display data is provided
+    let auditedDisplay = displayData;
+    if (displayData && req.user) {
+      auditedDisplay = {
+        ...displayData,
+        lastEditedAt: new Date().toISOString(),
+        lastEditedBy: req.user.username
+      };
+    }
+    
+    // If display is explicitly undefined or null, ensure we pass that through
+    if (displayData === undefined || displayData === null) {
+      auditedDisplay = undefined;
+    }
+    
+    await fdaFirebaseService.updateRecallDisplay(id, auditedDisplay);
     
     res.json({
       success: true,
@@ -205,7 +242,7 @@ router.get('/stats', async (req: Request, res: Response) => {
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];
@@ -240,7 +277,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
     logger.info(`Uploading ${files.length} images for FDA recall ${id}`);
     
     // Upload images to Firebase Storage and get metadata
-    const uploadedImages = await fdaFirebaseService.uploadFDARecallImages(id, files);
+    const uploadedImages = await fdaFirebaseService.uploadFDARecallImages(id, files, req.user?.username);
     
     // Update display data with uploaded images
     const updatedDisplayData = {
@@ -250,7 +287,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
         ...uploadedImages
       ],
       lastEditedAt: new Date().toISOString(),
-      lastEditedBy: req.body.userId || 'current-user' // TODO: Get from auth context
+      lastEditedBy: req.user?.username || 'unknown-user'
     };
     
     // Save updated display data to Firestore

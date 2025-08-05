@@ -21,6 +21,8 @@ import multer from 'multer';
 import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
 import { SyncService } from '../services/sync.service';
+import { PendingChangesService } from '../services/pending-changes.service';
+import { authenticate } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -66,6 +68,7 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 100;
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
+    const excludePending = req.query.excludePending === 'true';
     
     let recalls = await firebaseService.getRecallsByState(stateCode, limit);
     
@@ -78,6 +81,16 @@ router.get('/recalls/state/:stateCode', async (req: Request, res: Response) => {
         return true;
       });
     }
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_USDA`;
+        return !pendingIds.has(compositeId);
+      });
+    }
+    
     res.json({
       success: true,
       count: recalls.length,
@@ -144,6 +157,7 @@ router.get('/recalls/all', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 5000;
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
+    const excludePending = req.query.excludePending === 'true';
     
     // Get all recalls
     let recalls = await firebaseService.getAllRecalls(limit);
@@ -155,6 +169,15 @@ router.get('/recalls/all', async (req: Request, res: Response) => {
         if (startDate && recallDate < new Date(startDate)) return false;
         if (endDate && recallDate > new Date(endDate)) return false;
         return true;
+      });
+    }
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_USDA`;
+        return !pendingIds.has(compositeId);
       });
     }
     
@@ -277,6 +300,84 @@ router.post('/sync/historical', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to start historical sync'
+    });
+  }
+});
+
+/**
+ * POST /api/sync/fda/trigger
+ * 
+ * Triggers FDA data sync manually
+ * 
+ * Fetches FDA recall data from the last 60 days and updates Firebase
+ * while preserving custom fields like display data.
+ * 
+ * @body days - Number of days to sync (default: 60)
+ * 
+ * @returns JSON response confirming FDA sync has started
+ * 
+ * @example
+ * POST /api/sync/fda/trigger
+ * Content-Type: application/json
+ * { "days": 30 }
+ */
+router.post('/sync/fda/trigger', async (req: Request, res: Response) => {
+  try {
+    const { days = 60 } = req.body;
+    
+    res.json({
+      success: true,
+      message: `FDA sync started for last ${days} days`
+    });
+    
+    // Run FDA sync in background
+    syncService.performFDASync(days).catch(error => {
+      logger.error('Background FDA sync failed:', error);
+    });
+  } catch (error) {
+    logger.error('Error triggering FDA sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA sync'
+    });
+  }
+});
+
+/**
+ * POST /api/sync/fda/historical
+ * 
+ * Triggers FDA historical data sync
+ * 
+ * This is typically run once when setting up SafeCart to populate
+ * the database with historical FDA recall data.
+ * 
+ * @body days - Number of days to backfill (default: 365)
+ * 
+ * @returns JSON response confirming FDA historical sync has started
+ * 
+ * @example
+ * POST /api/sync/fda/historical
+ * Content-Type: application/json
+ * { "days": 730 }
+ */
+router.post('/sync/fda/historical', async (req: Request, res: Response) => {
+  try {
+    const { days = 365 } = req.body;
+    
+    res.json({
+      success: true,
+      message: `FDA historical sync started for ${days} days`
+    });
+    
+    // Run FDA historical sync in background
+    syncService.performFDAHistoricalSync(days).catch(error => {
+      logger.error('Background FDA historical sync failed:', error);
+    });
+  } catch (error) {
+    logger.error('Error triggering FDA historical sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA historical sync'
     });
   }
 });
@@ -434,7 +535,7 @@ router.post('/recalls/batch', async (req: Request, res: Response) => {
  *   }
  * }
  */
-router.put('/recalls/:id/display', async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { display } = req.body;
@@ -448,8 +549,23 @@ router.put('/recalls/:id/display', async (req: Request, res: Response) => {
       });
     }
     
+    // Add audit information to display data if display data is provided
+    let auditedDisplay = display;
+    if (display && req.user) {
+      auditedDisplay = {
+        ...display,
+        lastEditedAt: new Date().toISOString(),
+        lastEditedBy: req.user.username
+      };
+    }
+    
+    // If display is explicitly undefined or null, ensure we pass that through
+    if (display === undefined || display === null) {
+      auditedDisplay = undefined;
+    }
+    
     // Update display data
-    await firebaseService.updateRecallDisplay(id, display);
+    await firebaseService.updateRecallDisplay(id, auditedDisplay);
     
     logger.info(`Updated display data for recall ${id}`);
     
@@ -486,7 +602,7 @@ router.put('/recalls/:id/display', async (req: Request, res: Response) => {
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];
@@ -521,7 +637,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
     logger.info(`Uploading ${files.length} images for recall ${id}`);
     
     // Upload images to Firebase Storage and get metadata
-    const uploadedImages = await firebaseService.uploadRecallImages(id, files);
+    const uploadedImages = await firebaseService.uploadRecallImages(id, files, req.user?.username);
     
     // Update display data with uploaded images
     const updatedDisplayData = {
@@ -531,7 +647,7 @@ router.post('/recalls/:id/upload-images', upload.array('images', 10), async (req
         ...uploadedImages
       ],
       lastEditedAt: new Date().toISOString(),
-      lastEditedBy: req.body.userId || 'current-user' // TODO: Get from auth context
+      lastEditedBy: req.user?.username || 'unknown-user'
     };
     
     // Save updated display data to Firestore

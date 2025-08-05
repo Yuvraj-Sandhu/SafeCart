@@ -1,3 +1,5 @@
+import { DisplayData } from './display';
+
 /**
  * Unified recall interface for frontend display
  * This interface is used to normalize both USDA and FDA recall data
@@ -39,16 +41,10 @@ export interface UnifiedRecall {
   }>;
   
   // Display customizations
-  display?: {
-    primaryImageIndex?: number;
-    previewTitle?: string;
-    previewUrl?: string;
-    uploadedImages?: any[];
-    cardSplits?: any[];
-  };
+  display?: DisplayData;
   
-  // Original data reference
-  originalData: any; // Keep reference to original USDA or FDA data
+  // Original data reference (for pending changes, this contains the PendingChange object)
+  originalData?: any; // Keep reference to original USDA/FDA data or PendingChange object
 }
 
 /**

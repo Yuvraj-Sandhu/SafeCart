@@ -45,10 +45,11 @@ export interface RecallsResponse {
 
 export const api = {
   // Get recalls by state
-  async getRecallsByState(state: string, limit = 1000, startDate?: string, endDate?: string): Promise<RecallsResponse> {
+  async getRecallsByState(state: string, limit = 1000, startDate?: string, endDate?: string, excludePending = false): Promise<RecallsResponse> {
     let url = `${API_BASE_URL}/recalls/state/${state}?limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -66,10 +67,11 @@ export const api = {
   },
 
   // Get all recalls
-  async getAllRecalls(limit = 5000, startDate?: string, endDate?: string): Promise<RecallsResponse> {
+  async getAllRecalls(limit = 5000, startDate?: string, endDate?: string, excludePending = false): Promise<RecallsResponse> {
     let url = `${API_BASE_URL}/recalls/all?limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -102,6 +104,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ display: displayData })
     });
     
@@ -120,6 +123,7 @@ export const api = {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({ display: displayData })
     });
     
@@ -146,11 +150,9 @@ export const api = {
     // Add display data as JSON string
     formData.append('displayData', JSON.stringify(displayData));
     
-    // TODO: Add user ID when auth is implemented
-    // formData.append('userId', userId);
-    
     const response = await fetch(`${API_BASE_URL}/recalls/${recallId}/upload-images`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
       // Note: Don't set Content-Type header for FormData - browser will set it with boundary
     });
@@ -179,11 +181,9 @@ export const api = {
     // Add display data as JSON string
     formData.append('displayData', JSON.stringify(displayData));
     
-    // TODO: Add user ID when auth is implemented
-    // formData.append('userId', userId);
-    
     const response = await fetch(`${API_BASE_URL}/fda/recalls/${recallId}/upload-images`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
       // Note: Don't set Content-Type header for FormData - browser will set it with boundary
     });
@@ -199,10 +199,11 @@ export const api = {
   // ========== FDA Recall Methods ==========
   
   // Get FDA recalls by state
-  async getFDARecallsByState(state: string, limit = 5000, startDate?: string, endDate?: string): Promise<RecallResponse<UnifiedRecall>> {
+  async getFDARecallsByState(state: string, limit = 5000, startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
     let url = `${API_BASE_URL}/fda/recalls/state/${state}?limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -222,10 +223,11 @@ export const api = {
   },
 
   // Get all FDA recalls
-  async getAllFDARecalls(limit = 5000, startDate?: string, endDate?: string): Promise<RecallResponse<UnifiedRecall>> {
+  async getAllFDARecalls(limit = 5000, startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
     let url = `${API_BASE_URL}/fda/recalls/all?limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -247,12 +249,12 @@ export const api = {
   // ========== Unified Methods (USDA + FDA) ==========
   
   // Get recalls from both sources by state
-  async getUnifiedRecallsByState(state: string, source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH', startDate?: string, endDate?: string): Promise<RecallResponse<UnifiedRecall>> {
+  async getUnifiedRecallsByState(state: string, source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH', startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
     const promises: Promise<RecallResponse<UnifiedRecall>>[] = [];
     
     if (source === 'USDA' || source === 'BOTH') {
       promises.push(
-        api.getRecallsByState(state, 1000, startDate, endDate).then(data => ({
+        api.getRecallsByState(state, 1000, startDate, endDate, excludePending).then(data => ({
           success: data.success,
           data: data.data.map(usdaToUnified),
           total: data.count,
@@ -262,7 +264,7 @@ export const api = {
     }
     
     if (source === 'FDA' || source === 'BOTH') {
-      promises.push(api.getFDARecallsByState(state, 5000, startDate, endDate));
+      promises.push(api.getFDARecallsByState(state, 5000, startDate, endDate, excludePending));
     }
     
     const results = await Promise.all(promises);
@@ -286,12 +288,12 @@ export const api = {
   },
 
   // Get all recalls from both sources
-  async getAllUnifiedRecalls(source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH', startDate?: string, endDate?: string): Promise<RecallResponse<UnifiedRecall>> {
+  async getAllUnifiedRecalls(source: 'USDA' | 'FDA' | 'BOTH' = 'BOTH', startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
     const promises: Promise<RecallResponse<UnifiedRecall>>[] = [];
     
     if (source === 'USDA' || source === 'BOTH') {
       promises.push(
-        api.getAllRecalls(5000, startDate, endDate).then(data => ({
+        api.getAllRecalls(5000, startDate, endDate, excludePending).then(data => ({
           success: data.success,
           data: data.data.map(usdaToUnified),
           total: data.count,
@@ -301,7 +303,7 @@ export const api = {
     }
     
     if (source === 'FDA' || source === 'BOTH') {
-      promises.push(api.getAllFDARecalls(5000, startDate, endDate));
+      promises.push(api.getAllFDARecalls(5000, startDate, endDate, excludePending));
     }
     
     const results = await Promise.all(promises);
