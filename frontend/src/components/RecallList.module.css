@@ -315,3 +315,55 @@
 .batch7 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
 .batch8 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
 .batch9 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+
+/* Scroll to top button */
+.scrollToTop {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.scrollToTop:hover {
+  transform: translateX(-50%) translateY(2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.scrollToTop:active {
+  transform: translateX(-50%) translateY(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.scrollToTopVisible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+@keyframes fadeIn {
+  0% {
+    transform: translateX(-50%) translateY(-100px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.scrollToTopVisible {
+  animation: fadeIn 1s ease-out;
+}

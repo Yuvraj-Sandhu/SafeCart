@@ -32,6 +32,10 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
   const [loadingMore, setLoadingMore] = useState(false);
   const [batchNumbers, setBatchNumbers] = useState<Map<string, number>>(new Map());
   const currentBatchRef = useRef(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const lastScrollY = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrollDirection = useRef<'up' | 'down' | null>(null);
 
   // Calculate column count based on screen size
   useEffect(() => {
@@ -121,6 +125,62 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
+
+  // Handle scroll direction detection
+  useEffect(() => {
+    const handleScrollDirection = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Only show button if we've scrolled down at least 200px
+      if (currentScrollY > 200) {
+        if (currentScrollY > lastScrollY.current) {
+          // Scrolling down
+          setShowScrollTop(true);
+          lastScrollDirection.current = 'down';
+        } else if (currentScrollY < lastScrollY.current) {
+          // Scrolling up
+          setShowScrollTop(false);
+          lastScrollDirection.current = 'up';
+        }
+      } else {
+        // At the top
+        setShowScrollTop(false);
+        lastScrollDirection.current = null;
+      }
+      
+      lastScrollY.current = currentScrollY;
+      
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Set timeout to show button when user stops scrolling
+      // Only show if last direction was down
+      scrollTimeoutRef.current = setTimeout(() => {
+        if (currentScrollY > 200 && lastScrollDirection.current === 'down') {
+          setShowScrollTop(true);
+        }
+      }, 150);
+    };
+    
+    window.addEventListener('scroll', handleScrollDirection);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScrollDirection);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   // Create masonry columns with horizontal ordering (including split cards)
   const createMasonryColumns = (recalls: UnifiedRecall[]) => {
@@ -308,6 +368,29 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
 
   return (
     <div className={styles.container}>
+      {/* Scroll to top button */}
+      <button
+        className={`${styles.scrollToTop} ${showScrollTop ? styles.scrollToTopVisible : ''}`}
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+        style={{
+          backgroundColor: currentTheme.cardBackground,
+          borderColor: currentTheme.cardBorder,
+        }}
+      >
+        <svg 
+          viewBox="0 0 46 40" 
+          style={{
+            width: '40px',
+            height: '35px',
+            fill: currentTheme.primary,
+            transform: 'rotate(-90deg)',
+            scale: '0.5',
+          }}
+        >
+          <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
+        </svg>
+      </button>
       {!hideSearch && (
         <>
           <div className={styles.header}>
