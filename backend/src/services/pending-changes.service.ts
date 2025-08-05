@@ -243,8 +243,7 @@ export class PendingChangesService {
   // Reject a pending change
   static async rejectPendingChange(
     changeId: string,
-    _rejectedBy: UserInfo,
-    _reason: string
+    _rejectedBy: UserInfo
   ): Promise<void> {
     // Get the pending change
     const pendingChangeDoc = await db.collection(PENDING_CHANGES_COLLECTION)

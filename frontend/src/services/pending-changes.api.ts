@@ -77,14 +77,10 @@ export const pendingChangesApi = {
   },
 
   // Reject a pending change (admin only)
-  async rejectPendingChange(changeId: string, reason: string): Promise<void> {
+  async rejectPendingChange(changeId: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/pending-changes/${changeId}/reject`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       credentials: 'include',
-      body: JSON.stringify({ reason }),
     });
 
     if (!response.ok) {

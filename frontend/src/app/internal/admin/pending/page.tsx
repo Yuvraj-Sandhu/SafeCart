@@ -137,20 +137,17 @@ export default function AdminPendingPage() {
   };
 
   const handleReject = async (changeId: string) => {
-    const reason = prompt('Please provide a reason for rejecting this change:');
-    if (reason && reason.trim()) {
-      try {
-        setActionLoading(changeId);
-        await pendingChangesApi.rejectPendingChange(changeId, reason.trim());
-        
-        // Refresh the data to show updated status
-        window.location.reload();
-      } catch (error) {
-        console.error('Failed to reject change:', error);
-        alert('Failed to reject change');
-      } finally {
-        setActionLoading(null);
-      }
+    try {
+      setActionLoading(changeId);
+      await pendingChangesApi.rejectPendingChange(changeId);
+      
+      // Refresh the data to show updated status
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to reject change:', error);
+      alert('Failed to reject change');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -307,16 +304,13 @@ export default function AdminPendingPage() {
                 zIndex: 1000,
                 padding: '2rem'
               }}>
-                <div style={{
-                  backgroundColor: currentTheme.background,
-                  border: `1px solid ${currentTheme.cardBorder}`,
-                  borderRadius: '1rem',
-                  padding: '2rem',
-                  maxWidth: '1200px',
-                  width: '100%',
-                  maxHeight: '90vh',
-                  overflow: 'auto'
-                }}>
+                <div 
+                  className={styles.reviewModalContent}
+                  style={{
+                    backgroundColor: currentTheme.background,
+                    border: `1px solid ${currentTheme.cardBorder}`
+                  }}
+                >
                   {/* Header */}
                   <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
                     <h3 style={{ color: currentTheme.text, margin: '0 0 0.5rem 0' }}>
@@ -388,18 +382,30 @@ export default function AdminPendingPage() {
                   
                   {/* Action Buttons */}
                   <div style={{ 
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    padding: '1.5rem',
                     borderTop: `1px solid ${currentTheme.cardBorder}`
-                  }}>
-                    <div></div> {/* Empty div for spacing */}
-                    <div style={{
-                      display: 'flex',
-                      gap: '1.5rem'
-                    }}>
+                  }} className={styles.reviewModalFooter}>
+                    {/* Red Reject button on the left */}
+                    <div>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          if (editModal.recall?.originalData) {
+                            handleReject(editModal.recall.originalData.id);
+                            closeEditModal();
+                          }
+                        }}
+                        disabled={actionLoading !== null}
+                        style={{ 
+                          backgroundColor: currentTheme.danger, 
+                          color: 'white',
+                          border: 'none'
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                    {/* Close and Approve buttons on the right */}
+                    <div className={styles.reviewModalButtons}>
                       <Button
                         variant="secondary"
                         onClick={closeEditModal}
@@ -416,20 +422,7 @@ export default function AdminPendingPage() {
                         }}
                         disabled={actionLoading !== null}
                       >
-                        {actionLoading ? 'Approving...' : 'Approve Changes'}
-                      </Button>
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          if (editModal.recall?.originalData) {
-                            handleReject(editModal.recall.originalData.id);
-                            closeEditModal();
-                          }
-                        }}
-                        disabled={actionLoading !== null}
-                        style={{ backgroundColor: currentTheme.danger, color: 'white' }}
-                      >
-                        Reject
+                        {actionLoading ? 'Approving...' : 'Approve'}
                       </Button>
                     </div>
                   </div>

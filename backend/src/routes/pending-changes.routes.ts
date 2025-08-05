@@ -313,22 +313,13 @@ router.put('/:id/reject', requireAdmin, async (req, res) => {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
     
-    const { reason } = req.body;
-    
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rejection reason is required'
-      });
-    }
-    
     const userInfo = {
       uid: req.user.uid,
       username: req.user.username,
       email: req.user.email
     };
     
-    await PendingChangesService.rejectPendingChange(req.params.id, userInfo, reason);
+    await PendingChangesService.rejectPendingChange(req.params.id, userInfo);
     
     res.json({
       success: true,
