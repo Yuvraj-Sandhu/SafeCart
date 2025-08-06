@@ -31,11 +31,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { Button } from './ui/Button';
+import { AutocompleteInput } from './ui/AutocompleteInput';
 import { UnifiedRecall } from '@/types/recall.types';
 import { CardSplit, SplitPreview, UploadedImage } from '@/types/display';
 import { api } from '@/services/api';
 import { pendingChangesApi } from '@/services/pending-changes.api';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
+import { US_STATES } from '@/data/states';
 import styles from './EditModal.module.css';
 
 interface EditModalProps {
@@ -79,6 +81,16 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   
   // File input reference for programmatic triggering
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Manual states override states (FDA only)
+  const [showStatesSection, setShowStatesSection] = useState(false);
+  const [manualStates, setManualStates] = useState<string[]>([]);
+  const [currentStateInput, setCurrentStateInput] = useState('');
+  const [isSavingStates, setIsSavingStates] = useState(false);
+  
+  // Check if this is an FDA recall and user is admin
+  const isFDARecall = recall.source === 'FDA';
+  const canModifyStates = isFDARecall && user?.role === 'admin';
 
   // Get separate image arrays for editing (avoid duplication)
   const allImages = getUnifiedRecallImages(recall);
@@ -115,6 +127,17 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   useEffect(() => {
     generateSplitPreviews();
   }, [cardSplits, primaryImageIndex]);
+  
+  // Initialize manual states for FDA recalls
+  useEffect(() => {
+    if (isFDARecall && recall.originalData) {
+      const fdaData = recall.originalData as any;
+      // Check if manual states are already set
+      if (fdaData.useManualStates && fdaData.manualStatesOverride) {
+        setManualStates(fdaData.manualStatesOverride);
+      }
+    }
+  }, [isFDARecall, recall]);
 
   const generateSplitPreviews = () => {
     if (!hasImages || cardSplits.length === 0) {
@@ -410,6 +433,48 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+  
+  // Manual states handlers
+  const handleAddState = () => {
+    if (currentStateInput && !manualStates.includes(currentStateInput)) {
+      setManualStates([...manualStates, currentStateInput]);
+      setCurrentStateInput('');
+    }
+  };
+  
+  const handleRemoveState = (stateToRemove: string) => {
+    setManualStates(manualStates.filter(state => state !== stateToRemove));
+  };
+  
+  const handleSaveManualStates = async () => {
+    if (!isFDARecall || !user || user.role !== 'admin') return;
+    
+    setIsSavingStates(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/fda/recalls/${recall.id}/manual-states`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          states: manualStates,
+          useManualStates: manualStates.length > 0
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save manual states');
+      }
+      
+      alert('Manual states saved successfully');
+      setShowStatesSection(false);
+    } catch (error) {
+      alert(`Failed to save manual states: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSavingStates(false);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -875,6 +940,202 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Manual States Override (FDA only, Admin only) */}
+          {canModifyStates && (
+            <div className={styles.section}>
+              <h3>States Management</h3>
+              <p className={styles.sectionDescription}>
+                Override the affected states for this FDA recall
+              </p>
+              
+              {!showStatesSection ? (
+                <Button 
+                  variant="secondary" 
+                  size="small" 
+                  onClick={() => setShowStatesSection(true)}
+                >
+                  Modify States
+                </Button>
+              ) : (
+                <div className={styles.statesEditor}>
+                  {/* Display current information */}
+                  <div className={styles.statesInfo} style={{
+                    backgroundColor: currentTheme.cardBackground,
+                    borderColor: currentTheme.cardBorder,
+                    padding: '1rem',
+                    borderRadius: '0.5rem',
+                    marginBottom: '1rem',
+                    border: `1px solid ${currentTheme.cardBorder}`
+                  }}>
+                    <p style={{ marginBottom: '0.5rem' }}>
+                      <strong>Distribution Pattern:</strong>
+                    </p>
+                    <p style={{ 
+                      fontSize: '0.875rem', 
+                      color: currentTheme.textSecondary,
+                      marginBottom: '1rem',
+                      fontStyle: 'italic',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                      maxWidth: '100%',
+                      overflow: 'hidden'
+                    }}>
+                      {(recall.originalData as any)?.distribution_pattern || 'No distribution pattern available'}
+                    </p>
+                    
+                    <p style={{ marginBottom: '0.5rem' }}>
+                      <strong>Current Affected States:</strong>
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                      {recall.affectedStates?.length > 0 ? (
+                        recall.affectedStates.map(state => (
+                          <span 
+                            key={state}
+                            className={styles.stateBadge}
+                            style={{
+                              backgroundColor: `${currentTheme.primary}20`,
+                              color: currentTheme.primary,
+                              border: `1px solid ${currentTheme.primary}`,
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {state}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ color: currentTheme.textSecondary, fontSize: '0.875rem' }}>
+                          No states detected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Manual states editor */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ marginBottom: '0.5rem', fontWeight: 500 }}>
+                      Manual States Override:
+                    </p>
+                    
+                    {/* State input with add button */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <AutocompleteInput
+                          options={US_STATES.filter(state => state.value !== 'ALL')}
+                          value={currentStateInput}
+                          onChange={setCurrentStateInput}
+                          placeholder="Select a state to add..."
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddState}
+                        disabled={!currentStateInput || manualStates.includes(currentStateInput)}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          backgroundColor: currentTheme.primary,
+                          color: currentTheme.buttonPrimaryText,
+                          border: 'none',
+                          cursor: currentStateInput && !manualStates.includes(currentStateInput) ? 'pointer' : 'not-allowed',
+                          opacity: !currentStateInput || manualStates.includes(currentStateInput) ? 0.5 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.25rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                    
+                    {/* Display selected states as badges */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                      {manualStates.length > 0 ? (
+                        manualStates.map(state => (
+                          <span 
+                            key={state}
+                            className={styles.stateBadgeEditable}
+                            style={{
+                              backgroundColor: currentTheme.primary,
+                              color: currentTheme.buttonPrimaryText,
+                              padding: '0.375rem 0.75rem',
+                              borderRadius: '1rem',
+                              fontSize: '0.875rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}
+                          >
+                            {state}
+                            <button
+                              onClick={() => handleRemoveState(state)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: currentTheme.buttonPrimaryText,
+                                cursor: 'pointer',
+                                padding: 0,
+                                fontSize: '1rem',
+                                lineHeight: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '16px',
+                                height: '16px'
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ color: currentTheme.textSecondary, fontSize: '0.875rem' }}>
+                          No manual states added yet
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Save/Cancel buttons for states */}
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <Button 
+                        variant="secondary" 
+                        size="small"
+                        onClick={() => {
+                          setShowStatesSection(false);
+                          // Reset to original states if they exist
+                          if (recall.originalData) {
+                            const fdaData = recall.originalData as any;
+                            if (fdaData.useManualStates && fdaData.manualStatesOverride) {
+                              setManualStates(fdaData.manualStatesOverride);
+                            } else {
+                              setManualStates([]);
+                            }
+                          }
+                          setCurrentStateInput('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="primary" 
+                        size="small"
+                        onClick={handleSaveManualStates}
+                        disabled={isSavingStates || manualStates.length === 0}
+                      >
+                        {isSavingStates ? 'Saving...' : 'Save States'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -48,6 +48,12 @@ export interface FDARecall {
   // Searchable arrays
   affectedStatesArray: string[];
   
+  // Manual states override (admin only)
+  manualStatesOverride?: string[];
+  useManualStates?: boolean;
+  manualStatesUpdatedBy?: string;
+  manualStatesUpdatedAt?: string;
+  
   // OpenFDA data (if available)
   openfda?: any;
   

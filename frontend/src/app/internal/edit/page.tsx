@@ -163,6 +163,43 @@ export default function InternalEditPage() {
     });
   };
 
+  const handleSearchEmptyStates = async () => {
+    // Set filters to show only FDA recalls
+    setShowUSDARecalls(false);
+    setShowFDARecalls(true);
+    setSelectedState('ALL');
+    
+    setLoading(true);
+    setError(null);
+    setHasSearched(true);
+
+    try {
+      // Format dates for API
+      const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
+      const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
+      
+      // Fetch ALL FDA recalls (not just nationwide)
+      const fdaResponse = await api.getAllFDARecalls(5000, startDateStr, endDateStr);
+      
+      // Filter for recalls with empty or missing affected states
+      const emptyStateRecalls = fdaResponse.data.filter(recall => 
+        !recall.affectedStates || recall.affectedStates.length === 0
+      );
+      
+      setRecalls(emptyStateRecalls);
+      
+      // Show a message about the results
+      if (emptyStateRecalls.length === 0) {
+        setError('No FDA recalls found with empty states');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch FDA recalls');
+      setRecalls([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
     // The EditModal has already saved the data to the backend,
     // so we only need to update the local state here
@@ -371,6 +408,30 @@ export default function InternalEditPage() {
                   />
                   <label htmlFor="showApprovedInput" className={styles.toggleSwitch}></label>
                   <span>Show Approved</span>
+                </div>
+                
+                <div 
+                  style={{ 
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    borderTop: `1px solid ${currentTheme.cardBorder}`
+                  }}
+                >
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSearchEmptyStates();
+                    }}
+                    style={{
+                      color: currentTheme.textTertiary,
+                      textDecoration: 'underline',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Show FDA recalls with empty states
+                  </a>
                 </div>
               </div>
             )}

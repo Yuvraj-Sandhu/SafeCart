@@ -139,6 +139,18 @@ export class FDASyncService {
             updateData.display = existingData.display;
           }
           
+          // Preserve manual states override if it exists
+          if (existingData.useManualStates) {
+            updateData.manualStatesOverride = existingData.manualStatesOverride;
+            updateData.useManualStates = existingData.useManualStates;
+            updateData.manualStatesUpdatedBy = existingData.manualStatesUpdatedBy;
+            updateData.manualStatesUpdatedAt = existingData.manualStatesUpdatedAt;
+            
+            // Don't update affectedStatesArray if using manual override
+            delete updateData.affectedStatesArray;
+            updateData.affectedStatesArray = existingData.affectedStatesArray;
+          }
+          
           currentBatch.update(docRef, updateData);
           updatedRecords++;
         } else {
