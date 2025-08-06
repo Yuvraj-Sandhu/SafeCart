@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { Header } from '../../components/Header';
 import { Button } from '../../components/ui/Button';
+import { GoogleLogin } from '@react-oauth/google';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -13,8 +14,9 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +37,29 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError('');
+    setIsGoogleLoading(true);
+    
+    try {
+      const success = await loginWithGoogle(credentialResponse.credential);
+      
+      if (success) {
+        router.push('/internal/edit');
+      } else {
+        setError('Google authentication failed. Please ensure your email is authorized.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google login failed. Please try again.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google sign-in failed. Please try again.');
   };
 
   return (
@@ -125,10 +150,26 @@ export default function LoginPage() {
               type="submit"
               variant="primary"
               size='large'
-              disabled={isLoading || !username || !password}
+              disabled={isLoading || isGoogleLoading || !username || !password}
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
+
+            <div className={styles.divider}>
+              <span className={styles.dividerText}>OR</span>
+            </div>
+
+            <div className={styles.googleLoginContainer}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                width="100%"
+                text="signin_with"
+                shape="rectangular"
+              />
+            </div>
           </form>
         </div>
       </div>

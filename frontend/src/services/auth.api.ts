@@ -42,4 +42,22 @@ export const authApi = {
 
     return response.json();
   },
+
+  async loginWithGoogle(idToken: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Google login failed');
+    }
+
+    return response.json();
+  },
 };

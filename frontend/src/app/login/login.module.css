@@ -139,3 +139,31 @@
   font-size: 0.875rem;
   padding-left: 0.5rem;
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-inputBorder);
+}
+
+.dividerText {
+  padding: 0 1rem;
+  color: var(--color-textSecondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.googleLoginContainer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
