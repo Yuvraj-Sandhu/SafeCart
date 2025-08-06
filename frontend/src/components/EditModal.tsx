@@ -452,7 +452,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     
     setIsSavingStates(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/fda/recalls/${recall.id}/manual-states`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fda/recalls/${recall.id}/manual-states`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

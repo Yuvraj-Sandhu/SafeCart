@@ -29,7 +29,7 @@ export class FDAFirebaseService {
     try {
       const { limit = 5000, startDate, endDate } = options;
       
-      // First, get recalls with manual states override that match
+      // First, get recalls with manual states override that match the state
       let manualStatesQuery = db.collection(FDA_RECALLS_COLLECTION)
         .where('useManualStates', '==', true)
         .where('manualStatesOverride', 'array-contains', stateCode)
@@ -48,6 +48,29 @@ export class FDAFirebaseService {
       
       manualStatesQuery = manualStatesQuery.limit(limit);
       const manualStatesSnapshot = await manualStatesQuery.get();
+      
+      // Also get recalls with manual states override that have "Nationwide"
+      let manualNationwideSnapshot;
+      if (stateCode.toLowerCase() !== 'nationwide') {
+        let manualNationwideQuery = db.collection(FDA_RECALLS_COLLECTION)
+          .where('useManualStates', '==', true)
+          .where('manualStatesOverride', 'array-contains', 'Nationwide')
+          .orderBy('report_date', 'desc');
+        
+        // Apply date filters
+        if (startDate) {
+          const startDateStr = this.formatDateToYYYYMMDD(startDate);
+          manualNationwideQuery = manualNationwideQuery.where('report_date', '>=', startDateStr);
+        }
+        
+        if (endDate) {
+          const endDateStr = this.formatDateToYYYYMMDD(endDate);
+          manualNationwideQuery = manualNationwideQuery.where('report_date', '<=', endDateStr);
+        }
+        
+        manualNationwideQuery = manualNationwideQuery.limit(limit);
+        manualNationwideSnapshot = await manualNationwideQuery.get();
+      }
       
       // Get state-specific recalls (not using manual override)
       let stateQuery = db.collection(FDA_RECALLS_COLLECTION)
@@ -103,6 +126,20 @@ export class FDAFirebaseService {
         } as FDARecall);
       });
       
+      // Add manual nationwide recalls
+      const manualNationwideRecalls: FDARecall[] = [];
+      if (manualNationwideSnapshot) {
+        manualNationwideSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
+          const data = doc.data() as FDARecall;
+          manualNationwideRecalls.push({
+            id: doc.id,
+            ...data,
+            // Override affectedStatesArray with manual states for frontend display
+            affectedStatesArray: data.manualStatesOverride || data.affectedStatesArray
+          } as FDARecall);
+        });
+      }
+      
       const stateRecalls: FDARecall[] = [];
       stateSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => {
         const data = doc.data() as FDARecall;
@@ -130,7 +167,7 @@ export class FDAFirebaseService {
       }
 
       // Merge and remove duplicates (in case a recall affects both the state and is marked nationwide)
-      const allRecalls = [...manualRecalls, ...stateRecalls, ...nationwideRecalls];
+      const allRecalls = [...manualRecalls, ...manualNationwideRecalls, ...stateRecalls, ...nationwideRecalls];
       const uniqueRecalls = allRecalls.filter((recall, index, self) => 
         index === self.findIndex(r => r.id === recall.id)
       );
