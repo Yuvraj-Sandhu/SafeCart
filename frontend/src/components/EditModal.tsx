@@ -585,7 +585,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           <div className={styles.section}>
             <h3>Original Information</h3>
             <div className={styles.originalInfo}>
-              <p><strong>Title:</strong> {recall.productTitle}</p>
+              <p><strong>Original Title:</strong> {recall.originalData?.field_title || recall.originalData?.product_description || recall.productTitle}</p>
+              {recall.llmTitle && (
+                <p><strong>AI-Enhanced Title:</strong> {recall.llmTitle}</p>
+              )}
               <p><strong>Recall Number:</strong> {recall.recallNumber}</p>
               <p><strong>Images:</strong> {processedImages.length + uploadedImages.length + pendingFiles.length}</p>
             </div>
@@ -594,11 +597,14 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           {/* Preview Title */}
           <div className={styles.section}>
             <h3>Preview Title</h3>
+            <p style={{ fontSize: '0.9em', color: 'var(--color-textSecondary)', marginBottom: '0.5rem' }}>
+              Title priority: Custom Preview → AI-Enhanced → Original
+            </p>
             <input
               type="text"
               value={previewTitle}
               onChange={(e) => setPreviewTitle(e.target.value)}
-              placeholder="Leave empty to use original title"
+              placeholder={recall.llmTitle ? "Leave empty to use AI-enhanced title" : "Leave empty to use original title"}
               className={styles.input}
               style={{ 
                 backgroundColor: currentTheme.background,

@@ -54,6 +54,9 @@ export interface FDARecall {
   manualStatesUpdatedBy?: string;
   manualStatesUpdatedAt?: string;
   
+  // AI-enhanced title
+  llmTitle?: string;
+  
   // OpenFDA data (if available)
   openfda?: any;
   

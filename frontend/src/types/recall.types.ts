@@ -22,6 +22,7 @@ export interface UnifiedRecall {
   productTitle: string;
   productDescription: string;
   productQuantity?: string;
+  llmTitle?: string; // AI-enhanced title from OpenAI
   
   // Recall details
   reasonForRecall: string;
@@ -59,9 +60,10 @@ export function usdaToUnified(usdaRecall: any): UnifiedRecall {
     classification: usdaRecall.field_risk_level || 'Unknown',
     recallingFirm: usdaRecall.field_company || usdaRecall.field_establishment || 'Unknown',
     establishment: usdaRecall.field_establishment,
-    productTitle: usdaRecall.display?.previewTitle || usdaRecall.field_title || 'Unknown Product',
+    productTitle: usdaRecall.display?.previewTitle || usdaRecall.llmTitle || usdaRecall.field_title || 'Unknown Product',
     productDescription: usdaRecall.field_product_items || '',
     productQuantity: usdaRecall.field_product_quantity,
+    llmTitle: usdaRecall.llmTitle,
     reasonForRecall: usdaRecall.field_recall_reason || 'Not specified',
     recallDate: usdaRecall.field_recall_date || '',
     recallUrl: usdaRecall.field_recall_url,
@@ -92,9 +94,10 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     classification: fdaRecall.classification || 'Unknown',
     recallingFirm: fdaRecall.recalling_firm || 'Unknown',
     establishment: fdaRecall.recalling_firm,
-    productTitle: fdaRecall.display?.previewTitle || fdaRecall.product_description?.split(',')[0] || 'Unknown Product',
+    productTitle: fdaRecall.display?.previewTitle || fdaRecall.llmTitle || fdaRecall.product_description?.split(',')[0] || 'Unknown Product',
     productDescription: fdaRecall.product_description || '',
     productQuantity: fdaRecall.product_quantity,
+    llmTitle: fdaRecall.llmTitle,
     reasonForRecall: fdaRecall.reason_for_recall || 'Not specified',
     recallDate: formatFDADate(fdaRecall.report_date),
     recallUrl: undefined, // FDA doesn't have recall URLs by default
