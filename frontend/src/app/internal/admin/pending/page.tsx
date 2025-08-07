@@ -207,7 +207,7 @@ export default function AdminPendingPage() {
   return (
     <ProtectedRoute requireAdmin={true}>
       <main className={styles.main}>
-        <Header subtitle="Pending Changes Review" />
+        <Header subtitle="Admin - Pending Changes Review" />
 
         <div className="container">
           {recalls.length === 0 ? (

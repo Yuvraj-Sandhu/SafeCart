@@ -283,6 +283,54 @@ export class PendingChangesService {
     await db.collection(PENDING_CHANGES_COLLECTION).doc(changeId).delete();
   }
 
+  // Withdraw a pending change (members can withdraw their own changes)
+  static async withdrawPendingChange(
+    changeId: string,
+    withdrawnBy: UserInfo
+  ): Promise<void> {
+    // Get the pending change
+    const pendingChangeDoc = await db.collection(PENDING_CHANGES_COLLECTION)
+      .doc(changeId)
+      .get();
+    
+    if (!pendingChangeDoc.exists) {
+      throw new Error('Pending change not found');
+    }
+    
+    const pendingChange = pendingChangeDoc.data() as PendingChange;
+    
+    if (pendingChange.status !== 'pending') {
+      throw new Error('Change is not pending');
+    }
+    
+    // Check if the user is the original proposer (members can only withdraw their own changes)
+    if (pendingChange.proposedBy.uid !== withdrawnBy.uid) {
+      throw new Error('You can only withdraw your own pending changes');
+    }
+    
+    // Delete uploaded images if any
+    if (pendingChange.proposedDisplay?.uploadedImages) {
+      const deletePromises = pendingChange.proposedDisplay.uploadedImages.map(async (img) => {
+        try {
+          const path = pendingChange.recallSource === 'USDA' 
+            ? `recall-images/${pendingChange.recallId}/${img.filename}`
+            : `fda-recall-images/${pendingChange.recallId}/${img.filename}`;
+          
+          const bucket = storage.bucket();
+          const file = bucket.file(path);
+          await file.delete();
+        } catch (error) {
+          console.error(`Failed to delete image ${img.filename}:`, error);
+        }
+      });
+      
+      await Promise.all(deletePromises);
+    }
+    
+    // Delete the pending change
+    await db.collection(PENDING_CHANGES_COLLECTION).doc(changeId).delete();
+  }
+
   // Get a single pending change
   static async getPendingChange(changeId: string): Promise<PendingChange | null> {
     const doc = await db.collection(PENDING_CHANGES_COLLECTION).doc(changeId).get();

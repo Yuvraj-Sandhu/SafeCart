@@ -40,7 +40,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware setup
 const allowedOrigins = [
-  'http://localhost:3000',              // Local development
+  'https://localhost:3000',             // Local development
   'https://safecart.vercel.app',        // Vercel production
   process.env.FRONTEND_URL              // Additional custom URL from env
 ].filter(Boolean); // Remove any undefined values

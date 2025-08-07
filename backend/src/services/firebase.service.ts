@@ -2,6 +2,7 @@ import * as admin from 'firebase-admin';
 import { ProcessedRecall, Recall } from '../models/recall.model';
 import logger from '../utils/logger';
 import dotenv from 'dotenv';
+import { openAIService } from './openai.service';
 
 // Load environment variables
 dotenv.config();
@@ -125,6 +126,7 @@ export class FirebaseService {
     const FIRESTORE_BATCH_LIMIT = 500;
     let savedCount = 0;
     let failedCount = 0;
+    const newRecallsForLLM: Array<{ id: string, title: string }> = [];
 
     // Process in chunks of 500 (Firestore batch limit)
     for (let i = 0; i < recalls.length; i += FIRESTORE_BATCH_LIMIT) {
@@ -148,7 +150,23 @@ export class FirebaseService {
           if (!existingDoc.empty) {
             // Update existing document
             docRef = existingDoc.docs[0].ref;
+            const existingData = existingDoc.docs[0].data();
             const updateData = this.buildUpdateData(processedRecall);
+            
+            // Preserve custom fields that shouldn't be overwritten
+            if (existingData.display) {
+              updateData.display = existingData.display;
+            }
+            if (existingData.llmTitle) {
+              updateData.llmTitle = existingData.llmTitle;
+            } else {
+              // Existing recall without llmTitle - add to LLM processing queue
+              newRecallsForLLM.push({ 
+                id: docRef.id, 
+                title: recall.field_title 
+              });
+            }
+            
             batch.update(docRef, updateData);
           } else {
             // Create new document
@@ -157,6 +175,12 @@ export class FirebaseService {
               ...processedRecall,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // New recall - add to LLM processing queue
+            newRecallsForLLM.push({ 
+              id: docRef.id, 
+              title: recall.field_title 
             });
           }
           
@@ -179,6 +203,64 @@ export class FirebaseService {
     }
 
     logger.info(`Batch save complete: ${savedCount} saved, ${failedCount} failed out of ${recalls.length} total`);
+    
+    // Process LLM titles asynchronously (non-blocking) for recalls that need it
+    if (newRecallsForLLM.length > 0) {
+      this.processLLMTitlesForRecalls(newRecallsForLLM).catch(error => {
+        logger.error('Error processing LLM titles:', error);
+      });
+    }
+  }
+
+  /**
+   * Processes recall titles with OpenAI for specific recalls
+   * This runs asynchronously to avoid blocking the sync process
+   * 
+   * @param recallsToProcess - Array of recalls with id and title to process
+   * @private
+   */
+  private async processLLMTitlesForRecalls(recallsToProcess: Array<{ id: string, title: string }>): Promise<void> {
+    if (!openAIService.isAvailable()) {
+      logger.info('OpenAI service not available, skipping LLM title processing');
+      return;
+    }
+
+    try {
+      logger.info(`Processing LLM titles for ${recallsToProcess.length} USDA recalls`);
+      
+      let processedCount = 0;
+      let errorCount = 0;
+
+      // Limit to 50 recalls per sync to avoid overloading OpenAI API
+      const recallsToProcessLimited = recallsToProcess.slice(0, 50);
+
+      for (const recall of recallsToProcessLimited) {
+        try {
+          if (!recall.title) {
+            continue;
+          }
+
+          // Get enhanced title from OpenAI
+          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+          
+          if (enhancedTitle) {
+            // Update the recall with the enhanced title
+            await this.recallsCollection.doc(recall.id).update({
+              llmTitle: enhancedTitle
+            });
+            processedCount++;
+            logger.info(`LLM title processed for recall ${recall.id}`);
+          }
+        } catch (error) {
+          errorCount++;
+          logger.error(`Failed to process LLM title for recall ${recall.id}:`, error);
+        }
+      }
+
+      logger.info(`LLM title processing complete: ${processedCount} processed, ${errorCount} errors`);
+    } catch (error) {
+      logger.error('Error in processLLMTitlesForRecalls:', error);
+    }
   }
 
   async getRecallById(id: string): Promise<ProcessedRecall | null> {

@@ -22,7 +22,7 @@ export default function InternalEditPage() {
   const { currentTheme } = useTheme();
   const { user } = useAuth();
   const { location, isLoading: isLocationLoading } = useUserLocation();
-  const { totalPendingCount, refetch: refetchPendingChanges } = usePendingChanges();
+  const { totalPendingCount, refetch: refetchPendingChanges, hasPendingChanges } = usePendingChanges();
   const hasInitialSearched = useRef(false);
   const hasUserInteracted = useRef(false);
   
@@ -36,6 +36,7 @@ export default function InternalEditPage() {
   const [filterNoImages, setFilterNoImages] = useState(false);
   const [showUSDARecalls, setShowUSDARecalls] = useState(true);
   const [showFDARecalls, setShowFDARecalls] = useState(true);
+  const [showApproved, setShowApproved] = useState(true);
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
@@ -152,6 +153,7 @@ export default function InternalEditPage() {
     setFilterNoImages(false);
     setShowUSDARecalls(true);
     setShowFDARecalls(true);
+    setShowApproved(true);
   };
 
   const handleEdit = (recall: UnifiedRecall) => {
@@ -159,6 +161,43 @@ export default function InternalEditPage() {
       isOpen: true,
       recall
     });
+  };
+
+  const handleSearchEmptyStates = async () => {
+    // Set filters to show only FDA recalls
+    setShowUSDARecalls(false);
+    setShowFDARecalls(true);
+    setSelectedState('ALL');
+    
+    setLoading(true);
+    setError(null);
+    setHasSearched(true);
+
+    try {
+      // Format dates for API
+      const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
+      const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
+      
+      // Fetch ALL FDA recalls (not just nationwide)
+      const fdaResponse = await api.getAllFDARecalls(5000, startDateStr, endDateStr);
+      
+      // Filter for recalls with empty or missing affected states
+      const emptyStateRecalls = fdaResponse.data.filter(recall => 
+        !recall.affectedStates || recall.affectedStates.length === 0
+      );
+      
+      setRecalls(emptyStateRecalls);
+      
+      // Show a message about the results
+      if (emptyStateRecalls.length === 0) {
+        setError('No FDA recalls found with empty states');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch FDA recalls');
+      setRecalls([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
@@ -185,16 +224,33 @@ export default function InternalEditPage() {
   const getFilteredRecalls = () => {
     let filtered = recalls;
 
-    // Filter by source (USDA/FDA)
-    if (!showUSDARecalls || !showFDARecalls) {
+    // Special case: if both USDA and FDA are off but showApproved is on, show only approved recalls
+    if (!showUSDARecalls && !showFDARecalls && showApproved) {
       filtered = filtered.filter(recall => {
-        if (recall.source === 'USDA' && !showUSDARecalls) return false;
-        if (recall.source === 'FDA' && !showFDARecalls) return false;
-        return true;
+        return recall.display && (recall.display.approvedBy || recall.display.lastEditedBy);
       });
+    } else {
+      // Normal filtering logic
+      
+      // Filter by source (USDA/FDA)
+      if (!showUSDARecalls || !showFDARecalls) {
+        filtered = filtered.filter(recall => {
+          if (recall.source === 'USDA' && !showUSDARecalls) return false;
+          if (recall.source === 'FDA' && !showFDARecalls) return false;
+          return true;
+        });
+      }
+
+      // Filter by approved status (instant client-side filtering)
+      if (!showApproved) {
+        // Hide approved recalls - show only recalls that have NOT been approved/edited
+        filtered = filtered.filter(recall => {
+          return !recall.display || (!recall.display.approvedBy && !recall.display.lastEditedBy);
+        });
+      }
     }
 
-    // Filter by image presence
+    // Filter by image presence (always apply this filter)
     if (filterNoImages) {
       filtered = filtered.filter(recall => {
         // Check both processed images and uploaded images
@@ -212,7 +268,7 @@ export default function InternalEditPage() {
   return (
     <ProtectedRoute>
       <main className={styles.main}>
-        <Header subtitle="Internal Editor" />
+        <Header subtitle={`${user?.role === 'admin' ? 'Admin -' : user?.role === 'member' ? 'VA -' : ''} Internal Editor`} />
         <div className="container">
           <div 
             className={styles.filterCard}
@@ -318,7 +374,8 @@ export default function InternalEditPage() {
                     alignItems: 'center',
                     gap: '0.75rem',
                     color: currentTheme.text,
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
                   }}
                 >
                   <input 
@@ -330,6 +387,51 @@ export default function InternalEditPage() {
                   />
                   <label htmlFor="showFDARecallsInput" className={styles.toggleSwitch}></label>
                   <span>FDA recalls</span>
+                </div>
+                
+                <div 
+                  className={styles.filterOption}
+                  style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    id="showApprovedInput"
+                    checked={showApproved}
+                    onChange={(e) => setShowApproved(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="showApprovedInput" className={styles.toggleSwitch}></label>
+                  <span>Show Approved</span>
+                </div>
+                
+                <div 
+                  style={{ 
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    borderTop: `1px solid ${currentTheme.cardBorder}`
+                  }}
+                >
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSearchEmptyStates();
+                    }}
+                    style={{
+                      color: currentTheme.textTertiary,
+                      textDecoration: 'underline',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Show FDA recalls with empty states
+                  </a>
                 </div>
               </div>
             )}

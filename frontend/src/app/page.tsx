@@ -192,7 +192,7 @@ export default function Home() {
                 Select State
               </label>
               <AutocompleteInput
-                options={US_STATES}
+                options={US_STATES.filter(state => state.value !== 'ALL')}
                 value={selectedState}
                 onChange={handleStateChange}
                 placeholder="Enter your state..."

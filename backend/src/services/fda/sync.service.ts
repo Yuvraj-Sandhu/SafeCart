@@ -2,6 +2,7 @@ import { FDAApiService } from './api.service';
 import { FDARecall } from '../../types/fda.types';
 import logger from '../../utils/logger';
 import * as admin from 'firebase-admin';
+import { openAIService } from '../openai.service';
 
 /**
  * Service for synchronizing FDA recall data with Firebase
@@ -67,6 +68,7 @@ export class FDASyncService {
     let operationCount = 0;
     let newRecords = 0;
     let updatedRecords = 0;
+    const newRecallsForLLM: Array<{ id: string, title: string }> = [];
 
     logger.info(`Processing ${recalls.length} FDA recalls for save/update...`);
 
@@ -139,6 +141,29 @@ export class FDASyncService {
             updateData.display = existingData.display;
           }
           
+          // Preserve llmTitle if it exists
+          if (existingData.llmTitle) {
+            updateData.llmTitle = existingData.llmTitle;
+          } else {
+            // Existing recall without llmTitle - add to LLM processing queue
+            newRecallsForLLM.push({ 
+              id: docId, 
+              title: recall.product_description 
+            });
+          }
+          
+          // Preserve manual states override if it exists
+          if (existingData.useManualStates) {
+            updateData.manualStatesOverride = existingData.manualStatesOverride;
+            updateData.useManualStates = existingData.useManualStates;
+            updateData.manualStatesUpdatedBy = existingData.manualStatesUpdatedBy;
+            updateData.manualStatesUpdatedAt = existingData.manualStatesUpdatedAt;
+            
+            // Don't update affectedStatesArray if using manual override
+            delete updateData.affectedStatesArray;
+            updateData.affectedStatesArray = existingData.affectedStatesArray;
+          }
+          
           currentBatch.update(docRef, updateData);
           updatedRecords++;
         } else {
@@ -149,6 +174,12 @@ export class FDASyncService {
             last_synced: admin.firestore.FieldValue.serverTimestamp(),
           });
           newRecords++;
+          
+          // New recall - add to LLM processing queue
+          newRecallsForLLM.push({ 
+            id: docId, 
+            title: recall.product_description 
+          });
         }
         
         operationCount++;
@@ -186,6 +217,66 @@ export class FDASyncService {
     }
 
     logger.info(`FDA sync complete: ${newRecords} new, ${updatedRecords} updated`);
+    
+    // Process LLM titles asynchronously (non-blocking) for recalls that need it
+    if (newRecallsForLLM.length > 0) {
+      this.processLLMTitlesForFDARecalls(newRecallsForLLM).catch(error => {
+        logger.error('Error processing LLM titles for FDA recalls:', error);
+      });
+    }
+  }
+
+  /**
+   * Processes FDA recall titles with OpenAI for specific recalls
+   * This runs asynchronously to avoid blocking the sync process
+   * 
+   * @param recallsToProcess - Array of recalls with id and title to process
+   * @private
+   */
+  private async processLLMTitlesForFDARecalls(recallsToProcess: Array<{ id: string, title: string }>): Promise<void> {
+    if (!openAIService.isAvailable()) {
+      logger.info('OpenAI service not available, skipping LLM title processing for FDA recalls');
+      return;
+    }
+
+    const db = admin.firestore();
+
+    try {
+      logger.info(`Processing LLM titles for ${recallsToProcess.length} FDA recalls`);
+      
+      let processedCount = 0;
+      let errorCount = 0;
+
+      // Limit to 50 recalls per sync to avoid overloading OpenAI API
+      const recallsToProcessLimited = recallsToProcess.slice(0, 50);
+
+      for (const recall of recallsToProcessLimited) {
+        try {
+          if (!recall.title) {
+            continue;
+          }
+
+          // Get enhanced title from OpenAI
+          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+          
+          if (enhancedTitle) {
+            // Update the recall with the enhanced title
+            await db.collection(this.FDA_RECALLS_COLLECTION).doc(recall.id).update({
+              llmTitle: enhancedTitle
+            });
+            processedCount++;
+            logger.info(`LLM title processed for FDA recall ${recall.id}`);
+          }
+        } catch (error) {
+          errorCount++;
+          logger.error(`Failed to process LLM title for FDA recall ${recall.id}:`, error);
+        }
+      }
+
+      logger.info(`FDA LLM title processing complete: ${processedCount} processed, ${errorCount} errors`);
+    } catch (error) {
+      logger.error('Error in processLLMTitlesForFDARecalls:', error);
+    }
   }
 
   /**

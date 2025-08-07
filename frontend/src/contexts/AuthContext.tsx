@@ -6,6 +6,7 @@ import { authApi } from '../services/auth.api';
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (idToken: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -74,6 +75,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async (idToken: string): Promise<boolean> => {
+    try {
+      const data = await authApi.loginWithGoogle(idToken);
+      
+      if (data.success && data.user) {
+        setAuthState({
+          user: data.user,
+          isAuthenticated: true,
+          isLoading: false
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Google login failed:', error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -93,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         ...authState,
         login,
+        loginWithGoogle,
         logout
       }}
     >

@@ -202,6 +202,67 @@ router.put('/recalls/:id/display', authenticate, async (req: Request, res: Respo
 });
 
 /**
+ * Update manual states override for FDA recall
+ * PUT /api/fda/recalls/:id/manual-states
+ * Admin only
+ */
+router.put('/recalls/:id/manual-states', authenticate, async (req: Request, res: Response) => {
+  try {
+    // Check if user is admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin access required'
+      });
+    }
+    
+    const { id } = req.params;
+    const { states, useManualStates } = req.body;
+    
+    // Validate input
+    if (!Array.isArray(states)) {
+      return res.status(400).json({
+        success: false,
+        error: 'States must be an array'
+      });
+    }
+    
+    // Validate that recall exists
+    const recall = await fdaFirebaseService.getRecallById(id);
+    if (!recall) {
+      return res.status(404).json({
+        success: false,
+        error: 'FDA recall not found'
+      });
+    }
+    
+    // Update manual states override
+    const updateData = {
+      manualStatesOverride: states,
+      useManualStates: useManualStates !== false, // Default to true
+      manualStatesUpdatedBy: req.user.username,
+      manualStatesUpdatedAt: new Date().toISOString()
+    };
+    
+    await fdaFirebaseService.updateManualStates(id, updateData);
+    
+    logger.info(`Admin ${req.user.username} updated manual states for FDA recall ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Manual states override updated successfully',
+      data: updateData
+    });
+  } catch (error) {
+    logger.error('Error updating manual states:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update manual states'
+    });
+  }
+});
+
+/**
  * Get FDA database statistics
  * GET /api/fda/stats
  */

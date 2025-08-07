@@ -88,6 +88,18 @@ export const pendingChangesApi = {
     }
   },
 
+  // Withdraw a pending change (members can withdraw their own changes)
+  async withdrawPendingChange(changeId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/pending-changes/${changeId}/withdraw`, {
+      method: 'PUT',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to withdraw change');
+    }
+  },
+
   // Upload images for a pending change (without modifying live recall)
   async uploadImagesToPendingChange(
     pendingChangeId: string, 

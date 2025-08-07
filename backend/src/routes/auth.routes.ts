@@ -3,6 +3,7 @@ import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user.service';
 import { authenticate } from '../middleware/auth.middleware';
 import { LoginRequest } from '../types/user.types';
+import { googleAuthService } from '../services/google-auth.service';
 
 const router = Router();
 
@@ -69,6 +70,51 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Google authentication endpoint
+router.post('/google', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID token is required'
+      });
+    }
+    
+    // Authenticate with Google
+    const result = await googleAuthService.authenticateWithGoogle(idToken);
+    
+    if (!result.success) {
+      return res.status(401).json({
+        success: false,
+        message: result.message || 'Google authentication failed'
+      });
+    }
+    
+    // Set cookie with the JWT token
+    res.cookie('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/'
+    });
+    
+    res.json({
+      success: true,
+      token: result.token,
+      user: result.user
+    });
+  } catch (error) {
+    console.error('Google authentication error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
 });
 
 // Get current user

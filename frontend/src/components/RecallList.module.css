@@ -250,6 +250,15 @@
   gap: 1rem;
 }
 
+.loadingMore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 0.5rem;
+}
+
 .spinner {
   width: 40px;
   height: 40px;
@@ -276,4 +285,121 @@
 .empty {
   text-align: center;
   padding: 4rem 2rem;
+}
+
+/* Fade in animations for each batch */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.batchAnimation {
+  animation: fadeInUp 0.6s ease-out forwards;
+  animation-fill-mode: both;
+}
+
+/* Stagger animation for items within each batch */
+.batch0 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch1 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch2 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch3 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch4 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch5 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch6 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch7 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch8 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+.batch9 { animation-delay: calc(var(--item-index, 0) * 0.05s); }
+
+/* Scroll to top button */
+.scrollToTop {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.scrollToTop:hover {
+  transform: translateX(-50%) translateY(2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.scrollToTop:active {
+  transform: translateX(-50%) translateY(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.scrollToTopVisible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Mobile positioning for scroll to top button */
+@media (max-width: 768px) {
+  .scrollToTop {
+    top: 2rem;
+    right: 2rem;
+    left: auto;
+    transform: translateY(-100px);
+  }
+
+  .scrollToTop:hover {
+    transform: translateY(2px);
+  }
+
+  .scrollToTop:active {
+    transform: translateY(4px);
+  }
+
+  .scrollToTopVisible {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    transform: translateX(-50%) translateY(-100px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile fadeIn animation */
+@media (max-width: 768px) {
+  @keyframes fadeIn {
+    0% {
+      transform: translateY(-100px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+.scrollToTopVisible {
+  animation: fadeIn 1s ease-out;
 }

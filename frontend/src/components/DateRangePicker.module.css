@@ -52,6 +52,28 @@
   min-width: 160px;
 }
 
+/* Responsive adjustments */
+@media (max-width: 540px) {
+  .dateInputs {
+    gap: 0.75rem;
+  }
+  
+  .inputGroup {
+    min-width: calc(50% - 0.375rem);
+  }
+  
+  .presetsContainer {
+    width: fit-content;
+    margin-top: 0.5rem;
+  }
+  
+  .presetsDropdown {
+    right: auto;
+    left: 0;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
 .presetItem {
   width: 100%;
   padding: 0.75rem 1rem;

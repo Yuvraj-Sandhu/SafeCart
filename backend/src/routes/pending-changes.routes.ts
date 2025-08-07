@@ -334,4 +334,32 @@ router.put('/:id/reject', requireAdmin, async (req, res) => {
   }
 });
 
+// Withdraw a pending change (members can withdraw their own changes)
+router.put('/:id/withdraw', async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    
+    const userInfo = {
+      uid: req.user.uid,
+      username: req.user.username,
+      email: req.user.email
+    };
+    
+    await PendingChangesService.withdrawPendingChange(req.params.id, userInfo);
+    
+    res.json({
+      success: true,
+      message: 'Change withdrawn successfully'
+    });
+  } catch (error) {
+    logger.error('Error withdrawing pending change:', error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to withdraw change'
+    });
+  }
+});
+
 export default router;
