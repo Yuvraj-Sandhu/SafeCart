@@ -28,7 +28,7 @@
 
 .header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 /* Title now handled by Header component */
@@ -143,7 +143,7 @@
 .divider {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
+  margin: 0;
   position: relative;
 }
 

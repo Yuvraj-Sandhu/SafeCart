@@ -268,7 +268,7 @@ export default function InternalEditPage() {
   return (
     <ProtectedRoute>
       <main className={styles.main}>
-        <Header subtitle="Internal Editor" />
+        <Header subtitle={`${user?.role === 'admin' ? 'Admin -' : user?.role === 'member' ? 'VA -' : ''} Internal Editor`} />
         <div className="container">
           <div 
             className={styles.filterCard}

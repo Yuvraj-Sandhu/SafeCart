@@ -353,6 +353,28 @@
   visibility: visible;
 }
 
+/* Mobile positioning for scroll to top button */
+@media (max-width: 768px) {
+  .scrollToTop {
+    top: 2rem;
+    right: 2rem;
+    left: auto;
+    transform: translateY(-100px);
+  }
+
+  .scrollToTop:hover {
+    transform: translateY(2px);
+  }
+
+  .scrollToTop:active {
+    transform: translateY(4px);
+  }
+
+  .scrollToTopVisible {
+    transform: translateY(0);
+  }
+}
+
 @keyframes fadeIn {
   0% {
     transform: translateX(-50%) translateY(-100px);
@@ -361,6 +383,20 @@
   100% {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
+  }
+}
+
+/* Mobile fadeIn animation */
+@media (max-width: 768px) {
+  @keyframes fadeIn {
+    0% {
+      transform: translateY(-100px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 }
 

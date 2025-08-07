@@ -73,6 +73,22 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.googleLoginContainer}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                width="100%"
+                text="signin_with"
+                shape="rectangular"
+              />
+            </div>
+
+            <div className={styles.divider}>
+              <span className={styles.dividerText}>OR</span>
+            </div>
+
             <div className={styles.inputGroup}>
               <label htmlFor="username" className={styles.label}>
                 Username
@@ -154,22 +170,6 @@ export default function LoginPage() {
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
-
-            <div className={styles.divider}>
-              <span className={styles.dividerText}>OR</span>
-            </div>
-
-            <div className={styles.googleLoginContainer}>
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                theme="outline"
-                size="large"
-                width="100%"
-                text="signin_with"
-                shape="rectangular"
-              />
-            </div>
           </form>
         </div>
       </div>

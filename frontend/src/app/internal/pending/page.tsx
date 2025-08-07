@@ -126,7 +126,7 @@ export default function MemberPendingPage() {
     return (
       <ProtectedRoute>
         <main className={styles.main}>
-          <Header subtitle="My Pending Changes" />
+          <Header subtitle="VA - Pending Changes" />
           <div className="container">
             <div style={{ 
               display: 'flex', 
