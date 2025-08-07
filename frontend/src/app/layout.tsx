@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SafeCart - USDA Food Recall Database",
-  description: "Search and filter USDA food recall data to keep your family safe",
+  title: "SafeCart - Food Recall Database",
+  description: "Search and filter food recall data to keep your family safe",
 };
 
 export default function RootLayout({
