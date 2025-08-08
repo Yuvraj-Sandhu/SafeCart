@@ -101,6 +101,7 @@ export class GoogleAuthService {
           googleId: googleUser.googleId,
           lastLogin: admin.firestore.FieldValue.serverTimestamp(),
           username: googleUser.name, // Update name in case it changed
+          role: role!, // Update role from authorized_emails (in case it changed)
         });
 
         userData = {
@@ -108,6 +109,7 @@ export class GoogleAuthService {
           ...existingUser.data(),
           googleId: googleUser.googleId,
           username: googleUser.name,
+          role: role!, // Use updated role from authorized_emails
         };
       } else {
         // Create new user

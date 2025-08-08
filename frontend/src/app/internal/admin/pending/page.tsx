@@ -338,6 +338,9 @@ export default function AdminPendingPage() {
                         loading={false}
                         error={null}
                         hideSearch={true}
+                        hideScrollTop={true}
+                        hideEndIndicator={true}
+                        hideBottomSpacer={true}
                       />
                     </div>
                     
@@ -376,6 +379,9 @@ export default function AdminPendingPage() {
                         loading={false}
                         error={null}
                         hideSearch={true}
+                        hideScrollTop={true}
+                        hideEndIndicator={true}
+                        hideBottomSpacer={true}
                       />
                     </div>
                   </div>

@@ -15,9 +15,20 @@ interface RecallListProps {
   loading: boolean;
   error: string | null;
   hideSearch?: boolean;
+  hideScrollTop?: boolean;
+  hideEndIndicator?: boolean;
+  hideBottomSpacer?: boolean;
 }
 
-export function RecallList({ recalls, loading, error, hideSearch = false }: RecallListProps) {
+export function RecallList({ 
+  recalls, 
+  loading, 
+  error, 
+  hideSearch = false,
+  hideScrollTop = false,
+  hideEndIndicator = false,
+  hideBottomSpacer = false
+}: RecallListProps) {
   const { currentTheme } = useTheme();
   const [selectedImageModal, setSelectedImageModal] = useState<{
     images: ProcessedImage[];
@@ -369,28 +380,30 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
   return (
     <div className={styles.container}>
       {/* Scroll to top button */}
-      <button
-        className={`${styles.scrollToTop} ${showScrollTop ? styles.scrollToTopVisible : ''}`}
-        onClick={scrollToTop}
-        aria-label="Scroll to top"
-        style={{
-          backgroundColor: currentTheme.cardBackground,
-          borderColor: currentTheme.cardBorder,
-        }}
-      >
-        <svg 
-          viewBox="0 0 46 40" 
+      {!hideScrollTop && (
+        <button
+          className={`${styles.scrollToTop} ${showScrollTop ? styles.scrollToTopVisible : ''}`}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
           style={{
-            width: '40px',
-            height: '35px',
-            fill: currentTheme.primary,
-            transform: 'rotate(-90deg)',
-            scale: '0.5',
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
           }}
         >
-          <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
-        </svg>
-      </button>
+          <svg 
+            viewBox="0 0 46 40" 
+            style={{
+              width: '40px',
+              height: '35px',
+              fill: currentTheme.primary,
+              transform: 'rotate(-90deg)',
+              scale: '0.5',
+            }}
+          >
+            <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
+          </svg>
+        </button>
+      )}
       {!hideSearch && (
         <>
           <div className={styles.header}>
@@ -669,7 +682,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
       )}
 
       {/* End of list indicator */}
-      {!loadingMore && displayedRecalls.length > 0 && displayedRecalls.length >= filteredRecalls.length && (
+      {!hideEndIndicator && !loadingMore && displayedRecalls.length > 0 && displayedRecalls.length >= filteredRecalls.length && (
         <div style={{ 
           textAlign: 'center', 
           padding: '2rem', 
@@ -681,7 +694,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
       )}
 
       {/* Spacer to allow scrolling past the bottom */}
-      <div style={{ height: 'calc(100vh / 2)' }} />
+      {!hideBottomSpacer && <div style={{ height: 'calc(100vh / 2)' }} />}
 
       {/* Image Modal */}
       <ImageModal
