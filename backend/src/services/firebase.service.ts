@@ -231,8 +231,8 @@ export class FirebaseService {
       let processedCount = 0;
       let errorCount = 0;
 
-      // Limit to 50 recalls per sync to avoid overloading OpenAI API
-      const recallsToProcessLimited = recallsToProcess.slice(0, 50);
+      // Limit to 500 recalls per sync to avoid overloading OpenAI API
+      const recallsToProcessLimited = recallsToProcess.slice(0, 500);
 
       for (const recall of recallsToProcessLimited) {
         try {
