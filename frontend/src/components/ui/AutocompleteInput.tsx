@@ -223,6 +223,38 @@ export function AutocompleteInput({
     // If in text zone or input is empty, allow normal behavior (focus, keyboard, etc.)
   };
 
+  const handleInputTouchStart = (e: React.TouchEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const touch = e.touches[0];
+    const rect = input.getBoundingClientRect();
+    const touchX = touch.clientX - rect.left - parseFloat(getComputedStyle(input).paddingLeft);
+    
+    // If input is empty, always allow typing
+    if (inputValue.length === 0) {
+      return; // Allow normal behavior
+    }
+    
+    // Measure the text width
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (context) {
+      const computedStyle = window.getComputedStyle(input);
+      context.font = computedStyle.font;
+      const textWidth = context.measureText(inputValue).width;
+      
+      // Add some padding around the text (30px buffer zone)
+      const textEndPosition = textWidth + 30;
+      
+      // If touch is beyond the text (on empty space), prevent focus
+      if (touchX > textEndPosition) {
+        e.preventDefault(); // Prevent focus and keyboard from appearing
+        setShowDropdown(true);
+        setHighlightedIndex(-1);
+      }
+      // If touching on/near text, allow normal behavior
+    }
+  };
+
   const handleDropdownToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDropdown(!showDropdown);
@@ -261,6 +293,7 @@ export function AutocompleteInput({
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
           onMouseDown={handleInputMouseDown}
+          onTouchStart={handleInputTouchStart}
           onMouseMove={handleInputMouseMove}
           onMouseLeave={() => setIsPointerZone(false)}
           placeholder={placeholder}
