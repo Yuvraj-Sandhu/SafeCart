@@ -8,6 +8,7 @@ import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
+import { getRelativeTime } from '@/utils/relativeTime';
 import styles from './RecallList.module.css';
 
 interface RecallListProps {
@@ -515,7 +516,7 @@ export function RecallList({
                 <div 
                   className={styles.imageContainer}
                   onClick={() => handleImageClick(cardImages, displayTitle, 0)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', position: 'relative' }}
                 >
                   <img 
                     src={firstImage.storageUrl} 
@@ -523,6 +524,19 @@ export function RecallList({
                     className={styles.recallImage}
                     loading="lazy"
                   />
+                  {/* Relative time badge */}
+                  {recall.recallInitiationDate && (
+                    <div 
+                      className={styles.timeBadge}
+                      style={{ 
+                        backgroundColor: currentTheme.cardBackground,
+                        color: currentTheme.textSecondary,
+                        borderColor: currentTheme.cardBorder
+                      }}
+                    >
+                      {getRelativeTime(recall.recallInitiationDate)}
+                    </div>
+                  )}
                   {cardImages.length > 1 && (
                     <div 
                       className={styles.imageCount}
@@ -535,7 +549,7 @@ export function RecallList({
               ) : (
                 <div 
                   className={styles.imagePlaceholder}
-                  style={{ backgroundColor: currentTheme.backgroundSecondary }}
+                  style={{ backgroundColor: currentTheme.backgroundSecondary, position: 'relative' }}
                 >
                   <svg 
                     width="60" 
@@ -550,13 +564,29 @@ export function RecallList({
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
                   </svg>
+                  {/* Relative time badge for recalls without images */}
+                  {recall.recallInitiationDate && (
+                    <div 
+                      className={styles.timeBadge}
+                      style={{ 
+                        backgroundColor: currentTheme.cardBackground,
+                        color: currentTheme.textSecondary,
+                        borderColor: currentTheme.cardBorder
+                      }}
+                    >
+                      {getRelativeTime(recall.recallInitiationDate)}
+                    </div>
+                  )}
                 </div>
               )}
               
               <div className={styles.cardContent}>
                 
-                <div className={styles.recallHeader}>
-                  <span 
+                {/* <div className={styles.recallHeader}> */}
+
+                  {/* Tags can be used if required */}
+
+                  {/* <span 
                     className={styles.sourceTag}
                     style={{ 
                       color: getSourceColor(recall.source),
@@ -564,8 +594,9 @@ export function RecallList({
                     }}
                   >
                     {recall.source}
-                  </span>
-                  <span 
+                  </span> */}
+
+                  {/* <span 
                     className={styles.riskLevel}
                     style={{ 
                       color: getRiskLevelColor(recall.classification),
@@ -573,8 +604,9 @@ export function RecallList({
                     }}
                   >
                     {recall.classification}
-                  </span>
-                  <span 
+                  </span> */}
+
+                  {/* <span 
                     className={styles.activeStatus}
                     style={{ 
                       color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
@@ -582,8 +614,8 @@ export function RecallList({
                     }}
                   >
                     {recall.isActive ? 'Active' : 'Closed'}
-                  </span>
-                </div>
+                  </span> */}
+                {/* </div> */}
                 
                 <h3 
                   className={styles.recallTitle}
@@ -601,12 +633,12 @@ export function RecallList({
                 */}
                 
                 <div className={styles.recallMeta}>
-                  <span 
+                  {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {recall.recallingFirm}
-                  </span>
+                  </span> */}
                   <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
@@ -625,15 +657,24 @@ export function RecallList({
                         </p>
                       </div>
                     )}
+
+                    {recall.recallingFirm && (
+                      <div className={styles.detailSection}>
+                        <h4 style={{ color: currentTheme.text }}>Recalling Firm</h4>
+                        <p style={{ color: currentTheme.textSecondary }}>
+                          {recall.recallingFirm}
+                        </p>
+                      </div>
+                    )}
                     
-                    {recall.terminationDate && (
+                    {/* {recall.terminationDate && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                         <p style={{ color: currentTheme.textSecondary }}>
                           {formatRecallDate(recall.terminationDate)}
                         </p>
                       </div>
-                    )}
+                    )} */}
                     
                     <div className={styles.detailSection}>
                       <h4 style={{ color: currentTheme.text }}>Product Details</h4>
@@ -642,7 +683,7 @@ export function RecallList({
                       </p>
                     </div>
                     
-                    {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
+                    {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Summary</h4>
                         <div 
@@ -652,7 +693,7 @@ export function RecallList({
                           }}
                         />
                       </div>
-                    )}
+                    )} */}
                   </div>
                 )}
                 

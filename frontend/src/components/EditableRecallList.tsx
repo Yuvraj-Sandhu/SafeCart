@@ -9,6 +9,7 @@ import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
+import { getRelativeTime } from '@/utils/relativeTime';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
 import styles from './RecallList.module.css';
 import editStyles from './EditableRecallList.module.css';
@@ -325,7 +326,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                     <div 
                       className={styles.imageContainer}
                       onClick={() => handleImageClick(cardImages, displayTitle, 0)}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', position: 'relative' }}
                     >
                       <img 
                         src={firstImage.storageUrl} 
@@ -333,6 +334,19 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                         className={styles.recallImage}
                         loading="lazy"
                       />
+                      {/* Relative time badge */}
+                      {recall.recallInitiationDate && (
+                        <div 
+                          className={styles.timeBadge}
+                          style={{ 
+                            backgroundColor: currentTheme.cardBackground,
+                            color: currentTheme.textSecondary,
+                            borderColor: currentTheme.cardBorder
+                          }}
+                        >
+                          {getRelativeTime(recall.recallInitiationDate)}
+                        </div>
+                      )}
                       {/* Review button before image count - only show on main card */}
                       {splitIndex === -1 && onReview && (
                         <button
@@ -342,7 +356,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                           }}
                           className={editStyles.editButton}
                           style={{ 
-                            right: cardImages.length > 1 ? '9rem' : '5rem',
+                            right: cardImages.length > 1 ? '8.5rem' : '4.5rem',
                             backgroundColor: currentTheme.warning,
                             color: 'white'
                           }}
@@ -360,7 +374,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                           }}
                           className={editStyles.editButton}
                           style={{ 
-                            right: cardImages.length > 1 ? '5rem' : '1rem'
+                            right: cardImages.length > 1 ? '4.5rem' : '0.5rem'
                           }}
                         >
                           Edit
@@ -378,7 +392,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                   ) : (
                     <div 
                       className={styles.imagePlaceholder}
-                      style={{ backgroundColor: currentTheme.backgroundSecondary }}
+                      style={{ backgroundColor: currentTheme.backgroundSecondary, position: 'relative' }}
                     >
                       <svg 
                         width="60" 
@@ -393,6 +407,19 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <polyline points="21 15 16 10 5 21"/>
                       </svg>
+                      {/* Relative time badge for recalls without images */}
+                      {recall.recallInitiationDate && (
+                        <div 
+                          className={styles.timeBadge}
+                          style={{ 
+                            backgroundColor: currentTheme.cardBackground,
+                            color: currentTheme.textSecondary,
+                            borderColor: currentTheme.cardBorder
+                          }}
+                        >
+                          {getRelativeTime(recall.recallInitiationDate)}
+                        </div>
+                      )}
                       {/* Review button for cards without images - only show on main card */}
                       {splitIndex === -1 && onReview && (
                         <button
@@ -402,7 +429,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                           }}
                           className={editStyles.editButton}
                           style={{
-                            right: '5rem',
+                            right: '4.5rem',
                             backgroundColor: currentTheme.warning,
                             color: 'white'
                           }}
@@ -420,7 +447,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                           }}
                           className={editStyles.editButton}
                           style={{
-                            right: '1rem'
+                            right: '0.5rem'
                           }}
                         >
                           Edit
@@ -451,7 +478,8 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                       >
                         {recall.source}
                       </span>
-                      <span 
+
+                      {/* <span 
                         className={styles.riskLevel}
                         style={{ 
                           color: getRiskLevelColor(recall.classification),
@@ -459,8 +487,9 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                         }}
                       >
                         {recall.classification}
-                      </span>
-                      <span 
+                      </span> */}
+
+                      {/* <span 
                         className={styles.activeStatus}
                         style={{ 
                           color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
@@ -468,7 +497,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                         }}
                       >
                         {recall.isActive ? 'Active' : 'Closed'}
-                      </span>
+                      </span> */}
                       
                       {/* Show pending badge only on main card */}
                       {!hidePendingBadges && splitIndex === -1 && hasPendingChanges(recall.id, recall.source) && (
@@ -514,12 +543,12 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                     */}
                     
                     <div className={styles.recallMeta}>
-                      <span 
+                      {/* <span 
                         className={styles.metaItem}
                         style={{ color: currentTheme.textSecondary }}
                       >
                         {recall.recallingFirm}
-                      </span>
+                      </span> */}
                       <span 
                         className={styles.metaItem}
                         style={{ color: currentTheme.textSecondary }}
@@ -538,15 +567,24 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                             </p>
                           </div>
                         )}
+
+                        {recall.recallingFirm && (
+                          <div className={styles.detailSection}>
+                            <h4 style={{ color: currentTheme.text }}>Recalling Firm</h4>
+                            <p style={{ color: currentTheme.textSecondary }}>
+                              {recall.recallingFirm}
+                            </p>
+                          </div>
+                        )}
                         
-                        {recall.terminationDate && (
+                        {/* {recall.terminationDate && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                             <p style={{ color: currentTheme.textSecondary }}>
                               {formatRecallDate(recall.terminationDate)}
                             </p>
                           </div>
-                        )}
+                        )} */}
                         
                         <div className={styles.detailSection}>
                           <h4 style={{ color: currentTheme.text }}>Product Details</h4>
@@ -555,7 +593,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                           </p>
                         </div>
                         
-                        {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
+                        {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Summary</h4>
                             <div 
@@ -565,7 +603,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                               }}
                             />
                           </div>
-                        )}
+                        )} */}
                       </div>
                     )}
                     
