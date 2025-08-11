@@ -93,6 +93,11 @@
   width: 100%;
   background-color: var(--color-backgroundSecondary);
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* Prevent image overflow */
+  border-radius: 1rem; /* Match image border radius */
 }
 
 .imageContainer:hover {
@@ -103,8 +108,36 @@
   width: 100%;
   height: auto;
   display: block;
-  object-fit: cover;
+  object-fit: contain; /* Changed from cover to contain to show full image */
   border-radius: 1rem;
+}
+
+/* Mobile devices (phones) */
+@media (max-width: 640px) {
+  .recallImage {
+    max-height: 33vh; /* On mobile: limit to 33% of viewport height */
+  }
+}
+
+/* Tablets */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .recallImage {
+    max-height: 300px;
+  }
+}
+
+/* Small laptops */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .recallImage {
+    max-height: 400px;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1440px) {
+  .recallImage {
+    max-height: 500px; /* On large screens: allow up to 70% of viewport height */
+  }
 }
 
 .imagePlaceholder {
@@ -118,8 +151,8 @@
 
 .imageCount {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 0.5rem;
+  right: 0.5rem;
   color: var(--color-buttonPrimaryText);
   font-size: 1rem;
   font-weight: 600;
@@ -128,6 +161,20 @@
   backdrop-filter: blur(8px);
   min-width: 3rem;
   text-align: center;
+}
+
+.timeBadge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(8px);
+  z-index: 1;
+  white-space: nowrap;
 }
 
 .cardContent {

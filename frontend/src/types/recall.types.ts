@@ -27,6 +27,7 @@ export interface UnifiedRecall {
   // Recall details
   reasonForRecall: string;
   recallDate: string; // Standardized date format
+  recallInitiationDate?: string; // FDA recall initiation date (for relative time display)
   recallUrl?: string; // URL to recall page (USDA has this, FDA doesn't)
   terminationDate?: string; // Date when recall was closed
   
@@ -66,6 +67,7 @@ export function usdaToUnified(usdaRecall: any): UnifiedRecall {
     llmTitle: usdaRecall.llmTitle,
     reasonForRecall: usdaRecall.field_recall_reason || 'Not specified',
     recallDate: usdaRecall.field_recall_date || '',
+    recallInitiationDate: usdaRecall.field_recall_date, // For USDA, use field_recall_date for relative time
     recallUrl: usdaRecall.field_recall_url,
     terminationDate: usdaRecall.field_closed_date,
     affectedStates: usdaRecall.affectedStatesArray || [],
@@ -100,6 +102,7 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     llmTitle: fdaRecall.llmTitle,
     reasonForRecall: fdaRecall.reason_for_recall || 'Not specified',
     recallDate: formatFDADate(fdaRecall.report_date),
+    recallInitiationDate: fdaRecall.recall_initiation_date ? formatFDADate(fdaRecall.recall_initiation_date) : formatFDADate(fdaRecall.report_date), // Use recall_initiation_date if available, else report_date
     recallUrl: undefined, // FDA doesn't have recall URLs by default
     terminationDate: fdaRecall.termination_date ? formatFDADate(fdaRecall.termination_date) : undefined,
     affectedStates: fdaRecall.affectedStatesArray || [],

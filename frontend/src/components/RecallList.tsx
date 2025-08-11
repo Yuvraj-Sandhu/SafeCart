@@ -8,6 +8,7 @@ import { UnifiedRecall } from '@/types/recall.types';
 import { ImageModal } from './ui/ImageModal';
 import { getUnifiedRecallImages } from '@/utils/imageUtils';
 import { formatRecallDate } from '@/utils/dateUtils';
+import { getRelativeTime } from '@/utils/relativeTime';
 import styles from './RecallList.module.css';
 
 interface RecallListProps {
@@ -15,9 +16,20 @@ interface RecallListProps {
   loading: boolean;
   error: string | null;
   hideSearch?: boolean;
+  hideScrollTop?: boolean;
+  hideEndIndicator?: boolean;
+  hideBottomSpacer?: boolean;
 }
 
-export function RecallList({ recalls, loading, error, hideSearch = false }: RecallListProps) {
+export function RecallList({ 
+  recalls, 
+  loading, 
+  error, 
+  hideSearch = false,
+  hideScrollTop = false,
+  hideEndIndicator = false,
+  hideBottomSpacer = false
+}: RecallListProps) {
   const { currentTheme } = useTheme();
   const [selectedImageModal, setSelectedImageModal] = useState<{
     images: ProcessedImage[];
@@ -369,28 +381,30 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
   return (
     <div className={styles.container}>
       {/* Scroll to top button */}
-      <button
-        className={`${styles.scrollToTop} ${showScrollTop ? styles.scrollToTopVisible : ''}`}
-        onClick={scrollToTop}
-        aria-label="Scroll to top"
-        style={{
-          backgroundColor: currentTheme.cardBackground,
-          borderColor: currentTheme.cardBorder,
-        }}
-      >
-        <svg 
-          viewBox="0 0 46 40" 
+      {!hideScrollTop && (
+        <button
+          className={`${styles.scrollToTop} ${showScrollTop ? styles.scrollToTopVisible : ''}`}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
           style={{
-            width: '40px',
-            height: '35px',
-            fill: currentTheme.primary,
-            transform: 'rotate(-90deg)',
-            scale: '0.5',
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
           }}
         >
-          <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
-        </svg>
-      </button>
+          <svg 
+            viewBox="0 0 46 40" 
+            style={{
+              width: '40px',
+              height: '35px',
+              fill: currentTheme.primary,
+              transform: 'rotate(-90deg)',
+              scale: '0.5',
+            }}
+          >
+            <path d="M46 20.038c0-.7-.3-1.5-.8-2.1l-16-17c-1.1-1-3.2-1.4-4.4-.3-1.2 1.1-1.2 3.3 0 4.4l11.3 11.9H3c-1.7 0-3 1.3-3 3s1.3 3 3 3h33.1l-11.3 11.9c-1 1-1.2 3.3 0 4.4 1.2 1.1 3.3.8 4.4-.3l16-17c.5-.5.8-1.1.8-1.9z" />
+          </svg>
+        </button>
+      )}
       {!hideSearch && (
         <>
           <div className={styles.header}>
@@ -502,7 +516,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                 <div 
                   className={styles.imageContainer}
                   onClick={() => handleImageClick(cardImages, displayTitle, 0)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', position: 'relative' }}
                 >
                   <img 
                     src={firstImage.storageUrl} 
@@ -510,6 +524,19 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                     className={styles.recallImage}
                     loading="lazy"
                   />
+                  {/* Relative time badge */}
+                  {recall.recallInitiationDate && (
+                    <div 
+                      className={styles.timeBadge}
+                      style={{ 
+                        backgroundColor: currentTheme.cardBackground,
+                        color: currentTheme.textSecondary,
+                        borderColor: currentTheme.cardBorder
+                      }}
+                    >
+                      {getRelativeTime(recall.recallInitiationDate)}
+                    </div>
+                  )}
                   {cardImages.length > 1 && (
                     <div 
                       className={styles.imageCount}
@@ -522,7 +549,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
               ) : (
                 <div 
                   className={styles.imagePlaceholder}
-                  style={{ backgroundColor: currentTheme.backgroundSecondary }}
+                  style={{ backgroundColor: currentTheme.backgroundSecondary, position: 'relative' }}
                 >
                   <svg 
                     width="60" 
@@ -537,13 +564,29 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
                   </svg>
+                  {/* Relative time badge for recalls without images */}
+                  {recall.recallInitiationDate && (
+                    <div 
+                      className={styles.timeBadge}
+                      style={{ 
+                        backgroundColor: currentTheme.cardBackground,
+                        color: currentTheme.textSecondary,
+                        borderColor: currentTheme.cardBorder
+                      }}
+                    >
+                      {getRelativeTime(recall.recallInitiationDate)}
+                    </div>
+                  )}
                 </div>
               )}
               
               <div className={styles.cardContent}>
                 
-                <div className={styles.recallHeader}>
-                  <span 
+                {/* <div className={styles.recallHeader}> */}
+
+                  {/* Tags can be used if required */}
+
+                  {/* <span 
                     className={styles.sourceTag}
                     style={{ 
                       color: getSourceColor(recall.source),
@@ -551,8 +594,9 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                     }}
                   >
                     {recall.source}
-                  </span>
-                  <span 
+                  </span> */}
+
+                  {/* <span 
                     className={styles.riskLevel}
                     style={{ 
                       color: getRiskLevelColor(recall.classification),
@@ -560,8 +604,9 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                     }}
                   >
                     {recall.classification}
-                  </span>
-                  <span 
+                  </span> */}
+
+                  {/* <span 
                     className={styles.activeStatus}
                     style={{ 
                       color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
@@ -569,8 +614,8 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                     }}
                   >
                     {recall.isActive ? 'Active' : 'Closed'}
-                  </span>
-                </div>
+                  </span> */}
+                {/* </div> */}
                 
                 <h3 
                   className={styles.recallTitle}
@@ -588,12 +633,12 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                 */}
                 
                 <div className={styles.recallMeta}>
-                  <span 
+                  {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {recall.recallingFirm}
-                  </span>
+                  </span> */}
                   <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
@@ -612,15 +657,24 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                         </p>
                       </div>
                     )}
+
+                    {recall.recallingFirm && (
+                      <div className={styles.detailSection}>
+                        <h4 style={{ color: currentTheme.text }}>Recalling Firm</h4>
+                        <p style={{ color: currentTheme.textSecondary }}>
+                          {recall.recallingFirm}
+                        </p>
+                      </div>
+                    )}
                     
-                    {recall.terminationDate && (
+                    {/* {recall.terminationDate && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Closed Date</h4>
                         <p style={{ color: currentTheme.textSecondary }}>
                           {formatRecallDate(recall.terminationDate)}
                         </p>
                       </div>
-                    )}
+                    )} */}
                     
                     <div className={styles.detailSection}>
                       <h4 style={{ color: currentTheme.text }}>Product Details</h4>
@@ -629,7 +683,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                       </p>
                     </div>
                     
-                    {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
+                    {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Summary</h4>
                         <div 
@@ -639,7 +693,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
                           }}
                         />
                       </div>
-                    )}
+                    )} */}
                   </div>
                 )}
                 
@@ -669,7 +723,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
       )}
 
       {/* End of list indicator */}
-      {!loadingMore && displayedRecalls.length > 0 && displayedRecalls.length >= filteredRecalls.length && (
+      {!hideEndIndicator && !loadingMore && displayedRecalls.length > 0 && displayedRecalls.length >= filteredRecalls.length && (
         <div style={{ 
           textAlign: 'center', 
           padding: '2rem', 
@@ -681,7 +735,7 @@ export function RecallList({ recalls, loading, error, hideSearch = false }: Reca
       )}
 
       {/* Spacer to allow scrolling past the bottom */}
-      <div style={{ height: 'calc(100vh / 2)' }} />
+      {!hideBottomSpacer && <div style={{ height: 'calc(100vh / 2)' }} />}
 
       {/* Image Modal */}
       <ImageModal

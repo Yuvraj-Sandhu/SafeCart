@@ -85,10 +85,13 @@ class OpenAIService {
           max_tokens: 100,
         });
 
-        const enhancedTitle = response.choices[0]?.message?.content?.trim();
+        let enhancedTitle = response.choices[0]?.message?.content?.trim();
         
         if (enhancedTitle && enhancedTitle.length > 0) {
-          console.log(`Title enhanced successfully: "${originalTitle}" -> "${enhancedTitle}"`);
+          // Remove surrounding quotes if present (GPT sometimes adds them)
+          enhancedTitle = enhancedTitle.replace(/^["'](.*)["']$/, '$1');
+          
+          // console.log(`Title enhanced successfully: "${originalTitle}" -> "${enhancedTitle}"`);
           return enhancedTitle;
         }
         

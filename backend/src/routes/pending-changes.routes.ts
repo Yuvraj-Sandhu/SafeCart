@@ -115,9 +115,9 @@ router.post('/:id/upload-images', upload.array('images', 10), async (req, res) =
     // Upload images to Firebase Storage (same storage location as live recalls)
     let uploadedImages;
     if (pendingChange.recallSource === 'USDA') {
-      uploadedImages = await firebaseService.uploadRecallImages(pendingChange.recallId, files);
+      uploadedImages = await firebaseService.uploadRecallImages(pendingChange.recallId, files, req.user?.username);
     } else {
-      uploadedImages = await fdaFirebaseService.uploadFDARecallImages(pendingChange.recallId, files);
+      uploadedImages = await fdaFirebaseService.uploadFDARecallImages(pendingChange.recallId, files, req.user?.username);
     }
 
     // Parse display data from form data
