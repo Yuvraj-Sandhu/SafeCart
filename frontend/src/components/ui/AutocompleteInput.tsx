@@ -31,6 +31,7 @@ export function AutocompleteInput({
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [autocompleteText, setAutocompleteText] = useState('');
+  const [isPointerZone, setIsPointerZone] = useState(false); // Track if mouse is in pointer zone
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -179,34 +180,17 @@ export function AutocompleteInput({
     }
   };
   
-  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    // Get the input element
-    const input = e.currentTarget;
-    const clickX = e.nativeEvent.offsetX;
-    
-    // Measure the text width
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    if (context) {
-      const computedStyle = window.getComputedStyle(input);
-      context.font = computedStyle.font;
-      const textWidth = context.measureText(inputValue).width;
-      
-      // Add some padding around the text (30px buffer zone)
-      const textEndPosition = textWidth + 30;
-      
-      // If click is beyond the text (on empty space), open dropdown
-      if (clickX > textEndPosition || inputValue.length === 0) {
-        setShowDropdown(true);
-        setHighlightedIndex(-1);
-      }
-    }
-  };
-  
   const handleInputMouseMove = (e: React.MouseEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const mouseX = e.nativeEvent.offsetX;
     
+    // If input is empty, always allow typing (text cursor)
+    if (inputValue.length === 0) {
+      input.style.cursor = 'text';
+      setIsPointerZone(false);
+      return;
+    }
+    
     // Measure the text width
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -218,13 +202,25 @@ export function AutocompleteInput({
       // Add some padding around the text (30px buffer zone)
       const textEndPosition = textWidth + 30;
       
-      // Set cursor based on mouse position
-      if (mouseX > textEndPosition || inputValue.length === 0) {
+      // Set cursor and track zone
+      if (mouseX > textEndPosition) {
         input.style.cursor = 'pointer';
+        setIsPointerZone(true);
       } else {
         input.style.cursor = 'text';
+        setIsPointerZone(false);
       }
     }
+  };
+  
+  const handleInputMouseDown = (e: React.MouseEvent<HTMLInputElement>) => {
+    // If we're in pointer zone (and input has text), prevent focus and just open dropdown
+    if (isPointerZone && inputValue.length > 0) {
+      e.preventDefault(); // Prevent focus and keyboard from appearing
+      setShowDropdown(true);
+      setHighlightedIndex(-1);
+    }
+    // If in text zone or input is empty, allow normal behavior (focus, keyboard, etc.)
   };
 
   const handleDropdownToggle = (e: React.MouseEvent) => {
@@ -264,8 +260,9 @@ export function AutocompleteInput({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
-          onClick={handleInputClick}
+          onMouseDown={handleInputMouseDown}
           onMouseMove={handleInputMouseMove}
+          onMouseLeave={() => setIsPointerZone(false)}
           placeholder={placeholder}
           style={{
             backgroundColor: autocompleteText ? 'transparent' : currentTheme.inputBackground,
