@@ -41,11 +41,11 @@
 }
 
 /* iOS Safari specific fixes */
-input[type="date"]::-webkit-date-and-time-value {
+.dateInput::-webkit-date-and-time-value {
   text-align: left;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
+.dateInput::-webkit-calendar-picker-indicator {
   background: transparent;
   bottom: 0;
   color: transparent;
