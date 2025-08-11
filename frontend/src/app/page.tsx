@@ -20,6 +20,7 @@ export default function Home() {
   
   // Filter states
   const [selectedState, setSelectedState] = useState('');
+  const [detectedState, setDetectedState] = useState(''); // Track the auto-detected state
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   
@@ -49,6 +50,7 @@ export default function Home() {
       
       if (stateName) {
         setSelectedState(stateName);
+        setDetectedState(stateName); // Save the detected state
         return;
       }
     }
@@ -56,6 +58,7 @@ export default function Home() {
     // Default to California if no location or location processing failed
     if (!isLocationLoading) {
       setSelectedState('California');
+      setDetectedState('California'); // Save California as detected default
     }
   }, [isLocationLoading, location]); // Keep dependencies but avoid double API calls
 
@@ -204,6 +207,7 @@ export default function Home() {
                 value={selectedState}
                 onChange={handleStateChange}
                 placeholder="Enter your state..."
+                detectedValue={detectedState}
               />
             </div>
 

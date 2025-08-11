@@ -15,6 +15,7 @@ interface AutocompleteInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  detectedValue?: string; // The auto-detected state value
 }
 
 export function AutocompleteInput({ 
@@ -22,7 +23,8 @@ export function AutocompleteInput({
   value, 
   onChange, 
   placeholder = 'Type to search...', 
-  className = '' 
+  className = '',
+  detectedValue
 }: AutocompleteInputProps) {
   const { currentTheme } = useTheme();
   const [inputValue, setInputValue] = useState('');
@@ -33,12 +35,33 @@ export function AutocompleteInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter options based on input - show all options if no input and dropdown opened via arrow
-  const filteredOptions = inputValue.length > 0 
-    ? options.filter(option =>
-        option.label.toLowerCase().includes(inputValue.toLowerCase())
-      )
-    : options; // Show all options when no input (dropdown opened via arrow)
+  // Filter and order options based on input
+  const getFilteredOptions = () => {
+    if (inputValue.length === 0) {
+      // No input - show all with detected state at top if available
+      if (detectedValue) {
+        const detectedOption = options.find(opt => opt.value === detectedValue);
+        if (detectedOption) {
+          const otherOptions = options.filter(opt => opt.value !== detectedValue);
+          return [detectedOption, ...otherOptions];
+        }
+      }
+      return options;
+    }
+    
+    // With input - prioritize states that start with the input
+    const lowerInput = inputValue.toLowerCase();
+    const startsWithInput = options.filter(option =>
+      option.label.toLowerCase().startsWith(lowerInput)
+    );
+    const others = options.filter(option =>
+      !option.label.toLowerCase().startsWith(lowerInput)
+    );
+    
+    return [...startsWithInput, ...others];
+  };
+  
+  const filteredOptions = getFilteredOptions();
 
   // Find the best match for autocomplete
   const bestMatch = inputValue.length > 0 ? 
@@ -155,6 +178,54 @@ export function AutocompleteInput({
       setShowDropdown(true);
     }
   };
+  
+  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    // Get the input element
+    const input = e.currentTarget;
+    const clickX = e.nativeEvent.offsetX;
+    
+    // Measure the text width
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (context) {
+      const computedStyle = window.getComputedStyle(input);
+      context.font = computedStyle.font;
+      const textWidth = context.measureText(inputValue).width;
+      
+      // Add some padding around the text (30px buffer zone)
+      const textEndPosition = textWidth + 30;
+      
+      // If click is beyond the text (on empty space), open dropdown
+      if (clickX > textEndPosition || inputValue.length === 0) {
+        setShowDropdown(true);
+        setHighlightedIndex(-1);
+      }
+    }
+  };
+  
+  const handleInputMouseMove = (e: React.MouseEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const mouseX = e.nativeEvent.offsetX;
+    
+    // Measure the text width
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (context) {
+      const computedStyle = window.getComputedStyle(input);
+      context.font = computedStyle.font;
+      const textWidth = context.measureText(inputValue).width;
+      
+      // Add some padding around the text (30px buffer zone)
+      const textEndPosition = textWidth + 30;
+      
+      // Set cursor based on mouse position
+      if (mouseX > textEndPosition || inputValue.length === 0) {
+        input.style.cursor = 'pointer';
+      } else {
+        input.style.cursor = 'text';
+      }
+    }
+  };
 
   const handleDropdownToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -193,6 +264,8 @@ export function AutocompleteInput({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
+          onClick={handleInputClick}
+          onMouseMove={handleInputMouseMove}
           placeholder={placeholder}
           style={{
             backgroundColor: autocompleteText ? 'transparent' : currentTheme.inputBackground,
