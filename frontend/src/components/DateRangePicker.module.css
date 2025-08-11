@@ -4,17 +4,21 @@
 
 .dateInputs {
   display: flex;
-  gap: 1rem;
   align-items: flex-end;
   flex-wrap: wrap;
+  margin: -0.5rem; /* Negative margin to offset padding */
 }
 
 .inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
   flex: 1;
   min-width: 150px;
+  padding: 0.5rem; /* Use padding instead of gap for better compatibility */
+}
+
+.inputGroup > * + * {
+  margin-top: 0.5rem; /* Fallback for vertical spacing */
 }
 
 .label {
@@ -38,6 +42,16 @@
 
 .presetsContainer {
   position: relative;
+  padding: 0.5rem;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* Adjust presets button position on larger screens */
+@media (min-width: 541px) {
+  .presetsContainer {
+    padding-bottom: 0.875rem; /* Move button up slightly on larger screens */
+  }
 }
 
 .presetsDropdown {
@@ -55,16 +69,18 @@
 /* Responsive adjustments */
 @media (max-width: 540px) {
   .dateInputs {
-    gap: 0.75rem;
+    margin: -0.375rem; /* Smaller negative margin for mobile */
   }
   
   .inputGroup {
-    min-width: calc(50% - 0.375rem);
+    min-width: calc(50% - 0.75rem);
+    padding: 0.375rem; /* Smaller padding for mobile */
   }
   
   .presetsContainer {
     width: fit-content;
     margin-top: 0.5rem;
+    padding: 0.375rem;
   }
   
   .presetsDropdown {
