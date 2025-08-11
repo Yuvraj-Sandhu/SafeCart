@@ -57,11 +57,15 @@ export function AutocompleteInput({
 
   // Sync with external value changes
   useEffect(() => {
-    if (value !== inputValue) {
-      setInputValue(value);
+    // Find the option that matches the value and use its label
+    const matchingOption = options.find(opt => opt.value === value);
+    const displayValue = matchingOption ? matchingOption.label : value;
+    
+    if (displayValue !== inputValue) {
+      setInputValue(displayValue);
       setAutocompleteText('');
     }
-  }, [value]);
+  }, [value, options]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

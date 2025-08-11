@@ -1,5 +1,5 @@
 export const US_STATES = [
-  { value: 'ALL', label: 'ALL' },
+  { value: 'ALL', label: 'All States' },
   { value: 'Alabama', label: 'Alabama' },
   { value: 'Alaska', label: 'Alaska' },
   { value: 'Arizona', label: 'Arizona' },

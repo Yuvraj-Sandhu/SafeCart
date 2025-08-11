@@ -87,7 +87,15 @@ export default function Home() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      const response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+      let response;
+      
+      if (selectedState === 'ALL') {
+        // Get all recalls from all states
+        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr);
+      } else {
+        // Get recalls for specific state
+        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+      }
       
       setRecalls(response.data);
     } catch (err) {
@@ -192,7 +200,7 @@ export default function Home() {
                 Select State
               </label>
               <AutocompleteInput
-                options={US_STATES.filter(state => state.value !== 'ALL')}
+                options={US_STATES}
                 value={selectedState}
                 onChange={handleStateChange}
                 placeholder="Enter your state..."
