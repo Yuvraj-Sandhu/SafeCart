@@ -5,10 +5,10 @@ export const theme = {
     // Primary colors
     primary: '#15803d',
     primaryHover: '#166534',
-    primaryLight: '#86efac',
+    primaryLight: '#22c55e',
     
     // Background colors
-    background: '#f7f6f3',
+    background: '#faf6ed',
     backgroundSecondary: '#eceae4',
     backgroundTertiary: '#e2e0d9',
     
@@ -20,7 +20,7 @@ export const theme = {
     textWhite: '#f9fafb',
     
     // Border colors
-    border: '#c5c7cb',
+    border: '#d5d7db',
     borderFocus: '#9ca3af',
     
     // Status colors
@@ -40,7 +40,7 @@ export const theme = {
     inputBorder: '#d1d5db',
     buttonPrimary: '#15803d',
     buttonPrimaryText: '#ffffff',
-    buttonSecondary: '#faf7f2',
+    buttonSecondary: '#faf9f7',
     buttonSecondaryText: '#374151',
     
     // Shadows
@@ -51,7 +51,7 @@ export const theme = {
     // Primary colors
     primary: '#22c55e',
     primaryHover: '#16a34a',
-    primaryLight: '#86efac',
+    primaryLight: '#4ade80',
     
     // Background colors
     background: '#111827',
