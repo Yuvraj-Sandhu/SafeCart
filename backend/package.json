@@ -19,6 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@react-email/components": "^0.5.0",
+    "@react-email/render": "^1.2.0",
     "@types/multer": "^2.0.0",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
@@ -34,6 +36,8 @@
     "openai": "^5.12.0",
     "pdf-lib": "^1.17.1",
     "pdf2pic": "^3.2.0",
+    "react": "^19.1.1",
+    "resend": "^6.0.1",
     "sharp": "^0.33.5",
     "winston": "^3.11.0",
     "zod": "^3.22.4"
