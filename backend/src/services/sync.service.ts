@@ -280,7 +280,7 @@ export class SyncService {
   /**
    * Starts automatic FDA synchronization
    * 
-   * Runs daily at 3:00 AM Eastern Time
+   * Runs daily at 8:00 AM Eastern Time
    * Can be disabled by setting ENABLE_FDA_AUTO_SYNC to false
    */
   startFDAAutoSync(): void {
@@ -290,8 +290,8 @@ export class SyncService {
     }
 
     const timezone = process.env.SYNC_TIMEZONE || 'America/New_York';
-    // Cron expression for 3:00 AM every day
-    const cronExpression = '0 3 * * *'; // minute=0, hour=3, every day
+    // Cron expression for 8:00 AM every day
+    const cronExpression = '0 8 * * *'; // minute=0, hour=8, every day
 
     this.fdaSyncTask = cron.schedule(cronExpression, async () => {
       const now = new Date();
@@ -311,12 +311,12 @@ export class SyncService {
       timezone: timezone
     });
 
-    logger.info(`FDA auto-sync scheduled for 3:00 AM daily in ${timezone} timezone`);
+    logger.info(`FDA auto-sync scheduled for 8:00 AM daily in ${timezone} timezone`);
     
     // Log the next scheduled run
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(3, 0, 0, 0);
+    tomorrow.setHours(8, 0, 0, 0);
     const nextRunString = tomorrow.toLocaleString('en-US', {
       timeZone: timezone,
       dateStyle: 'short',
