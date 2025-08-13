@@ -205,14 +205,10 @@ export function AutocompleteInput({
     // Store click position for later use
     clickPositionRef.current = clickX;
     
-    // If input is empty, always allow typing
-    if (inputValue.length === 0) {
-      setAllowFocus(true);
-      return;
-    }
-    
-    const textWidth = measureTextWidth(inputValue, input);
-    const textEndPosition = textWidth + 30; // 30px buffer
+    // Determine text width - either actual text or placeholder
+    const textToMeasure = inputValue.length === 0 ? (placeholder || '') : inputValue;
+    const textWidth = measureTextWidth(textToMeasure, input);
+    const textEndPosition = textWidth + 15; // 15px buffer
     
     // Determine if click is on empty space
     if (clickX > textEndPosition) {
@@ -227,7 +223,7 @@ export function AutocompleteInput({
         inputRef.current?.blur();
       }, 0);
     } else {
-      // Clicking on text - allow normal focus and typing
+      // Clicking on text or placeholder - allow normal focus and typing
       setAllowFocus(true);
     }
   };
@@ -236,13 +232,9 @@ export function AutocompleteInput({
     const input = e.currentTarget;
     const mouseX = e.nativeEvent.offsetX;
     
-    // If input is empty, always show text cursor
-    if (inputValue.length === 0) {
-      input.style.cursor = 'text';
-      return;
-    }
-    
-    const textWidth = measureTextWidth(inputValue, input);
+    // Determine text width - either actual text or placeholder
+    const textToMeasure = inputValue.length === 0 ? (placeholder || '') : inputValue;
+    const textWidth = measureTextWidth(textToMeasure, input);
     const textEndPosition = textWidth + 30;
     
     // Set cursor based on position
