@@ -3,8 +3,7 @@
   background-color: var(--color-background);
   display: flex;
   flex-direction: column;
-  padding: 1rem;
-  padding-top: 2rem; /* Space for header at top */
+  padding: 2rem 0;
 }
 
 .loginWrapper {
