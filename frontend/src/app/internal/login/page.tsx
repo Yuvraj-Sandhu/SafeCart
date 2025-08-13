@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
-import { Header } from '../../components/Header';
-import { Button } from '../../components/ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
+import { Header } from '@/components/Header';
+import { Button } from '@/components/ui/Button';
 import { GoogleLogin } from '@react-oauth/google';
 import styles from './login.module.css';
 
