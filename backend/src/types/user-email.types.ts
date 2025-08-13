@@ -1,6 +1,6 @@
 export interface EmailPreferences {
   subscribed: boolean;
-  state?: string;
+  states: string[];  // Array of state codes user is subscribed to (e.g., ['CA', 'TX', 'NY'])
   schedule?: {
     weekdays: boolean;
     weekends: boolean;

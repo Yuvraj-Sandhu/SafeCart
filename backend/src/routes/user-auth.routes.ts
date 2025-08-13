@@ -25,6 +25,8 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserEmailService } from '../services/user-email.service';
 import { UserCreateData, UserLoginData } from '../types/user-email.types';
+import { emailService } from '../services/email/email.service';
+import { emailDigestService } from '../services/email/digest.service';
 
 const router = Router();
 
@@ -102,6 +104,16 @@ router.post('/register', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
       path: '/' // Cookie available site-wide
     });
+    
+    // Send welcome email to new user (non-blocking)
+    // Note: We don't wait for email to send to avoid blocking registration
+    if (user.emailPreferences?.subscribed && user.emailPreferences?.states?.length > 0) {
+      const welcomeData = emailDigestService.prepareWelcomeData(user);
+      emailService.sendWelcomeEmail(welcomeData).catch(error => {
+        console.error('Failed to send welcome email:', error);
+        // Don't fail registration if email fails - user is already created
+      });
+    }
     
     // Return user data without sensitive information
     // Note: passwordHash is never returned in any API response

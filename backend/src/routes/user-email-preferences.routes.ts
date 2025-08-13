@@ -30,6 +30,8 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserEmailService } from '../services/user-email.service';
 import { EmailPreferences } from '../types/user-email.types';
+import { emailService } from '../services/email/email.service';
+import { emailDigestService } from '../services/email/digest.service';
 
 const router = Router();
 
@@ -153,14 +155,19 @@ router.put('/email-preferences', authenticateUser, async (req: any, res) => {
       return res.status(400).json({ error: 'Email preferences are required' });
     }
     
-    // Business rule: subscription requires state selection for targeted delivery
-    if (emailPreferences.subscribed && !emailPreferences.state) {
-      return res.status(400).json({ error: 'State is required when subscribing' });
+    // Business rule: subscription requires at least one state selection for targeted delivery
+    if (emailPreferences.subscribed && (!emailPreferences.states || emailPreferences.states.length === 0)) {
+      return res.status(400).json({ error: 'At least one state is required when subscribing' });
     }
     
-    // Validate state code against official US state abbreviations
+    // Ensure states is always an array (handle undefined case)
+    if (!emailPreferences.states) {
+      emailPreferences.states = [];
+    }
+    
+    // Validate state codes against official US state abbreviations
     // Prevents invalid data that would cause email delivery failures
-    if (emailPreferences.state) {
+    if (emailPreferences.states && emailPreferences.states.length > 0) {
       const validStates = [
         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
         'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -169,9 +176,15 @@ router.put('/email-preferences', authenticateUser, async (req: any, res) => {
         'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
       ];
       
-      if (!validStates.includes(emailPreferences.state)) {
-        return res.status(400).json({ error: 'Invalid state code' });
+      // Check each state in the array
+      for (const state of emailPreferences.states) {
+        if (!validStates.includes(state)) {
+          return res.status(400).json({ error: `Invalid state code: ${state}` });
+        }
       }
+      
+      // Remove duplicates if any
+      emailPreferences.states = [...new Set(emailPreferences.states)];
     }
     
     // Persist preferences to database
@@ -234,10 +247,13 @@ router.post('/unsubscribe/:token', async (req, res) => {
     }
     
     // Update only subscription status, preserve other preferences
-    // Important: don't remove state, schedule, or token (allows re-subscription)
-    const updatedPreferences = {
-      ...user.emailPreferences,
-      subscribed: false
+    // Important: don't remove states, schedule, or token (allows re-subscription)
+    const updatedPreferences: EmailPreferences = {
+      subscribed: false,
+      states: user.emailPreferences?.states || [],
+      schedule: user.emailPreferences?.schedule,
+      unsubscribeToken: user.emailPreferences?.unsubscribeToken,
+      subscribedAt: user.emailPreferences?.subscribedAt
     };
     
     await UserEmailService.updateEmailPreferences(user.uid, updatedPreferences);
@@ -281,22 +297,36 @@ router.post('/send-test-email', authenticateUser, async (req: any, res) => {
     
     // Validate user is properly subscribed before sending test
     // Prevents test emails to users who haven't completed setup
-    if (!user.emailPreferences?.subscribed || !user.emailPreferences?.state) {
+    if (!user.emailPreferences?.subscribed || !user.emailPreferences?.states?.length) {
       return res.status(400).json({
-        error: 'You must be subscribed with a selected state to receive test emails'
+        error: 'You must be subscribed with at least one selected state to receive test emails'
       });
     }
     
-    // TODO: Implement actual test email sending in Step 2 (Email Templates)
-    // Implementation will:
-    // 1. Fetch recent recalls for user's state
-    // 2. Generate email HTML using React Email templates
-    // 3. Send via email service with "TEST" subject prefix
-    // 4. Log test email for analytics/debugging
-    res.json({
-      success: true,
-      message: 'Test email functionality will be implemented in Step 2'
-    });
+    try {
+      // Prepare test digest data using the digest service
+      const digestData = await emailDigestService.prepareTestDigestData(user);
+
+      // Send test email using React Email templates
+      const result = await emailService.sendRecallDigest(digestData);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Test email sent successfully! Check your inbox.',
+          messageId: result.messageId
+        });
+      } else {
+        res.status(500).json({
+          error: 'Failed to send test email: ' + result.error
+        });
+      }
+    } catch (fetchError) {
+      console.error('Error fetching recalls for test email:', fetchError);
+      res.status(500).json({
+        error: 'Failed to prepare test email data'
+      });
+    }
   } catch (error) {
     console.error('Send test email error:', error);
     res.status(500).json({ error: 'Failed to send test email' });

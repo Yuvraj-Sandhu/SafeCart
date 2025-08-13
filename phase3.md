@@ -52,7 +52,7 @@ General accounts for public users:
 - createdAt (timestamp)
 - emailPreferences (object):
   - subscribed (boolean)
-  - state (Array - multiple state selection possible)
+  - states (Array - multiple state selection possible)
   - schedule (weekdays, weekends, time of day)
   - unsubscribeToken (unique token)
   - subscribedAt (timestamp)

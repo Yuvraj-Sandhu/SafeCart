@@ -34,6 +34,7 @@
 
 import { EmailProvider, EmailOptions, EmailResult, BatchEmailResult } from './types';
 import { ResendProvider } from './providers/resend.provider';
+import { EmailRenderService, RecallDigestData, WelcomeEmailData } from './render.service';
 
 /**
  * Email Service Class
@@ -277,6 +278,154 @@ export class EmailService {
     // Handle singular vs plural recall grammar
     const recallText = recallCount === 1 ? 'food recall' : 'food recalls';
     return `${recallCount} ${recallText} in ${state} - SafeCart Alert`;
+  }
+
+  /**
+   * Send Recall Digest Email
+   * 
+   * High-level method for sending daily recall digest emails using React Email templates.
+   * Handles template rendering and email delivery through the configured provider.
+   * 
+   * @param digestData - Complete digest data including user info and recalls
+   * @returns Promise<EmailResult> - Delivery result with tracking information
+   * 
+   * Business Logic:
+   * - Validates template data before rendering
+   * - Renders React Email template to HTML
+   * - Sends email through configured provider (Resend/SendGrid)
+   * - Returns standardized result for tracking and error handling
+   * 
+   * Use Cases:
+   * - Daily automated digest distribution
+   * - Manual test email sending
+   * - Individual user digest delivery
+   */
+  async sendRecallDigest(digestData: RecallDigestData): Promise<EmailResult> {
+    // Validate template data
+    if (!EmailRenderService.validateTemplateData('digest', digestData)) {
+      return {
+        success: false,
+        error: 'Invalid digest data provided',
+        provider: this.provider.name as any
+      };
+    }
+
+    try {
+      // Render email template to HTML
+      const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+      
+      // Send through configured provider
+      return await this.sendEmail(emailOptions);
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `Failed to render or send digest: ${error.message}`,
+        provider: this.provider.name as any
+      };
+    }
+  }
+
+  /**
+   * Send Welcome Email
+   * 
+   * High-level method for sending welcome emails to new subscribers.
+   * Introduces SafeCart service and confirms subscription preferences.
+   * 
+   * @param welcomeData - Welcome email data including user info and preferences
+   * @returns Promise<EmailResult> - Delivery result with tracking information
+   * 
+   * Business Logic:
+   * - Validates user and preference data
+   * - Renders welcome template with personalized content
+   * - Sends email through configured provider
+   * - Used for new user onboarding workflow
+   * 
+   * Use Cases:
+   * - New user registration confirmation
+   * - Subscription reactivation
+   * - Service introduction emails
+   */
+  async sendWelcomeEmail(welcomeData: WelcomeEmailData): Promise<EmailResult> {
+    // Validate template data
+    if (!EmailRenderService.validateTemplateData('welcome', welcomeData)) {
+      return {
+        success: false,
+        error: 'Invalid welcome email data provided',
+        provider: this.provider.name as any
+      };
+    }
+
+    try {
+      // Render email template to HTML
+      const emailOptions = await EmailRenderService.renderWelcomeEmail(welcomeData);
+      
+      // Send through configured provider
+      return await this.sendEmail(emailOptions);
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `Failed to render or send welcome email: ${error.message}`,
+        provider: this.provider.name as any
+      };
+    }
+  }
+
+  /**
+   * Send Digest Batch
+   * 
+   * Efficiently sends multiple digest emails for daily distribution.
+   * Optimized for batch processing of state-based subscriber lists.
+   * 
+   * @param digestDataList - Array of digest data for multiple users
+   * @returns Promise<BatchEmailResult> - Summary of batch operation results
+   * 
+   * Performance Features:
+   * - Concurrent template rendering for speed
+   * - Batch email sending through provider
+   * - Individual failure tracking for retry logic
+   * - Memory-efficient processing for large lists
+   * 
+   * Use Cases:
+   * - Daily digest distribution (primary use case)
+   * - State-specific emergency alerts
+   * - Test email batch verification
+   */
+  async sendDigestBatch(digestDataList: RecallDigestData[]): Promise<BatchEmailResult> {
+    try {
+      // Validate all digest data
+      const validData = digestDataList.filter(data => 
+        EmailRenderService.validateTemplateData('digest', data)
+      );
+
+      if (validData.length === 0) {
+        return {
+          successful: 0,
+          failed: digestDataList.length,
+          results: digestDataList.map(() => ({
+            success: false,
+            error: 'Invalid digest data',
+            provider: this.provider.name as any
+          }))
+        };
+      }
+
+      // Render all emails concurrently
+      const emailOptions = await EmailRenderService.renderDigestBatch(validData);
+      
+      // Send batch through provider
+      return await this.sendBatch(emailOptions);
+    } catch (error: any) {
+      // Return failure result for entire batch
+      return {
+        successful: 0,
+        failed: digestDataList.length,
+        results: digestDataList.map(() => ({
+          success: false,
+          error: `Batch processing failed: ${error.message}`,
+          provider: this.provider.name as any
+        }))
+      };
+    }
   }
 }
 

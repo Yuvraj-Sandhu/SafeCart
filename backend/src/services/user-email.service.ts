@@ -123,6 +123,7 @@ export class UserEmailService {
       createdAt: new Date(),
       emailPreferences: {
         subscribed: false,
+        states: [],  // Empty array - user must select states during subscription
         schedule: {
           weekdays: true,
           weekends: false,
@@ -420,7 +421,8 @@ export class UserEmailService {
    * @returns Promise<User[]> - Array of subscribed users for the state
    * 
    * Business Logic:
-   * - Only returns users with subscribed=true AND matching state
+   * - Only returns users with subscribed=true AND state in their states array
+   * - User can be subscribed to multiple states and receive separate digests
    * - Used for daily digest generation and recall alert distribution
    * - Results include complete user data for email personalization
    * - Empty array returned if no subscribers for state
@@ -429,11 +431,11 @@ export class UserEmailService {
    * - Called once per state during daily digest generation
    * - Results used to create batch email operations
    * - Each user receives personalized content (state-specific recalls)
-   * - Supports state-level recall targeting and relevance
+   * - Users subscribed to multiple states get multiple digests
    * 
    * Query Optimization:
    * - Compound query requires Firestore composite index
-   * - Index: (emailPreferences.subscribed, emailPreferences.state)
+   * - Index: (emailPreferences.subscribed, emailPreferences.states array-contains)
    * - No pagination needed (state subscriber counts typically < 10K)
    * - Query cost scales with subscriber count per state
    * 
@@ -452,7 +454,7 @@ export class UserEmailService {
   static async getSubscribedUsersByState(state: string): Promise<User[]> {
     const snapshot = await db.collection(USERS_COLLECTION)
       .where('emailPreferences.subscribed', '==', true)
-      .where('emailPreferences.state', '==', state)
+      .where('emailPreferences.states', 'array-contains', state)
       .get();
     
     return snapshot.docs.map(doc => {
