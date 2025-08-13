@@ -29,6 +29,8 @@ import recallRoutes from './routes/recall.routes';
 import fdaRecallRoutes from './routes/fda-recall.routes';
 import authRoutes from './routes/auth.routes';
 import pendingChangesRoutes from './routes/pending-changes.routes';
+import userAuthRoutes from './routes/user-auth.routes';
+import userEmailPreferencesRoutes from './routes/user-email-preferences.routes';
 import { SyncService } from './services/sync.service';
 import logger from './utils/logger';
 
@@ -81,7 +83,9 @@ app.get('/health', (req, res) => {
 });
 
 // Mount API routes under /api prefix
-app.use('/api/auth', authRoutes);     // Authentication: /api/auth/*
+app.use('/api/auth', authRoutes);     // Internal auth: /api/auth/*
+app.use('/api/user/auth', userAuthRoutes); // Public user auth: /api/user/auth/*
+app.use('/api/user', userEmailPreferencesRoutes); // User preferences: /api/user/*
 app.use('/api/pending-changes', pendingChangesRoutes); // Pending changes: /api/pending-changes/*
 app.use('/api', recallRoutes);        // USDA recalls: /api/recalls/*
 app.use('/api/fda', fdaRecallRoutes); // FDA recalls: /api/fda/recalls/*

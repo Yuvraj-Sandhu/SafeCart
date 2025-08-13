@@ -123,7 +123,8 @@ export function AutocompleteInput({
     setShowDropdown(false);
     setHighlightedIndex(-1);
     setAutocompleteText('');
-    inputRef.current?.focus();
+    // Remove focus call to prevent dropdown from reopening and keyboard from staying up
+    inputRef.current?.blur();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -215,10 +216,10 @@ export function AutocompleteInput({
     
     // Determine if click is on empty space
     if (clickX > textEndPosition) {
-      // Clicking on empty space - prevent focus, show dropdown only
+      // Clicking on empty space - prevent focus, toggle dropdown
       e.preventDefault();
       setAllowFocus(false);
-      setShowDropdown(true);
+      setShowDropdown(prev => !prev); // Toggle dropdown like arrow does
       setHighlightedIndex(-1);
       
       // Immediately blur if somehow focused
