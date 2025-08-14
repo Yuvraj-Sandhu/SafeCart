@@ -173,9 +173,10 @@ export class EmailService {
         r.status === 'fulfilled' ? r.value : {
           success: false,
           error: 'Promise rejected', // Network or other failure
-          provider: this.provider.name as any
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
         }
-      )
+      ),
+      provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
     };
   }
 
@@ -404,8 +405,9 @@ export class EmailService {
           results: digestDataList.map(() => ({
             success: false,
             error: 'Invalid digest data',
-            provider: this.provider.name as any
-          }))
+            provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
+          })),
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
         };
       }
 
@@ -422,8 +424,9 @@ export class EmailService {
         results: digestDataList.map(() => ({
           success: false,
           error: `Batch processing failed: ${error.message}`,
-          provider: this.provider.name as any
-        }))
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
+        })),
+        provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
       };
     }
   }
