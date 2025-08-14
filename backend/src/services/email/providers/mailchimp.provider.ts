@@ -27,7 +27,7 @@
  * @author Yuvraj
  */
 
-import Mailchimp from '@mailchimp/mailchimp_transactional';
+const Mailchimp = require('@mailchimp/mailchimp_transactional');
 import { EmailProvider, EmailOptions, EmailResult, BatchEmailResult, EmailStatus } from '../types';
 import logger from '../../../utils/logger';
 
