@@ -207,11 +207,15 @@ export default function InternalEditPage() {
     // The EditModal has already saved the data to the backend,
     // so we only need to update the local state here
     
-    // Update local state with the new data (only for admin changes)
     if (user?.role === 'admin') {
+      // Admin changes are applied immediately - update local state with new data
       setRecalls(prev => prev.map(r => 
         r.id === updatedRecall.id ? updatedRecall : r
       ));
+    } else if (user?.role === 'member') {
+      // Member changes go to pending queue - remove recall from current list
+      // The recall can now be seen in /internal/pending page
+      setRecalls(prev => prev.filter(r => r.id !== updatedRecall.id));
     }
     
     // Refresh pending changes count (important for both admin and member actions)
@@ -220,7 +224,7 @@ export default function InternalEditPage() {
     // Close modal
     setEditModal({ isOpen: false, recall: null });
     
-    console.log('Display data updated successfully');
+    console.log('Display data updated successfully - no page refresh needed');
   };
 
   // Filter recalls based on advanced options

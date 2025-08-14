@@ -6,6 +6,12 @@
   padding: 2rem 0;
 }
 
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem 0;
+  }
+}
+
 .loginWrapper {
   display: flex;
   justify-content: center;

@@ -42,6 +42,12 @@
   padding-right: 1rem;
 }
 
+/* Ensure consistent layout even with empty columns */
+.leftColumn:empty,
+.rightColumn:empty {
+  min-width: 120px;
+}
+
 /* Theme Toggle Button */
 .themeToggle {
   cursor: pointer;
@@ -128,12 +134,11 @@
   .themeToggle {
     scale: 0.8;
   }
-}
 
-/* Ensure consistent layout even with empty columns */
-.leftColumn:empty,
-.rightColumn:empty {
-  min-width: 120px;
+  .leftColumn:empty,
+  .rightColumn:empty {
+    min-width: 10px;
+  }
 }
 
 /* Animation for smooth theme transitions */
