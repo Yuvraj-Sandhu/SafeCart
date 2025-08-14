@@ -64,9 +64,8 @@ export class MailchimpProvider implements EmailProvider {
     try {
       // Prepare the message object for Mailchimp
       const message: any = {
-        // For testing: Use your Mailchimp account email as sender
-        // Replace 'your-email@gmail.com' with your actual email
-        from_email: this.extractEmail(options.from || 'biziratechexperiments@gmail.com'),
+        // Using your verified domain
+        from_email: this.extractEmail(options.from || 'digest@remote-login.org'),
         from_name: this.extractName(options.from || 'SafeCart'),
         to: [{
           email: options.to,
