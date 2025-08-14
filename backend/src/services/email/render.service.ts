@@ -12,6 +12,17 @@ import { RecallDigest, WelcomeEmail } from '../../emails';
 import { EmailOptions } from './types';
 
 /**
+ * Sanitize state names for use as email tags
+ * Resend requires tags to only contain ASCII letters, numbers, underscores, or dashes
+ */
+function sanitizeForTag(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .replace(/[^a-z0-9_-]/g, ''); // Remove any non-ASCII chars except underscores and dashes
+}
+
+/**
  * Email Template Data Interfaces
  */
 export interface RecallDigestData {
@@ -103,7 +114,7 @@ export class EmailRenderService {
       html,
       tags: {
         template: 'recall_digest',
-        state: data.state,
+        state: sanitizeForTag(data.state),
         recall_count: data.recalls.length.toString(),
         is_test: data.isTest ? 'true' : 'false'
       }
@@ -147,7 +158,7 @@ export class EmailRenderService {
       html,
       tags: {
         template: 'welcome',
-        state: data.state,
+        state: sanitizeForTag(data.state),
         user_type: 'new_subscriber'
       }
     };
