@@ -1,0 +1,460 @@
+.container {
+  min-height: 100vh;
+  background-color: var(--color-background);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 0;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem;
+  font-size: 1.25rem;
+  color: var(--color-textSecondary);
+}
+
+.contentWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem 0;
+  }
+
+  .contentWrapper {
+    padding-top: 1rem;
+    margin: 0 1rem;
+    width: calc(100% - 2rem);
+  }
+}
+
+.welcomeBanner {
+  background: var(--color-primary);
+  color: var(--color-textWhite);
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.welcomeBanner h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+}
+
+.welcomeBanner p {
+  margin: 0;
+  font-size: 1.125rem;
+  opacity: 0.95;
+}
+
+.mainContent {
+  background: var(--color-cardBackground);
+  border: 1px solid var(--color-cardBorder);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.section {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.sectionDescription {
+  color: var(--color-textSecondary);
+  margin: 0 0 1.5rem 0;
+}
+
+/* Modern State Selection */
+.selectedStatesContainer {
+  margin-bottom: 1.5rem;
+}
+
+.selectedStatesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.selectedStatesCount {
+  color: var(--color-textSecondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.selectedStatesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.selectedStateTag {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-primary);
+  color: var(--color-textWhite);
+  border-radius: 24px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  animation: slideInFromTop 0.3s ease-out;
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.removeStateButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: var(--color-textWhite);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: normal;
+  transition: all 0.2s ease;
+  font-family: Arial, sans-serif;
+}
+
+.removeStateButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.addStateContainer {
+  margin-bottom: 1rem;
+  max-width: 300px;
+}
+
+.inputLabel {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+/* Schedule Options */
+.scheduleOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.optionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.optionLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.radioGroup,
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.radioOption,
+.checkboxOption {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-inputBorder);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--color-inputBackground);
+}
+
+.radioOption:hover,
+.checkboxOption:hover {
+  border-color: var(--color-primary);
+  background: var(--color-backgroundSecondary);
+}
+
+.radioOption input,
+.checkboxOption input {
+  margin-right: 0.75rem;
+}
+
+.radioOption span,
+.checkboxOption span {
+  font-size: 0.875rem;
+}
+
+/* Modern Status Card */
+.statusCard {
+  background: var(--color-cardBackground);
+  border: 2px solid var(--color-cardBorder);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.statusCard:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.statusHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.statusIcon {
+  flex-shrink: 0;
+}
+
+.statusContent {
+  flex: 1;
+}
+
+.statusTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.25rem 0;
+}
+
+.statusDescription {
+  font-size: 0.875rem;
+  color: var(--color-textSecondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.statusToggle {
+  flex-shrink: 0;
+}
+
+/* Toggle Switch - Consistent with internal/edit page */
+.checkboxInput {
+  display: none;
+}
+
+.toggleSwitch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 50px;
+  height: 30px;
+  background-color: var(--color-backgroundTertiary);
+  border-radius: 20px;
+  cursor: pointer;
+  transition-duration: .2s;
+  scale: 0.9;
+}
+
+.toggleSwitch::after {
+  content: "";
+  position: absolute;
+  height: 10px;
+  width: 10px;
+  left: 5px;
+  background-color: transparent;
+  border-radius: 50%;
+  transition-duration: .2s;
+  box-shadow: 5px 2px 7px rgba(8, 8, 8, 0.26);
+  border: 5px solid var(--color-textWhite);
+}
+
+.checkboxInput:checked + .toggleSwitch::after {
+  transform: translateX(100%);
+  transition-duration: .2s;
+  background-color: var(--color-textWhite);
+}
+
+.checkboxInput:checked + .toggleSwitch {
+  background-color: var(--color-primary);
+  transition-duration: .2s;
+}
+
+.statusWarning {
+  padding: 0.75rem 1.5rem;
+  background: #fef3c7;
+  border-top: 1px solid #f59e0b;
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.statusSummary {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border-top: 1px solid #bbf7d0;
+  font-size: 0.875rem;
+  color: #166534;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Messages */
+.success {
+  background: var(--color-successLight);
+  color: var(--color-success);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-success);
+  margin-bottom: 1.5rem;
+}
+
+.error {
+  background: var(--color-dangerLight);
+  color: var(--color-danger);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-danger);
+  margin-bottom: 1.5rem;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Custom Radio and Checkbox Styling */
+.customRadioOption,
+.customCheckboxOption {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-inputBorder);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--color-inputBackground);
+}
+
+.customRadioOption:hover,
+.customCheckboxOption:hover {
+  border-color: var(--color-primary);
+  background: var(--color-backgroundSecondary);
+}
+
+.radioInput,
+.checkboxInput {
+  display: none;
+}
+
+.radioButton,
+.checkboxButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-backgroundTertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  pointer-events: none;
+}
+
+.checkboxButton svg {
+  pointer-events: none;
+}
+
+.radioButton {
+  border-radius: 50%;
+}
+
+.checkboxButton {
+  border-radius: 4px;
+}
+
+.radioButton:hover,
+.checkboxButton:hover {
+  border-color: var(--color-primary);
+}
+
+.radioInput:checked + .radioButton {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.radioInput:checked + .radioButton::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-textWhite);
+}
+
+.checkboxInput:checked + .checkboxButton {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+
+.radioLabel,
+.checkboxLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .scheduleOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}
