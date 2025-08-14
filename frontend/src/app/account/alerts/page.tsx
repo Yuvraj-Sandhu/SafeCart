@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,7 @@ import styles from './alerts.module.css';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { STATE_NAME_TO_CODE, STATE_CODE_TO_NAME } from '@/utils/stateMapping';
 
-export default function AlertsPage() {
+function AlertsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isWelcome = searchParams?.get('welcome') === 'true';
@@ -445,5 +445,18 @@ export default function AlertsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AlertsPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.container}>
+        <Header subtitle="Alert Settings" showUserMenu={false} />
+        <div className={styles.loading}>Loading your preferences...</div>
+      </div>
+    }>
+      <AlertsContent />
+    </Suspense>
   );
 }
