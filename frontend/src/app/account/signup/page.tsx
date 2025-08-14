@@ -5,15 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/Button';
-import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
-import { US_STATES } from '@/data/states';
 import styles from './signup.module.css';
 
 export default function AccountSignupPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [selectedState, setSelectedState] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,21 +43,22 @@ export default function AccountSignupPage() {
 
     try {
       // Create user account with initial email preferences
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/signup`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
+          name,
           email, 
           password,
           preferences: {
-            states: selectedState ? [selectedState] : [],
+            states: [],
             frequency: 'daily',
             timeOfDay: 'morning',
             weekdays: true,
             weekends: false,
-            isActive: true
+            isActive: false
           }
         }),
         credentials: 'include',
@@ -95,6 +94,24 @@ export default function AccountSignupPage() {
 
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.inputGroup}>
+              <label htmlFor="name" className={styles.label}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={styles.input}
+                required
+                disabled={isLoading}
+                autoComplete="off"
+                placeholder="Your full name"
+              />
+              <p className={styles.hint}>This will be used for your account</p>
+            </div>
+
+            <div className={styles.inputGroup}>
               <label htmlFor="email" className={styles.label}>
                 Email Address
               </label>
@@ -112,18 +129,6 @@ export default function AccountSignupPage() {
               <p className={styles.hint}>We'll send recall alerts to this email</p>
             </div>
 
-            <div className={styles.inputGroup}>
-              <label htmlFor="state" className={styles.label}>
-                Your State (Optional)
-              </label>
-              <AutocompleteInput
-                options={US_STATES}
-                value={selectedState}
-                onChange={setSelectedState}
-                placeholder="Select your state..."
-              />
-              <p className={styles.hint}>You can add more states later</p>
-            </div>
 
             <div className={styles.inputGroup}>
               <label htmlFor="password" className={styles.label}>
@@ -234,7 +239,7 @@ export default function AccountSignupPage() {
               type="submit"
               variant="primary"
               size='large'
-              disabled={isLoading || !email || !password || !confirmPassword}
+              disabled={isLoading || !name || !email || !password || !confirmPassword}
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>

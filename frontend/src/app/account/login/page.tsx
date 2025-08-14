@@ -23,7 +23,7 @@ export default function AccountLoginPage() {
 
     try {
       // TODO: Implement login with backend email service
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

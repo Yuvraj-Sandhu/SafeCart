@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { US_STATES } from '@/data/states';
 import styles from './alerts.module.css';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { STATE_NAME_TO_CODE, STATE_CODE_TO_NAME } from '@/utils/stateMapping';
 
 export default function AlertsPage() {
   const router = useRouter();
@@ -36,19 +37,21 @@ export default function AlertsPage() {
   const loadUserPreferences = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/preferences`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/email-preferences`, {
         credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.preferences) {
-          setSelectedStates(data.preferences.states || []);
-          setFrequency(data.preferences.frequency || 'daily');
-          setTimeOfDay(data.preferences.timeOfDay || 'morning');
-          setWeekdays(data.preferences.weekdays ?? true);
-          setWeekends(data.preferences.weekends ?? false);
-          setIsActive(data.preferences.isActive ?? true);
+        if (data.emailPreferences) {
+          const stateCodes = data.emailPreferences.states || [];
+          const stateNames = stateCodes.map((code: string) => STATE_CODE_TO_NAME[code] || code);
+          setSelectedStates(stateNames);
+          setFrequency(data.emailPreferences.frequency || 'daily');
+          setTimeOfDay(data.emailPreferences.timeOfDay || 'morning');
+          setWeekdays(data.emailPreferences.weekdays ?? true);
+          setWeekends(data.emailPreferences.weekends ?? false);
+          setIsActive(data.emailPreferences.subscribed ?? false);
         }
       } else if (response.status === 401) {
         // Not authenticated, redirect to login
@@ -81,18 +84,20 @@ export default function AlertsPage() {
     setMessage('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/preferences`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/email-preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          states: selectedStates,
-          frequency,
-          timeOfDay,
-          weekdays,
-          weekends,
-          isActive,
+          emailPreferences: {
+            states: selectedStates.map(stateName => STATE_NAME_TO_CODE[stateName] || stateName),
+            frequency,
+            timeOfDay,
+            weekdays,
+            weekends,
+            subscribed: isActive,
+          }
         }),
         credentials: 'include',
       });
@@ -116,7 +121,7 @@ export default function AlertsPage() {
     setMessage('');
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/test-email`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/send-test-email`, {
         method: 'POST',
         credentials: 'include',
       });
