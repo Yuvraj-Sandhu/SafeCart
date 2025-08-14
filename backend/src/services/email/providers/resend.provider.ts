@@ -90,7 +90,7 @@ export class ResendProvider implements EmailProvider {
     try {
       // Send email via Resend API
       const result = await this.client.emails.send({
-        from: options.from || 'SafeCart <biziratechexperiments@gmail.com>',
+        from: options.from || 'biziratechexperiments@gmail.com',
         to: options.to,
         subject: options.subject,
         html: options.html, // React Email generated HTML
