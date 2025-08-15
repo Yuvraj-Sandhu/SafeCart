@@ -36,16 +36,16 @@ interface PendingBadgeProps {
 
 export function PendingBadge({ count = 1, className = '' }: PendingBadgeProps) {
   const { currentTheme } = useTheme();
-  const { user } = useAuth();
+  const { internal_user } = useAuth();
 
-  // Only render for authenticated users
-  if (!user) return null;
+  // Only render for authenticated internal users
+  if (!internal_user) return null;
 
   /**
    * Generates role-appropriate badge text.
    * Admins see "Pending Review" language, members see "Submitted" language.
    */
-  const badgeText = user.role === 'admin' 
+  const badgeText = internal_user.role === 'admin' 
     ? (count > 1 ? `${count} Pending` : 'Pending Review')
     : (count > 1 ? `${count} Submitted` : 'Submitted');
 
@@ -55,10 +55,10 @@ export function PendingBadge({ count = 1, className = '' }: PendingBadgeProps) {
       style={{
         // Role-based color scheme: warning (amber) for admins, info (blue) for members
         // Using border styling to match other tags (USDA, Active, Class I, etc.)
-        color: user.role === 'admin' 
+        color: internal_user.role === 'admin' 
           ? currentTheme.warning
           : currentTheme.info,
-        borderColor: user.role === 'admin' 
+        borderColor: internal_user.role === 'admin' 
           ? currentTheme.warning
           : currentTheme.info,
         backgroundColor: 'transparent',

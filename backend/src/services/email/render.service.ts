@@ -55,11 +55,6 @@ export interface WelcomeEmailData {
     unsubscribeToken: string;
   };
   state: string;
-  schedule: {
-    weekdays: boolean;
-    weekends: boolean;
-    timeOfDay: 'morning' | 'evening';
-  };
 }
 
 /**
@@ -264,11 +259,8 @@ export class EmailRenderService {
     }
 
     if (templateType === 'welcome') {
-      const welcomeData = data as WelcomeEmailData;
-      return welcomeData.schedule && 
-             typeof welcomeData.schedule.weekdays === 'boolean' &&
-             typeof welcomeData.schedule.weekends === 'boolean' &&
-             ['morning', 'evening'].includes(welcomeData.schedule.timeOfDay);
+      // Welcome email only requires user and state data
+      return true;
     }
 
     return false;

@@ -7,7 +7,7 @@
  * Key Features:
  * - Get/update email subscription preferences
  * - State-based subscription selection (required for email delivery)
- * - Schedule preferences (weekdays/weekends, morning/evening)
+ * - Immediate email alerts for maximum user safety and response time
  * - One-click unsubscribe via secure tokens (CAN-SPAM compliance)
  * - Test email functionality for subscription verification
  * 
@@ -15,7 +15,7 @@
  * - Users must select a state to receive relevant recalls
  * - Subscription is opt-in only (never automatic)
  * - Unsubscribe tokens are generated automatically on first subscription
- * - Default preferences are set for new users (unsubscribed, morning weekdays)
+ * - Alerts are sent immediately when recalls are issued (no scheduling delays)
  * 
  * Security & Compliance:
  * - All authenticated endpoints require valid user JWT token
@@ -104,17 +104,11 @@ router.get('/email-preferences', authenticateUser, async (req: any, res) => {
   try {
     const user = req.user;
     
-    // Return current preferences or sensible defaults
-    // Defaults align with SafeCart's operational schedule (weekday mornings ET)
+    // Return current preferences or sensible defaults for immediate alerts
     res.json({
       emailPreferences: user.emailPreferences || {
         subscribed: false, // Always start unsubscribed (opt-in required)
-        schedule: {
-          weekdays: true,  // Most users prefer weekday notifications
-          weekends: false, // Avoid weekend email noise
-          timeOfDay: 'morning', // 8 AM ET fits most work schedules
-          timezone: 'America/New_York' // SafeCart operational timezone
-        }
+        states: [] // User must select states to receive alerts
       }
     });
   } catch (error) {
@@ -138,7 +132,7 @@ router.get('/email-preferences', authenticateUser, async (req: any, res) => {
  * Validation Rules:
  * - State is required when subscribed=true (prevents incomplete subscriptions)
  * - State must be valid US state code (prevents invalid data)
- * - Schedule preferences are optional (defaults will be used)
+ * - No scheduling constraints - alerts are sent immediately for maximum safety
  * 
  * Security Notes:
  * - User can only update their own preferences (enforced by authentication)
@@ -247,11 +241,10 @@ router.post('/unsubscribe/:token', async (req, res) => {
     }
     
     // Update only subscription status, preserve other preferences
-    // Important: don't remove states, schedule, or token (allows re-subscription)
+    // Important: don't remove states or token (allows re-subscription)
     const updatedPreferences: EmailPreferences = {
       subscribed: false,
       states: user.emailPreferences?.states || [],
-      schedule: user.emailPreferences?.schedule,
       unsubscribeToken: user.emailPreferences?.unsubscribeToken,
       subscribedAt: user.emailPreferences?.subscribedAt
     };

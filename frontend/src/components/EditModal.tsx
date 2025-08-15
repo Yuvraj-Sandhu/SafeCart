@@ -51,7 +51,7 @@ interface EditModalProps {
 
 export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const { currentTheme } = useTheme();
-  const { user } = useAuth();
+  const { internal_user } = useAuth();
   const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
   
   // Core state management
@@ -90,7 +90,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   
   // Check if this is an FDA recall and user is admin
   const isFDARecall = recall.source === 'FDA';
-  const canModifyStates = isFDARecall && user?.role === 'admin';
+  const canModifyStates = isFDARecall && internal_user?.role === 'admin';
 
   // Get separate image arrays for editing (avoid duplication)
   const allImages = getUnifiedRecallImages(recall);
@@ -244,7 +244,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       };
 
       // Role-based routing: Admins save directly, members create pending changes
-      if (user?.role === 'admin') {
+      if (internal_user?.role === 'admin') {
         await handleAdminSave(displayData);
       } else {
         await handleMemberSave(displayData);
@@ -268,7 +268,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     const auditedDisplayData = {
       ...displayData,
       lastEditedAt: new Date().toISOString(),
-      lastEditedBy: user?.username || 'admin'
+      lastEditedBy: internal_user?.username || 'admin'
     };
 
     let finalRecall: UnifiedRecall;
@@ -379,7 +379,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       setPendingFiles([]);
       
       // Only admins can directly reset data
-      if (user?.role === 'admin') {
+      if (internal_user?.role === 'admin') {
         // Make API call to clear display data based on source
         if (recall.source === 'USDA') {
           await api.updateRecallDisplay(recall.id, undefined);
@@ -439,7 +439,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   };
   
   const handleSaveManualStates = async () => {
-    if (!isFDARecall || !user || user.role !== 'admin') return;
+    if (!isFDARecall || !internal_user || internal_user.role !== 'admin') return;
     
     setIsSavingStates(true);
     try {
@@ -492,7 +492,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           type: 'uploaded-image' as const,
           storageUrl: '', // Will be set after upload
           uploadedAt: new Date().toISOString(),
-          uploadedBy: user?.username || 'unknown-user',
+          uploadedBy: internal_user?.username || 'unknown-user',
           size: file.size
         };
 
@@ -549,13 +549,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         <div className={styles.modalHeader}>
           <div>
             <h2>Edit Recall Display</h2>
-            {user && (
+            {internal_user && (
               <p style={{ 
                 fontSize: '0.875rem', 
                 color: currentTheme.textSecondary,
                 margin: '0.25rem 0 0 0'
               }}>
-                {user.role === 'admin' 
+                {internal_user.role === 'admin' 
                   ? 'Changes will be applied immediately' 
                   : 'Changes will be submitted for admin approval'
                 }
@@ -1148,7 +1148,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 border: 'none'
               }}
             >
-              {user?.role === 'admin' ? 'Reset All' : 'Reset'}
+              {internal_user?.role === 'admin' ? 'Reset All' : 'Reset'}
             </Button>
           </div>
           <div className={styles.modalFooterButtons}>
@@ -1159,8 +1159,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               {isUploading 
                 ? (pendingFiles.length > 0 
                   ? `Uploading ${pendingFiles.length} image${pendingFiles.length > 1 ? 's' : ''}...` 
-                  : (user?.role === 'admin' ? 'Saving...' : 'Submitting...')) 
-                : (user?.role === 'admin' 
+                  : (internal_user?.role === 'admin' ? 'Saving...' : 'Submitting...')) 
+                : (internal_user?.role === 'admin' 
                   ? `Save Changes${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
                   : `Submit for Approval${pendingFiles.length > 0 ? ` & Upload ${pendingFiles.length} Image${pendingFiles.length > 1 ? 's' : ''}` : ''}`
                 )

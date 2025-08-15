@@ -54,7 +54,6 @@ export function Header({
   children
 }: HeaderProps) {
   const { currentTheme, mode, toggleTheme } = useTheme();
-  const { user } = useAuth();
 
   return (
     <>
@@ -120,9 +119,7 @@ export function Header({
 
         {/* Right Column: User Menu */}
         <div className={styles.rightColumn}>
-          {showUserMenu && user && (
-            <UserMenu />
-          )}
+          {showUserMenu && <UserMenu />}
         </div>
       </header>
 

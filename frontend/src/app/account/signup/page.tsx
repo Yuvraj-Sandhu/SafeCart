@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
 import styles from './signup.module.css';
 
 export default function AccountSignupPage() {
@@ -18,6 +19,7 @@ export default function AccountSignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const router = useRouter();
+  const { accountRegister } = useAuth();
 
   const validatePassword = () => {
     if (password.length < 8) {
@@ -42,37 +44,13 @@ export default function AccountSignupPage() {
     setIsLoading(true);
 
     try {
-      // Create user account with initial email preferences
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          name,
-          email, 
-          password,
-          preferences: {
-            states: [],
-            frequency: 'daily',
-            timeOfDay: 'morning',
-            weekdays: true,
-            weekends: false,
-            isActive: false
-          }
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
+      const success = await accountRegister(name, email, password);
       
-      if (response.ok && data.success) {
-        // Store user data and redirect to alerts page
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userToken', data.token);
+      if (success) {
+        // Redirect to alerts page with welcome flag
         router.push('/account/alerts?welcome=true');
       } else {
-        setError(data.error || 'Failed to create account. Please try again.');
+        setError('Failed to create account. Please try again.');
       }
     } catch (err) {
       setError('Signup failed. Please try again.');
@@ -83,7 +61,7 @@ export default function AccountSignupPage() {
 
   return (
     <div className={styles.container}>
-      <Header subtitle="Create Account" showUserMenu={false} />
+      <Header subtitle="Create Account" />
       
       <div className={styles.signupWrapper}>
         <div className={styles.signupCard}>

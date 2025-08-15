@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
 import styles from './login.module.css';
 
 export default function AccountLoginPage() {
@@ -15,6 +16,7 @@ export default function AccountLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   
   const router = useRouter();
+  const { accountLogin } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,25 +24,13 @@ export default function AccountLoginPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement login with backend email service
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
+      const success = await accountLogin(email, password);
       
-      if (response.ok && data.success) {
-        // Store user data and redirect to alerts page
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userToken', data.token);
-        router.push('/account/alerts');
+      if (success) {
+        // Redirect to home page on successful login
+        router.push('/');
       } else {
-        setError(data.error || 'Invalid email or password');
+        setError('Invalid email or password');
       }
     } catch (err) {
       setError('Login failed. Please try again.');
@@ -51,7 +41,7 @@ export default function AccountLoginPage() {
 
   return (
     <div className={styles.container}>
-      <Header subtitle="Account Login" showUserMenu={false} />
+      <Header subtitle="Account Login" />
       
       <div className={styles.loginWrapper}>
         <div className={styles.loginCard}>

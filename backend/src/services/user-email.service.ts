@@ -29,7 +29,7 @@
  * 
  * Business Logic:
  * - Users start unsubscribed (opt-in only model)
- * - Default preferences align with SafeCart operational schedule
+ * - Immediate alerts provide maximum user safety and notification speed
  * - Unsubscribe tokens remain valid for re-subscription
  * - State selection is required for subscription
  * - Email preferences are preserved even when unsubscribed
@@ -77,7 +77,7 @@ export class UserEmailService {
    * 
    * Business Logic:
    * - Users start with unsubscribed status (opt-in required)
-   * - Default preferences align with SafeCart operational schedule
+   * - Immediate alerts ensure users receive critical food safety information instantly
    * - Email uniqueness is enforced to prevent duplicate accounts
    * - Password is securely hashed before storage
    * 
@@ -89,9 +89,8 @@ export class UserEmailService {
    * 
    * Default Settings:
    * - subscribed: false (users must opt-in explicitly)
-   * - weekdays: true, weekends: false (business-friendly schedule)
-   * - timeOfDay: 'morning' (8 AM ET aligns with work schedules)
-   * - timezone: 'America/New_York' (SafeCart operational timezone)
+   * - states: [] (users select their states of interest)
+   * - No delivery scheduling - alerts sent immediately for maximum safety
    * - emailVerified: false (future feature for email verification)
    * 
    * Implementation Notes:
@@ -123,13 +122,7 @@ export class UserEmailService {
       createdAt: new Date(),
       emailPreferences: {
         subscribed: false,
-        states: [],  // Empty array - user must select states during subscription
-        schedule: {
-          weekdays: true,
-          weekends: false,
-          timeOfDay: 'morning',
-          timezone: 'America/New_York'
-        }
+        states: []  // Empty array - user must select states during subscription
       }
     };
     
