@@ -197,7 +197,7 @@ export function UserMenu() {
               {accountMenuOptions.map((option, index) => (
                 <button
                   key={index}
-                  className={styles.menuItem}
+                  className={`${styles.menuItem} ${option.label === 'Logout' ? styles.logout : ''}`}
                   onClick={option.onClick}
                   style={{ color: currentTheme.text }}
                 >
@@ -254,7 +254,7 @@ export function UserMenu() {
               
               {/* Logout button */}
               <button 
-                className={styles.menuItem}
+                className={`${styles.menuItem} ${styles.logout}`}
                 onClick={handleLogout}
               >
                 <span>Logout</span>
