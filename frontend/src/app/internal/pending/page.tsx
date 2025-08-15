@@ -18,7 +18,7 @@ import styles from '../../page.module.css';
 
 export default function MemberPendingPage() {
   const { currentTheme } = useTheme();
-  const { user } = useAuth();
+  const { internal_user } = useAuth();
   const router = useRouter();
 
   // Use shared pending changes hook to avoid duplicate API calls
@@ -40,16 +40,16 @@ export default function MemberPendingPage() {
 
   // Redirect admin users to their admin pending page
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (internal_user?.role === 'admin') {
       router.push('/internal/admin/pending');
       return;
     }
-  }, [user, router]);
+  }, [internal_user, router]);
 
   // Fetch member's pending changes and their associated recalls
   // Process pending changes from the shared hook into recalls for display
   useEffect(() => {
-    if (!user || user.role !== 'member') return;
+    if (!internal_user || internal_user.role !== 'member') return;
 
     // Create UnifiedRecall objects from pending changes data
     if (pendingChanges.length > 0) {
@@ -89,7 +89,7 @@ export default function MemberPendingPage() {
     } else {
       setRecalls([]);
     }
-  }, [user, pendingChanges]); // Depend on pendingChanges from the hook
+  }, [internal_user, pendingChanges]); // Depend on pendingChanges from the hook
 
   const handleEditRecall = (recall: UnifiedRecall) => {
     setEditModal({
@@ -118,7 +118,7 @@ export default function MemberPendingPage() {
   };
 
   // Don't render for admin users (they get redirected)
-  if (user?.role === 'admin') {
+  if (internal_user?.role === 'admin') {
     return null;
   }
 

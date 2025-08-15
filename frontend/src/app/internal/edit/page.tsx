@@ -20,7 +20,7 @@ import styles from '../../page.module.css';
 
 export default function InternalEditPage() {
   const { currentTheme } = useTheme();
-  const { user } = useAuth();
+  const { internal_user } = useAuth();
   const { location, isLoading: isLocationLoading } = useUserLocation();
   const { totalPendingCount, refetch: refetchPendingChanges, hasPendingChanges } = usePendingChanges();
   const hasInitialSearched = useRef(false);
@@ -206,13 +206,13 @@ export default function InternalEditPage() {
   const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
     // The EditModal has already saved the data to the backend,
     // so we only need to update the local state here
-    
-    if (user?.role === 'admin') {
+
+    if (internal_user?.role === 'admin') {
       // Admin changes are applied immediately - update local state with new data
       setRecalls(prev => prev.map(r => 
         r.id === updatedRecall.id ? updatedRecall : r
       ));
-    } else if (user?.role === 'member') {
+    } else if (internal_user?.role === 'member') {
       // Member changes go to pending queue - remove recall from current list
       // The recall can now be seen in /internal/pending page
       setRecalls(prev => prev.filter(r => r.id !== updatedRecall.id));
@@ -275,7 +275,7 @@ export default function InternalEditPage() {
   return (
     <ProtectedRoute>
       <main className={styles.main}>
-        <Header subtitle={`${user?.role === 'admin' ? 'Admin -' : user?.role === 'member' ? 'VA -' : ''} Internal Editor`} />
+        <Header subtitle={`${internal_user?.role === 'admin' ? 'Admin -' : internal_user?.role === 'member' ? 'VA -' : ''} Internal Editor`} />
         <div className="container">
           <div 
             className={styles.filterCard}

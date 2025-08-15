@@ -13,7 +13,7 @@ let fetchPromise: Promise<void> | null = null;
 const subscribers = new Set<() => void>();
 
 export function usePendingChanges() {
-  const { user, isAuthenticated } = useAuth();
+  const { internal_user, isInternalAuthenticated } = useAuth();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>(sharedPendingChanges);
   const [loading, setLoading] = useState(sharedLoading);
   const [error, setError] = useState<string | null>(sharedError);
@@ -30,7 +30,7 @@ export function usePendingChanges() {
   };
 
   const fetchPendingChanges = async () => {
-    if (!isAuthenticated || !user) {
+    if (!isInternalAuthenticated || !internal_user) {
       // Clear data when logged out
       sharedPendingChanges = [];
       sharedLoading = false;
@@ -42,7 +42,7 @@ export function usePendingChanges() {
     }
 
     // Check if we already have data for this user and no fetch is in progress
-    if (lastUserId === user.uid && !sharedLoading && fetchPromise === null) {
+    if (lastUserId === internal_user.uid && !sharedLoading && fetchPromise === null) {
       return; // Use cached data
     }
 
@@ -61,7 +61,7 @@ export function usePendingChanges() {
         // Both admins and members see all pending changes for better collaboration
         const changes = await pendingChangesApi.getAllPendingChanges();
         sharedPendingChanges = changes;
-        lastUserId = user.uid;
+        lastUserId = internal_user.uid;
       } catch (err) {
         sharedError = err instanceof Error ? err.message : 'Failed to fetch pending changes';
       } finally {
@@ -89,12 +89,12 @@ export function usePendingChanges() {
 
   useEffect(() => {
     // Only fetch if user changed or we don't have data for this user
-    if (isAuthenticated && user && (lastUserId !== user.uid)) {
+    if (isInternalAuthenticated && internal_user && (lastUserId !== internal_user.uid)) {
       fetchPendingChanges();
-    } else if (!isAuthenticated || !user) {
+    } else if (!isInternalAuthenticated || !internal_user) {
       fetchPendingChanges(); // This will clear the data
     }
-  }, [isAuthenticated, user?.uid]); // Only depend on user.uid, not the entire user object
+  }, [isInternalAuthenticated, internal_user?.uid]); // Only depend on internal_user.uid, not the entire user object
 
   // Helper function to check if a recall has pending changes
   const hasPendingChanges = (recallId: string, recallSource: 'USDA' | 'FDA'): boolean => {
@@ -115,7 +115,7 @@ export function usePendingChanges() {
 
   // Force refetch function
   const refetch = async () => {
-    if (!isAuthenticated || !user) return;
+    if (!isInternalAuthenticated || !internal_user) return;
     
     // Clear cache to force fresh fetch
     lastUserId = null;

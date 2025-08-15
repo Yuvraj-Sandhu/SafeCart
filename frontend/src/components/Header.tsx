@@ -54,7 +54,6 @@ export function Header({
   children
 }: HeaderProps) {
   const { currentTheme, mode, toggleTheme } = useTheme();
-  const { user } = useAuth();
 
   return (
     <>
