@@ -264,12 +264,7 @@ export class EmailDigestService {
         email: user.email,
         unsubscribeToken: user.emailPreferences?.unsubscribeToken || 'pending'
       },
-      state: stateDescription,  // This will show "CA, TX, and NY" for multiple states
-      schedule: user.emailPreferences?.schedule || {
-        weekdays: true,
-        weekends: false,
-        timeOfDay: 'morning' as const
-      }
+      state: stateDescription  // This will show "CA, TX, and NY" for multiple states
     };
   }
 

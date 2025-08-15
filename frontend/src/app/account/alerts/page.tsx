@@ -14,14 +14,10 @@ function AlertsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isWelcome = searchParams?.get('welcome') === 'true';
-  const { account_user, isAccountAuthenticated, accountLogout } = useAuth();
+  const { account_user, isAccountAuthenticated, isLoading: isAuthLoading, accountLogout } = useAuth();
 
   // Email preferences state
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
-  const [timeOfDay, setTimeOfDay] = useState<'morning' | 'evening'>('morning');
-  const [weekdays, setWeekdays] = useState(true);
-  const [weekends, setWeekends] = useState(false);
   const [isActive, setIsActive] = useState(true);
   
   // UI state
@@ -33,12 +29,29 @@ function AlertsContent() {
 
   // Load user preferences on mount
   useEffect(() => {
+    // Don't redirect while still loading authentication status
+    if (isAuthLoading) return;
+    
     if (!isAccountAuthenticated) {
       router.push('/account/login');
       return;
     }
     loadUserPreferences();
-  }, [isAccountAuthenticated]);
+  }, [isAccountAuthenticated, isAuthLoading]);
+
+  // Show loading while authentication is being verified
+  if (isAuthLoading) {
+    return (
+      <div className={styles.container}>
+        <Header />
+        <main className={styles.main}>
+          <div className={styles.loading}>
+            <p>Loading...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const loadUserPreferences = async () => {
     if (!account_user) return;
@@ -55,10 +68,6 @@ function AlertsContent() {
           const stateCodes = data.emailPreferences.states || [];
           const stateNames = stateCodes.map((code: string) => STATE_CODE_TO_NAME[code] || code);
           setSelectedStates(stateNames);
-          setFrequency(data.emailPreferences.frequency || 'daily');
-          setTimeOfDay(data.emailPreferences.timeOfDay || 'morning');
-          setWeekdays(data.emailPreferences.weekdays ?? true);
-          setWeekends(data.emailPreferences.weekends ?? false);
           setIsActive(data.emailPreferences.subscribed ?? false);
         }
       } else if (response.status === 401) {
@@ -100,10 +109,6 @@ function AlertsContent() {
         body: JSON.stringify({
           emailPreferences: {
             states: selectedStates.map(stateName => STATE_NAME_TO_CODE[stateName] || stateName),
-            frequency,
-            timeOfDay,
-            weekdays,
-            weekends,
             subscribed: isActive,
           }
         }),
@@ -224,140 +229,6 @@ function AlertsContent() {
           </div>
 
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Delivery Schedule</h2>
-            
-            <div className={styles.scheduleOptions}>
-              <div className={styles.optionGroup}>
-                <label className={styles.optionLabel}>Frequency</label>
-                <div className={styles.radioGroup}>
-                  <div className={styles.customRadioOption} onClick={() => setFrequency('daily')}>
-                    <input
-                      type="radio"
-                      id="frequency-daily"
-                      name="frequency"
-                      value="daily"
-                      checked={frequency === 'daily'}
-                      onChange={(e) => setFrequency(e.target.value as 'daily' | 'weekly')}
-                      className={styles.radioInput}
-                    />
-                    <label htmlFor="frequency-daily" className={styles.radioButton}></label>
-                    <span className={styles.radioLabel}>Daily</span>
-                  </div>
-                  <div className={styles.customRadioOption} onClick={() => setFrequency('weekly')}>
-                    <input
-                      type="radio"
-                      id="frequency-weekly"
-                      name="frequency"
-                      value="weekly"
-                      checked={frequency === 'weekly'}
-                      onChange={(e) => setFrequency(e.target.value as 'daily' | 'weekly')}
-                      className={styles.radioInput}
-                    />
-                    <label htmlFor="frequency-weekly" className={styles.radioButton}></label>
-                    <span className={styles.radioLabel}>Weekly</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.optionGroup}>
-                <label className={styles.optionLabel}>Time of Day</label>
-                <div className={styles.radioGroup}>
-                  <div className={styles.customRadioOption} onClick={() => setTimeOfDay('morning')}>
-                    <input
-                      type="radio"
-                      id="time-morning"
-                      name="timeOfDay"
-                      value="morning"
-                      checked={timeOfDay === 'morning'}
-                      onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'evening')}
-                      className={styles.radioInput}
-                    />
-                    <label htmlFor="time-morning" className={styles.radioButton}></label>
-                    <span className={styles.radioLabel}>Morning (8 AM)</span>
-                  </div>
-                  <div className={styles.customRadioOption} onClick={() => setTimeOfDay('evening')}>
-                    <input
-                      type="radio"
-                      id="time-evening"
-                      name="timeOfDay"
-                      value="evening"
-                      checked={timeOfDay === 'evening'}
-                      onChange={(e) => setTimeOfDay(e.target.value as 'morning' | 'evening')}
-                      className={styles.radioInput}
-                    />
-                    <label htmlFor="time-evening" className={styles.radioButton}></label>
-                    <span className={styles.radioLabel}>Evening (6 PM)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.optionGroup}>
-                <label className={styles.optionLabel}>Days</label>
-                <div className={styles.checkboxGroup}>
-                  <div className={styles.customCheckboxOption} onClick={() => setWeekdays(!weekdays)}>
-                    <input
-                      type="checkbox"
-                      id="days-weekdays"
-                      checked={weekdays}
-                      onChange={(e) => setWeekdays(e.target.checked)}
-                      className={styles.checkboxInput}
-                    />
-                    <label className={styles.checkboxButton}>
-                      {weekdays && (
-                        <svg 
-                          fill="#ffffff" 
-                          stroke="#ffffff" 
-                          strokeWidth="150" 
-                          viewBox="0 0 1920 1920" 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          width="20" 
-                          height="15"
-                        >
-                          <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                          <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                          <g id="SVGRepo_iconCarrier">
-                            <path d="M1827.701 303.065 698.835 1431.801 92.299 825.266 0 917.564 698.835 1616.4 1919.869 395.234z" fillRule="evenodd"></path>
-                          </g>
-                        </svg>
-                      )}
-                    </label>
-                    <span className={styles.checkboxLabel}>Weekdays</span>
-                  </div>
-                  <div className={styles.customCheckboxOption} onClick={() => setWeekends(!weekends)}>
-                    <input
-                      type="checkbox"
-                      id="days-weekends"
-                      checked={weekends}
-                      onChange={(e) => setWeekends(e.target.checked)}
-                      className={styles.checkboxInput}
-                    />
-                    <label className={styles.checkboxButton}>
-                      {weekends && (
-                        <svg 
-                          fill="#ffffff" 
-                          stroke="#ffffff" 
-                          strokeWidth="150" 
-                          viewBox="0 0 1920 1920" 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          width="20" 
-                          height="15"
-                        >
-                          <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                          <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                          <g id="SVGRepo_iconCarrier">
-                            <path d="M1827.701 303.065 698.835 1431.801 92.299 825.266 0 917.564 698.835 1616.4 1919.869 395.234z" fillRule="evenodd"></path>
-                          </g>
-                        </svg>
-                      )}
-                    </label>
-                    <span className={styles.checkboxLabel}>Weekends</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.section}>
             <div className={styles.statusCard}>
               <div className={styles.statusHeader}>
                 <div className={styles.statusIcon}>
@@ -401,8 +272,7 @@ function AlertsContent() {
               
               {isActive && selectedStates.length > 0 && (
                 <div className={styles.statusSummary}>
-                  You'll receive {frequency} alerts {timeOfDay === 'morning' ? 'in the morning ' : 'in the evening '} 
-                  {weekdays && weekends ? 'every day ' : weekdays ? 'on weekdays ' : 'on weekends '} 
+                  You'll receive immediate email alerts as soon as recalls are issued 
                   for {selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''}
                 </div>
               )}
@@ -426,7 +296,7 @@ function AlertsContent() {
               variant="primary"
               size="medium"
               onClick={handleSavePreferences}
-              disabled={isSaving || selectedStates.length === 0 || (!weekdays && !weekends)}
+              disabled={isSaving || selectedStates.length === 0}
             >
               {isSaving ? 'Saving...' : 'Save Preferences'}
             </Button>

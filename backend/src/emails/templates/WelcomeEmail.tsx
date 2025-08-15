@@ -25,24 +25,9 @@ interface WelcomeEmailProps {
     unsubscribeToken: string;
   };
   state: string;
-  schedule: {
-    weekdays: boolean;
-    weekends: boolean;
-    timeOfDay: 'morning' | 'evening';
-  };
 }
 
-export function WelcomeEmail({ user, state, schedule }: WelcomeEmailProps) {
-  const getScheduleText = () => {
-    const days = [];
-    if (schedule.weekdays) days.push('weekdays');
-    if (schedule.weekends) days.push('weekends');
-    
-    const dayText = days.join(' and ');
-    const timeText = schedule.timeOfDay === 'morning' ? 'morning' : 'evening';
-    
-    return `${timeText} on ${dayText}`;
-  };
+export function WelcomeEmail({ user, state }: WelcomeEmailProps) {
 
   const previewText = `Welcome to SafeCart! You're now subscribed to food recall alerts for ${state}.`;
   const unsubscribeUrl = `https://api.safecart.app/api/user/unsubscribe/${user.unsubscribeToken}`;
@@ -69,7 +54,7 @@ export function WelcomeEmail({ user, state, schedule }: WelcomeEmailProps) {
             <strong>State:</strong> {state}
           </Text>
           <Text style={detailItem}>
-            <strong>Schedule:</strong> {getScheduleText()}
+            <strong>Delivery:</strong> Immediate email alerts as soon as recalls are issued
           </Text>
           <Text style={detailItem}>
             <strong>Email:</strong> {user.email}
@@ -181,7 +166,7 @@ export function WelcomeEmail({ user, state, schedule }: WelcomeEmailProps) {
           Manage Your Preferences
         </Text>
         <Text style={preferencesText}>
-          You can change your state, schedule, or notification preferences anytime:
+          You can change your state or notification preferences anytime:
         </Text>
         <Link href="https://safecart.app/preferences" style={preferencesButton}>
           Update Preferences

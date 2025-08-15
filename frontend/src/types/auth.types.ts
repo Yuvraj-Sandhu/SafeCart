@@ -14,10 +14,6 @@ export interface AccountUser {
   createdAt: string;
   emailPreferences?: {
     states: string[];
-    frequency: 'daily' | 'weekly';
-    timeOfDay: 'morning' | 'evening';
-    weekdays: boolean;
-    weekends: boolean;
     subscribed: boolean;
   };
 }
