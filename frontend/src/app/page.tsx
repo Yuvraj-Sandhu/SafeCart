@@ -130,10 +130,7 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <Header 
-        subtitle="Protecting You from Food Recalls" 
-        showUserMenu={false} 
-      />
+      <Header subtitle="Protecting You from Food Recalls" />
       
       <div className="container">
         <div 

@@ -54,7 +54,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requireAdmin = false 
 }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { internal_user, isInternalAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   /**
@@ -64,18 +64,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   useEffect(() => {
     if (!isLoading) {
       // Redirect unauthenticated users to internal login
-      if (!isAuthenticated) {
+      if (!isInternalAuthenticated) {
         router.push('/internal/login');
         return;
       }
 
       // Redirect non-admin users away from admin-only routes
-      if (requireAdmin && user?.role !== 'admin') {
+      if (requireAdmin && internal_user?.role !== 'admin') {
         router.push('/unauthorized');
         return;
       }
     }
-  }, [isAuthenticated, isLoading, user, requireAdmin, router]);
+  }, [isInternalAuthenticated, isLoading, internal_user, requireAdmin, router]);
 
   // Show loading spinner while authentication state is being determined
   if (isLoading) {
@@ -94,7 +94,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Prevent flash of unauthorized content during redirects
-  if (!isAuthenticated || (requireAdmin && user?.role !== 'admin')) {
+  if (!isInternalAuthenticated || (requireAdmin && internal_user?.role !== 'admin')) {
     return null;
   }
 

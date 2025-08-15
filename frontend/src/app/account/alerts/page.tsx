@@ -8,11 +8,13 @@ import { US_STATES } from '@/data/states';
 import styles from './alerts.module.css';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { STATE_NAME_TO_CODE, STATE_CODE_TO_NAME } from '@/utils/stateMapping';
+import { useAuth } from '@/contexts/AuthContext';
 
 function AlertsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isWelcome = searchParams?.get('welcome') === 'true';
+  const { account_user, isAccountAuthenticated, accountLogout } = useAuth();
 
   // Email preferences state
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
@@ -31,10 +33,16 @@ function AlertsContent() {
 
   // Load user preferences on mount
   useEffect(() => {
+    if (!isAccountAuthenticated) {
+      router.push('/account/login');
+      return;
+    }
     loadUserPreferences();
-  }, []);
+  }, [isAccountAuthenticated]);
 
   const loadUserPreferences = async () => {
+    if (!account_user) return;
+    
     setIsLoading(true);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user/email-preferences`, {
@@ -138,15 +146,14 @@ function AlertsContent() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userToken');
+    accountLogout();
     router.push('/account/login');
   };
 
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <Header subtitle="Alert Settings" showUserMenu={false} />
+        <Header subtitle="Alert Settings" />
         <div className={styles.loading}>Loading your preferences...</div>
       </div>
     );
@@ -154,7 +161,7 @@ function AlertsContent() {
 
   return (
     <div className={styles.container}>
-      <Header subtitle="Alert Settings" showUserMenu={false} />
+      <Header subtitle="Alert Settings" />
       
       <div className={styles.contentWrapper}>
         {isWelcome && (
@@ -452,7 +459,7 @@ export default function AlertsPage() {
   return (
     <Suspense fallback={
       <div className={styles.container}>
-        <Header subtitle="Alert Settings" showUserMenu={false} />
+        <Header subtitle="Alert Settings" />
         <div className={styles.loading}>Loading your preferences...</div>
       </div>
     }>

@@ -33,6 +33,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
@@ -41,13 +42,25 @@ import styles from './UserMenu.module.css';
 
 export function UserMenu() {
   const { currentTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { 
+    internal_user, 
+    account_user, 
+    isInternalAuthenticated, 
+    isAccountAuthenticated, 
+    internalLogout, 
+    accountLogout 
+  } = useAuth();
   const { pendingChanges } = usePendingChanges();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Only render for authenticated users
-  if (!user) return null;
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Check if we're on an account/public page
+  const isAccountPage = pathname === '/' || pathname?.startsWith('/account');
+  
+  // Don't render for internal pages without internal auth
+  if (!isAccountPage && !isInternalAuthenticated) return null;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -66,21 +79,69 @@ export function UserMenu() {
    * Uses native browser confirm dialog for security.
    */
   const handleLogout = () => {
-    if (confirm('Are you sure you want to logout?')) {
-      logout();
+    if (isAccountPage) {
+      // For account pages, use account logout
+      accountLogout();
+      router.push('/account/login');
+    } else {
+      // For internal pages, use internal logout with confirmation
+      if (confirm('Are you sure you want to logout?')) {
+        internalLogout();
+      }
     }
     setIsOpen(false);
   };
 
   const handlePendingClick = () => {
     // Navigate to appropriate pending page based on role
-    if (user.role === 'admin') {
+    if (internal_user?.role === 'admin') {
       window.location.href = '/internal/admin/pending';
     } else {
       window.location.href = '/internal/pending';
     }
     setIsOpen(false);
   };
+
+  // Get menu options based on page and auth status
+  const getMenuOptions = () => {
+    if (isAccountPage) {
+      // Account/Public page menu options
+      if (pathname === '/') {
+        // Home page
+        if (isAccountAuthenticated) {
+          return [
+            { label: 'Manage Alerts', onClick: () => { router.push('/account/alerts'); setIsOpen(false); } },
+            { label: 'Logout', onClick: handleLogout }
+          ];
+        } else {
+          return [
+            { label: 'Login', onClick: () => { router.push('/account/login'); setIsOpen(false); } },
+            { label: 'Sign Up', onClick: () => { router.push('/account/signup'); setIsOpen(false); } }
+          ];
+        }
+      } else if (pathname === '/account/login') {
+        return [
+          { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+          { label: 'Sign Up', onClick: () => { router.push('/account/signup'); setIsOpen(false); } }
+        ];
+      } else if (pathname === '/account/signup') {
+        return [
+          { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+          { label: 'Login', onClick: () => { router.push('/account/login'); setIsOpen(false); } }
+        ];
+      } else if (pathname === '/account/alerts') {
+        return [
+          { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+          { label: 'Logout', onClick: handleLogout }
+        ];
+      }
+    }
+    
+    // Internal pages - return null, will use original menu
+    return null;
+  };
+
+  const accountMenuOptions = getMenuOptions();
 
   return (
     <div className={styles.userMenu} ref={menuRef}>
@@ -112,57 +173,94 @@ export function UserMenu() {
             boxShadow: `0 4px 12px ${currentTheme.shadowLight}`
           }}
         >
-          {/* Welcome section with user info and badges */}
-          <div className={styles.welcomeSection}>
-            <div className={styles.welcomeText} style={{ color: currentTheme.text }}>
-              Welcome! {user.username}
-            </div>
-            <div className={styles.badges}>
-              <span 
-                className={styles.roleBadge}
-                style={{ 
-                  color: user.role === 'admin' ? currentTheme.warning : currentTheme.info,
-                  borderColor: user.role === 'admin' ? currentTheme.warning : currentTheme.info,
-                  backgroundColor: 'transparent'
-                }}
+          {/* Show account menu for account pages */}
+          {accountMenuOptions ? (
+            <>
+              {/* Welcome section for normal account users only (not internal users) */}
+              {isAccountAuthenticated && (
+                <>
+                  <div className={styles.welcomeSection}>
+                    <div className={styles.welcomeText} style={{ color: currentTheme.text }}>
+                      Welcome! {account_user?.name || 'User'}
+                    </div>
+                  </div>
+                  
+                  {/* Menu divider */}
+                  <div 
+                    className={styles.divider}
+                    style={{ backgroundColor: currentTheme.cardBorder }}
+                  />
+                </>
+              )}
+              
+              {/* Account menu options */}
+              {accountMenuOptions.map((option, index) => (
+                <button
+                  key={index}
+                  className={styles.menuItem}
+                  onClick={option.onClick}
+                  style={{ color: currentTheme.text }}
+                >
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Internal pages menu - original implementation */}
+              {/* Welcome section with user info and badges */}
+              <div className={styles.welcomeSection}>
+                <div className={styles.welcomeText} style={{ color: currentTheme.text }}>
+                  Welcome! {internal_user?.username}
+                </div>
+                <div className={styles.badges}>
+                  <span 
+                    className={styles.roleBadge}
+                    style={{ 
+                      color: internal_user?.role === 'admin' ? currentTheme.warning : currentTheme.info,
+                      borderColor: internal_user?.role === 'admin' ? currentTheme.warning : currentTheme.info,
+                      backgroundColor: 'transparent'
+                    }}
+                  >
+                    {internal_user?.role}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Menu divider */}
+              <div 
+                className={styles.divider}
+                style={{ backgroundColor: currentTheme.cardBorder }}
+              />
+              
+              {/* Pending section - for all users */}
+              <button 
+                className={styles.menuItem}
+                onClick={handlePendingClick}
               >
-                {user.role}
-              </span>
-            </div>
-          </div>
-          
-          {/* Menu divider */}
-          <div 
-            className={styles.divider}
-            style={{ backgroundColor: currentTheme.cardBorder }}
-          />
-          
-          {/* Pending section - for all users */}
-          <button 
-            className={styles.menuItem}
-            onClick={handlePendingClick}
-          >
-            <span>Pending</span>
-            {pendingChanges.length > 0 && (
-              <span 
-                className={styles.menuCount}
-                style={{ 
-                  backgroundColor: user.role === 'admin' ? currentTheme.warning : currentTheme.info,
-                  color: 'white'
-                }}
+                <span>Pending</span>
+                {pendingChanges.length > 0 && (
+                  <span 
+                    className={styles.menuCount}
+                    style={{ 
+                      backgroundColor: internal_user?.role === 'admin' ? currentTheme.warning : currentTheme.info,
+                      color: 'white'
+                    }}
+                  >
+                    {pendingChanges.length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Logout button */}
+              <button 
+                className={styles.menuItem}
+                onClick={handleLogout}
               >
-                {pendingChanges.length}
-              </span>
-            )}
-          </button>
-          
-          {/* Logout button */}
-          <button 
-            className={styles.menuItem}
-            onClick={handleLogout}
-          >
-            <span>Logout</span>
-          </button>
+                <span>Logout</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

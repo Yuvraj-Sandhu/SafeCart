@@ -120,9 +120,7 @@ export function Header({
 
         {/* Right Column: User Menu */}
         <div className={styles.rightColumn}>
-          {showUserMenu && user && (
-            <UserMenu />
-          )}
+          {showUserMenu && <UserMenu />}
         </div>
       </header>
 
