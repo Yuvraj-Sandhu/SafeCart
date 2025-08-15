@@ -6,7 +6,7 @@
   padding: 2rem 0;
 }
 
-.loginWrapper {
+.signupWrapper {
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -19,13 +19,13 @@
     padding: 1rem 0;
   }
 
-  .loginWrapper {
+  .signupWrapper {
     padding-top: 1rem;
     margin: 0 1rem;
   }
 }
 
-.loginCard {
+.signupCard {
   background: var(--surface);
   border-radius: 1.5rem;
   box-shadow: 0 8px 32px var(--color-shadow);
@@ -41,12 +41,17 @@
   margin-bottom: 2rem;
 }
 
-/* Title now handled by Header component */
+.title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0 0 0.5rem 0;
+}
 
 .subtitle {
   color: var(--color-textSecondary);
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 400;
   margin: 0;
 }
 
@@ -87,6 +92,13 @@
 .input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-textSecondary);
+  margin: 0;
+  padding-left: 0.25rem;
 }
 
 /* Password input with toggle button */
@@ -147,13 +159,16 @@
 .error {
   color: var(--color-danger);
   font-size: 0.875rem;
-  padding-left: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-dangerLight);
+  border-radius: 8px;
+  border: 1px solid var(--color-danger);
 }
 
 .divider {
   display: flex;
   align-items: center;
-  margin: 0;
+  margin: 0.5rem 0;
   position: relative;
 }
 
@@ -172,8 +187,8 @@
   font-weight: 500;
 }
 
-.googleLoginContainer {
+.loginLink {
+  text-decoration: none;
   display: flex;
   justify-content: center;
-  width: 100%;
 }

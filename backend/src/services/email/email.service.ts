@@ -13,8 +13,8 @@
  * - Configuration Management: Environment-driven provider selection
  * 
  * Scaling Strategy:
- * - Start with Resend (0-50K emails/month): Developer-friendly, cost-effective
- * - Migrate to SendGrid (50K+ emails/month): Enterprise features, lower cost at scale
+ * - Start with Mailchimp (0-100K emails/month): Pre-built templates, advanced analytics
+ * - Migrate to SendGrid (100K+ emails/month): Enterprise features, lower cost at scale
  * - Future: Add Amazon SES or other providers as needed
  * 
  * Usage Patterns:
@@ -33,7 +33,7 @@
  */
 
 import { EmailProvider, EmailOptions, EmailResult, BatchEmailResult } from './types';
-import { ResendProvider } from './providers/resend.provider';
+import { MailchimpProvider } from './providers/mailchimp.provider';
 import { EmailRenderService, RecallDigestData, WelcomeEmailData } from './render.service';
 
 /**
@@ -65,8 +65,8 @@ export class EmailService {
    * @throws Error - If provider is not implemented or configuration is invalid
    * 
    * Environment Variables:
-   * - EMAIL_PROVIDER: 'resend' (current) or 'sendgrid' (future)
-   * - RESEND_API_KEY: Required when using Resend
+   * - EMAIL_PROVIDER: 'mailchimp' (current) or 'sendgrid' (future)
+   * - MAILCHIMP_API_KEY: Required when using Mailchimp
    * - SENDGRID_API_KEY: Required when using SendGrid (future)
    * 
    * Migration Process:
@@ -85,15 +85,15 @@ export class EmailService {
         // Will be added when monthly volume exceeds 50K emails
         throw new Error('SendGrid provider not implemented yet');
         
-      case 'resend':
+      case 'mailchimp':
       default:
         // Validate required configuration
-        if (!process.env.RESEND_API_KEY) {
-          throw new Error('RESEND_API_KEY environment variable is required');
+        if (!process.env.MAILCHIMP_API_KEY) {
+          throw new Error('MAILCHIMP_API_KEY environment variable is required');
         }
         
-        return new ResendProvider({
-          apiKey: process.env.RESEND_API_KEY
+        return new MailchimpProvider({
+          apiKey: process.env.MAILCHIMP_API_KEY
         });
     }
   }
@@ -173,9 +173,10 @@ export class EmailService {
         r.status === 'fulfilled' ? r.value : {
           success: false,
           error: 'Promise rejected', // Network or other failure
-          provider: this.provider.name as any
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
         }
-      )
+      ),
+      provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
     };
   }
 
@@ -404,8 +405,9 @@ export class EmailService {
           results: digestDataList.map(() => ({
             success: false,
             error: 'Invalid digest data',
-            provider: this.provider.name as any
-          }))
+            provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
+          })),
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
         };
       }
 
@@ -422,8 +424,9 @@ export class EmailService {
         results: digestDataList.map(() => ({
           success: false,
           error: `Batch processing failed: ${error.message}`,
-          provider: this.provider.name as any
-        }))
+          provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
+        })),
+        provider: this.provider.name as 'mailchimp' | 'sendgrid' | 'resend'
       };
     }
   }

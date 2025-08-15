@@ -63,9 +63,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
    */
   useEffect(() => {
     if (!isLoading) {
-      // Redirect unauthenticated users to login
+      // Redirect unauthenticated users to internal login
       if (!isAuthenticated) {
-        router.push('/login');
+        router.push('/internal/login');
         return;
       }
 

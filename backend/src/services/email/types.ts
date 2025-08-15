@@ -2,6 +2,7 @@ export interface EmailOptions {
   to: string | string[];
   subject: string;
   html: string;
+  text?: string;
   from?: string;
   replyTo?: string;
   tags?: Record<string, string>;
@@ -12,19 +13,24 @@ export interface EmailResult {
   success: boolean;
   messageId?: string;
   error?: string;
-  provider: 'resend' | 'sendgrid';
+  provider: 'mailchimp' | 'sendgrid' | 'resend';
 }
 
 export interface BatchEmailResult {
   successful: number;
   failed: number;
   results: EmailResult[];
+  provider: 'mailchimp' | 'sendgrid' | 'resend';
 }
 
 export interface EmailStatus {
   messageId: string;
-  status: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained' | 'unknown';
-  timestamp?: Date;
+  status: 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'complained' | 'unsubscribed' | 'deferred' | 'failed' | 'unknown';
+  timestamp?: string;
+  provider: 'mailchimp' | 'sendgrid' | 'resend';
+  opens?: number;
+  clicks?: number;
+  error?: string;
 }
 
 export interface EmailProvider {

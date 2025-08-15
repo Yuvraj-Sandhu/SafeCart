@@ -322,9 +322,6 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Notify parent component and close modal
     onSave(finalRecall);
     alert('Changes saved successfully!');
-    
-    // Reload page for admins to show updated data
-    window.location.reload();
   };
 
   /**
@@ -363,11 +360,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       setPendingFiles([]);
     }
 
-    // Close modal without updating parent state (changes are pending)
+    // Close modal and let parent handle pending changes refresh
+    onSave(recall); // Pass original recall since changes are pending
     alert('Changes submitted for approval! An admin will review your changes.');
-    
-    // Reload page for members to show updated data (pending changes, badges, etc.)
-    window.location.reload();
   };
 
   const handleReset = async () => {
@@ -401,9 +396,6 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         // Update local state
         onSave(updatedRecall);
         alert('Reset completed successfully!');
-        
-        // Reload page for admins to show updated data
-        window.location.reload();
       } else {
         // For members, check if this recall has pending changes
         if (hasPendingChanges(recall.id, recall.source)) {
@@ -415,10 +407,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
             const pendingChangeId = pendingChangesForRecall[0].id;
             await pendingChangesApi.withdrawPendingChange(pendingChangeId);
             
+            // Let parent handle pending changes refresh
+            onSave(recall); // Pass original recall since pending changes were removed
             alert('Pending changes removed! The recall has been returned to its original state.');
-            
-            // Reload page to show updated state
-            window.location.reload();
           }
         } else {
           // No pending changes to remove
