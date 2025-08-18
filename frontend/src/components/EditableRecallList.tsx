@@ -23,9 +23,29 @@ interface EditableRecallListProps {
   onEdit: (recall: UnifiedRecall) => void;
   onReview?: (recall: UnifiedRecall) => void; // New prop for approve/reject action
   hidePendingBadges?: boolean;
+  // Selection props (optional)
+  enableSelection?: boolean;
+  selectedRecalls?: Set<string>;
+  onRecallSelect?: (recallId: string) => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
+  imageStats?: { total: number; withImages: number };
 }
 
-export function EditableRecallList({ recalls, loading, error, onEdit, onReview, hidePendingBadges = false }: EditableRecallListProps) {
+export function EditableRecallList({ 
+  recalls, 
+  loading, 
+  error, 
+  onEdit, 
+  onReview, 
+  hidePendingBadges = false,
+  enableSelection = false,
+  selectedRecalls = new Set(),
+  onRecallSelect,
+  onSelectAll,
+  onDeselectAll,
+  imageStats
+}: EditableRecallListProps) {
   const { currentTheme } = useTheme();
   const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
   const [selectedImageModal, setSelectedImageModal] = useState<{
@@ -225,6 +245,24 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
 
   const masonryColumns = createMasonryColumns(filteredRecalls);
 
+  // Selection handlers
+  const handleRecallClick = (recallId: string) => {
+    if (enableSelection && onRecallSelect) {
+      onRecallSelect(recallId);
+    }
+  };
+
+  const handleSelectAllToggle = () => {
+    if (!enableSelection) return;
+    
+    const allSelected = selectedRecalls.size === filteredRecalls.length && filteredRecalls.length > 0;
+    if (allSelected && onDeselectAll) {
+      onDeselectAll();
+    } else if (onSelectAll) {
+      onSelectAll();
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -233,6 +271,97 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
           {searchTerm && ` (filtered from ${recalls.length})`}
         </h2>
       </div>
+
+      {/* Select All Section with Image Stats - only show when enableSelection is true */}
+      {enableSelection && filteredRecalls.length > 0 && (
+        <div 
+          style={{
+            padding: '1rem',
+            backgroundColor: currentTheme.background,
+            borderRadius: '0.75rem',
+            border: `1px solid ${currentTheme.cardBorder}`,
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleSelectAllToggle}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '0.375rem',
+                color: currentTheme.primary,
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${currentTheme.primary}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              {selectedRecalls.size === filteredRecalls.length && filteredRecalls.length > 0 ? 'Deselect All' : 'Select All'}
+            </button>
+            
+            {/* Image Statistics Badge */}
+            {imageStats && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: `${currentTheme.info}15`,
+                  borderRadius: '1rem',
+                  border: `1px solid ${currentTheme.info}30`,
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: currentTheme.info
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                {imageStats.withImages}/{imageStats.total} with images
+              </div>
+            )}
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div
+              style={{
+                padding: '0.375rem 0.875rem',
+                backgroundColor: selectedRecalls.size > 0 ? `${currentTheme.success}15` : `${currentTheme.textSecondary}15`,
+                borderRadius: '1rem',
+                border: `1px solid ${selectedRecalls.size > 0 ? currentTheme.success + '30' : currentTheme.textSecondary + '30'}`,
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                color: selectedRecalls.size > 0 ? currentTheme.success : currentTheme.textSecondary,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {selectedRecalls.size} selected
+            </div>
+            <div style={{ 
+              color: currentTheme.textSecondary, 
+              fontSize: '0.875rem',
+              fontWeight: '500'
+            }}>
+              of {filteredRecalls.length} total
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className={styles.searchSection}>
         <div className={styles.searchContainer}>
@@ -304,6 +433,7 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                 img.type !== 'error' && img.storageUrl
               );
               const isExpanded = expandedCards.has(cardId);
+              const isSelected = enableSelection && selectedRecalls.has(recall.id);
               
               // Get display title
               let displayTitle = recall.productTitle;
@@ -319,9 +449,11 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                   className={styles.recallCard}
                   style={{
                     backgroundColor: currentTheme.cardBackground,
-                    borderColor: currentTheme.cardBorder,
+                    borderColor: isSelected ? currentTheme.primary : currentTheme.cardBorder,
+                    borderWidth: isSelected ? '2px' : '1px',
                   }}
                 >
+
                   {firstImage ? (
                     <div 
                       className={styles.imageContainer}
@@ -456,7 +588,11 @@ export function EditableRecallList({ recalls, loading, error, onEdit, onReview, 
                     </div>
                   )}
                   
-                  <div className={styles.cardContent}>
+                  <div 
+                    className={styles.cardContent}
+                    onClick={enableSelection ? () => handleRecallClick(recall.id) : undefined}
+                    style={{ cursor: enableSelection ? 'pointer' : 'default' }}
+                  >
                     {splitIndex !== -1 && (
                       <div 
                         className={editStyles.splitIndicator}

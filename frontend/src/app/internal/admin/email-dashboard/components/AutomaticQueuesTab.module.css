@@ -1,0 +1,165 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.description {
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-cardBorder);
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  font-size: 1.125rem;
+}
+
+.queuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 2rem;
+}
+
+.queueCard {
+  padding: 1.5rem;
+  border: 2px solid;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.queueHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.queueTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.queueBadge {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.emptyQueue {
+  text-align: center;
+  padding: 3rem 2rem;
+  font-size: 1.125rem;
+}
+
+.queueStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+}
+
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statusLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.statusValue {
+  font-weight: 600;
+}
+
+.recallPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.previewTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.recallList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.recallItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.hasImage,
+.noImage {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.moreRecalls {
+  text-align: center;
+  padding: 0.5rem;
+  font-style: italic;
+}
+
+.queueActions {
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-cardBorder);
+}
+
+.queueActions button {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .queuesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .queueHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .statusItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .queueActions {
+    flex-direction: column;
+  }
+}
