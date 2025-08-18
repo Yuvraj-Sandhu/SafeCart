@@ -49,6 +49,17 @@
   white-space: nowrap;
 }
 
+/* Sortable Headers */
+.sortableHeader {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.sortableHeader:hover {
+  background-color: var(--color-backgroundSecondary);
+}
+
 .table tbody tr {
   border-bottom: 1px solid;
   transition: background-color 0.2s ease;
@@ -90,46 +101,6 @@
   font-weight: 500;
 }
 
-/* Summary Section */
-.summarySection {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--color-cardBorder);
-}
-
-.summaryTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 1rem 0;
-}
-
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.summaryCard {
-  padding: 1.5rem;
-  border: 1px solid;
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  text-align: center;
-}
-
-.summaryLabel {
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.summaryValue {
-  font-size: 2rem;
-  font-weight: 700;
-}
 
 /* Responsive */
 @media (max-width: 1024px) {
@@ -154,15 +125,15 @@
     gap: 1rem;
   }
 
-  .summaryGrid {
-    grid-template-columns: 1fr;
-  }
-
   /* Hide less important columns on mobile */
-  .table th:nth-child(7),
-  .table td:nth-child(7),
-  .table th:nth-child(8),
-  .table td:nth-child(8) {
+  .table th:nth-child(3),
+  .table td:nth-child(3),
+  .table th:nth-child(5),
+  .table td:nth-child(5) {
     display: none;
+  }
+  
+  .sortableHeader {
+    font-size: 0.75rem;
   }
 }
