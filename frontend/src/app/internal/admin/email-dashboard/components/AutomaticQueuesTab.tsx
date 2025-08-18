@@ -3,19 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
+import { EditableRecallList } from '@/components/EditableRecallList';
+import { UnifiedRecall } from '@/types/recall.types';
+import { api } from '@/services/api';
 import styles from './AutomaticQueuesTab.module.css';
 
 interface QueueData {
+  id: string;
   type: 'USDA_DAILY' | 'FDA_WEEKLY';
   status: 'pending' | 'processing' | 'sent' | 'cancelled';
-  recalls: Array<{
-    recallId: string;
-    title: string;
-    source: 'USDA' | 'FDA';
-    hasImage: boolean;
-    addedAt: Date;
-  }>;
+  recallIds: string[]; // Just store IDs
   scheduledFor: Date | null;
+  createdAt: Date;
+  lastUpdated: Date;
+}
+
+interface QueuePreviewData {
+  queue: QueueData;
+  recalls: UnifiedRecall[];
   imageStats: {
     total: number;
     withImages: number;
@@ -27,6 +32,21 @@ export function AutomaticQueuesTab() {
   const [usdaQueue, setUsdaQueue] = useState<QueueData | null>(null);
   const [fdaQueue, setFdaQueue] = useState<QueueData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Preview modal state
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    queueType: 'USDA_DAILY' | 'FDA_WEEKLY' | null;
+    data: QueuePreviewData | null;
+    selectedRecalls: Set<string>;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    queueType: null,
+    data: null,
+    selectedRecalls: new Set(),
+    loading: false
+  });
 
   useEffect(() => {
     loadQueues();
@@ -35,40 +55,30 @@ export function AutomaticQueuesTab() {
   const loadQueues = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement API call
-      // const response = await fetch('/api/admin/queues');
-      // const data = await response.json();
-      // setUsdaQueue(data.usda);
-      // setFdaQueue(data.fda);
+      // TODO: Replace with actual API call
+      // const response = await api.getQueues();
+      // setUsdaQueue(response.data.usda);
+      // setFdaQueue(response.data.fda);
       
-      // Mock data for now
+      // Mock data for now with new structure
       setUsdaQueue({
+        id: 'usda_daily_2024_01_18',
         type: 'USDA_DAILY',
         status: 'pending',
-        recalls: [
-          { recallId: '1', title: 'USDA Recall 1', source: 'USDA', hasImage: true, addedAt: new Date() },
-          { recallId: '2', title: 'USDA Recall 2', source: 'USDA', hasImage: true, addedAt: new Date() },
-          { recallId: '3', title: 'USDA Recall 3', source: 'USDA', hasImage: false, addedAt: new Date() }
-        ],
+        recallIds: ['usda-recall-1', 'usda-recall-2', 'usda-recall-3'],
         scheduledFor: new Date(new Date().setHours(17, 0, 0, 0)), // 5pm today
-        imageStats: { total: 3, withImages: 2 }
+        createdAt: new Date(),
+        lastUpdated: new Date()
       });
       
       setFdaQueue({
+        id: 'fda_weekly_2024_w03',
         type: 'FDA_WEEKLY',
         status: 'pending',
-        recalls: [
-          { recallId: '4', title: 'FDA Recall 1', source: 'FDA', hasImage: true, addedAt: new Date() },
-          { recallId: '5', title: 'FDA Recall 2', source: 'FDA', hasImage: false, addedAt: new Date() },
-          { recallId: '6', title: 'FDA Recall 3', source: 'FDA', hasImage: true, addedAt: new Date() },
-          { recallId: '7', title: 'FDA Recall 4', source: 'FDA', hasImage: true, addedAt: new Date() },
-          { recallId: '8', title: 'FDA Recall 5', source: 'FDA', hasImage: true, addedAt: new Date() },
-          { recallId: '9', title: 'FDA Recall 6', source: 'FDA', hasImage: false, addedAt: new Date() },
-          { recallId: '10', title: 'FDA Recall 7', source: 'FDA', hasImage: false, addedAt: new Date() },
-          { recallId: '11', title: 'FDA Recall 8', source: 'FDA', hasImage: true, addedAt: new Date() }
-        ],
+        recallIds: ['fda-recall-1', 'fda-recall-2', 'fda-recall-3', 'fda-recall-4', 'fda-recall-5', 'fda-recall-6', 'fda-recall-7', 'fda-recall-8'],
         scheduledFor: null, // Manual send only
-        imageStats: { total: 8, withImages: 5 }
+        createdAt: new Date(new Date().getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        lastUpdated: new Date()
       });
     } catch (error) {
       console.error('Failed to load queues:', error);
@@ -78,14 +88,112 @@ export function AutomaticQueuesTab() {
   };
 
   const handlePreview = async (queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
-    console.log('Preview queue:', queueType);
-    // TODO: Implement preview modal
+    setPreviewModal(prev => ({ ...prev, loading: true, isOpen: true, queueType }));
+    
+    try {
+      // TODO: Replace with actual API call
+      // const response = await api.getQueuePreview(queueType);
+      // const previewData = response.data;
+      
+      // Mock preview data for now
+      const mockRecalls: UnifiedRecall[] = queueType === 'USDA_DAILY' ? [
+        {
+          id: 'usda-recall-1',
+          recallNumber: 'USDA-2024-001',
+          source: 'USDA' as const,
+          isActive: true,
+          classification: 'Class I',
+          recallingFirm: 'ABC Beef Company',
+          productTitle: 'Ground Beef Products',
+          productDescription: 'Various ground beef products that may be contaminated with E. coli O157:H7',
+          reasonForRecall: 'Possible E. coli O157:H7 contamination',
+          recallDate: '2024-01-18',
+          recallInitiationDate: '2024-01-18',
+          affectedStates: ['CA', 'NV', 'AZ'],
+          originalData: {},
+          images: [{ type: 'image', storageUrl: 'https://via.placeholder.com/400x300', filename: 'beef-recall.jpg' }]
+        },
+        {
+          id: 'usda-recall-2',
+          recallNumber: 'USDA-2024-002',
+          source: 'USDA' as const,
+          isActive: true,
+          classification: 'Class II',
+          recallingFirm: 'XYZ Poultry Inc',
+          productTitle: 'Chicken Breast Products',
+          productDescription: 'Frozen chicken breast products with undeclared allergens',
+          reasonForRecall: 'Undeclared soy allergen',
+          recallDate: '2024-01-18',
+          recallInitiationDate: '2024-01-18',
+          affectedStates: ['TX', 'OK', 'AR'],
+          originalData: {},
+          images: [{ type: 'image', storageUrl: 'https://via.placeholder.com/400x250', filename: 'chicken-recall.jpg' }]
+        },
+        {
+          id: 'usda-recall-3',
+          recallNumber: 'USDA-2024-003',
+          source: 'USDA' as const,
+          isActive: true,
+          classification: 'Class I',
+          recallingFirm: 'DEF Pork Products',
+          productTitle: 'Pork Sausage Links',
+          productDescription: 'Pork sausage links with possible Salmonella contamination',
+          reasonForRecall: 'Possible Salmonella contamination',
+          recallDate: '2024-01-18',
+          recallInitiationDate: '2024-01-18',
+          affectedStates: ['NY', 'NJ', 'PA'],
+          originalData: {},
+          images: []
+        }
+      ] : [
+        // FDA mock data - 8 recalls
+        ...Array.from({ length: 8 }, (_, i) => ({
+          id: `fda-recall-${i + 1}`,
+          recallNumber: `FDA-2024-${String(i + 1).padStart(3, '0')}`,
+          source: 'FDA' as const,
+          isActive: true,
+          classification: i % 3 === 0 ? 'Class I' : i % 2 === 0 ? 'Class II' : 'Class III',
+          recallingFirm: `FDA Company ${String.fromCharCode(65 + i)}`,
+          productTitle: `FDA Product ${i + 1}`,
+          productDescription: `FDA product ${i + 1} description with various safety issues`,
+          reasonForRecall: `Safety issue ${i + 1}`,
+          recallDate: '2024-01-15',
+          recallInitiationDate: '2024-01-15',
+          affectedStates: ['CA', 'TX', 'FL'],
+          originalData: {},
+          images: i % 3 === 0 ? [] : [{ type: 'image', storageUrl: `https://via.placeholder.com/400x${300 + i * 10}`, filename: `fda-recall-${i + 1}.jpg` }]
+        }))
+      ];
+      
+      const mockPreviewData: QueuePreviewData = {
+        queue: queueType === 'USDA_DAILY' ? usdaQueue! : fdaQueue!,
+        recalls: mockRecalls,
+        imageStats: {
+          total: mockRecalls.length,
+          withImages: mockRecalls.filter(r => r.images && r.images.length > 0).length
+        }
+      };
+      
+      // All recalls are initially selected
+      const allRecallIds = new Set(mockRecalls.map(r => r.id));
+      
+      setPreviewModal({
+        isOpen: true,
+        queueType,
+        data: mockPreviewData,
+        selectedRecalls: allRecallIds,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Failed to load queue preview:', error);
+      setPreviewModal(prev => ({ ...prev, loading: false }));
+    }
   };
 
   const handleSendNow = async (queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
     if (confirm(`Are you sure you want to send the ${queueType === 'USDA_DAILY' ? 'USDA' : 'FDA'} queue now?`)) {
       console.log('Sending queue:', queueType);
-      // TODO: Implement send
+      // TODO: Implement send - api.sendQueue(queueType)
       await loadQueues();
     }
   };
@@ -94,9 +202,75 @@ export function AutomaticQueuesTab() {
     const queueName = queueType === 'USDA_DAILY' ? 'USDA daily' : 'FDA weekly';
     if (confirm(`Are you sure you want to cancel and delete the ${queueName} queue? This cannot be undone.`)) {
       console.log('Cancelling queue:', queueType);
-      // TODO: Implement cancel
+      // TODO: Implement cancel - api.cancelQueue(queueType)
       await loadQueues();
     }
+  };
+
+  const handleRecallSelect = (recallId: string) => {
+    setPreviewModal(prev => {
+      const newSelected = new Set(prev.selectedRecalls);
+      if (newSelected.has(recallId)) {
+        newSelected.delete(recallId);
+      } else {
+        newSelected.add(recallId);
+      }
+      return { ...prev, selectedRecalls: newSelected };
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (!previewModal.data) return;
+    const allRecallIds = new Set(previewModal.data.recalls.map(r => r.id));
+    setPreviewModal(prev => ({ ...prev, selectedRecalls: allRecallIds }));
+  };
+
+  const handleDeselectAll = () => {
+    setPreviewModal(prev => ({ ...prev, selectedRecalls: new Set() }));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!previewModal.data || !previewModal.queueType) return;
+    
+    const originalRecallIds = previewModal.data.queue.recallIds;
+    const selectedRecallIds = Array.from(previewModal.selectedRecalls);
+    
+    // Check if there are changes
+    const hasChanges = originalRecallIds.length !== selectedRecallIds.length ||
+                       !originalRecallIds.every(id => previewModal.selectedRecalls.has(id));
+    
+    if (hasChanges) {
+      try {
+        console.log('Saving queue changes:', {
+          queueType: previewModal.queueType,
+          originalCount: originalRecallIds.length,
+          selectedCount: selectedRecallIds.length,
+          removedRecalls: originalRecallIds.filter(id => !previewModal.selectedRecalls.has(id))
+        });
+        
+        // TODO: Implement API call to update queue
+        // await api.updateQueue(previewModal.queueType, { recallIds: selectedRecallIds });
+        
+        // Update local state
+        if (previewModal.queueType === 'USDA_DAILY') {
+          setUsdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date() } : null);
+        } else {
+          setFdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date() } : null);
+        }
+        
+        // Close modal
+        setPreviewModal({ isOpen: false, queueType: null, data: null, selectedRecalls: new Set(), loading: false });
+      } catch (error) {
+        console.error('Failed to update queue:', error);
+      }
+    } else {
+      // No changes, just close
+      setPreviewModal({ isOpen: false, queueType: null, data: null, selectedRecalls: new Set(), loading: false });
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModal({ isOpen: false, queueType: null, data: null, selectedRecalls: new Set(), loading: false });
   };
 
   const formatScheduleTime = (date: Date | null, queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
@@ -157,11 +331,15 @@ export function AutomaticQueuesTab() {
           <span 
             className={styles.queueBadge}
             style={{ 
-              backgroundColor: `${currentTheme.info}20`,
-              color: currentTheme.info
+              backgroundColor: queue.status === 'pending' ? `${currentTheme.warning}20` : 
+                             queue.status === 'processing' ? `${currentTheme.info}20` : 
+                             queue.status === 'sent' ? `${currentTheme.success}20` : `${currentTheme.danger}20`,
+              color: queue.status === 'pending' ? currentTheme.warning : 
+                     queue.status === 'processing' ? currentTheme.info : 
+                     queue.status === 'sent' ? currentTheme.success : currentTheme.danger
             }}
           >
-            {queue.recalls.length} recalls pending
+            {queue.recallIds.length} recalls {queue.status}
           </span>
         </div>
 
@@ -180,39 +358,31 @@ export function AutomaticQueuesTab() {
           
           <div className={styles.statusItem}>
             <span className={styles.statusLabel} style={{ color: currentTheme.textSecondary }}>
-              Image Status:
+              Recalls:
             </span>
-            <span className={styles.statusValue} style={{ 
-              color: queue.imageStats.withImages === queue.imageStats.total 
-                ? currentTheme.success 
-                : currentTheme.warning 
-            }}>
-              {queue.imageStats.withImages} of {queue.imageStats.total} have images
+            <span className={styles.statusValue} style={{ color: currentTheme.text }}>
+              {queue.recallIds.length} queued
             </span>
           </div>
         </div>
 
-        {/* Recall List Preview */}
-        <div className={styles.recallPreview}>
-          <h4 className={styles.previewTitle} style={{ color: currentTheme.text }}>
-            Queued Recalls:
-          </h4>
-          <div className={styles.recallList}>
-            {queue.recalls.slice(0, 3).map((recall) => (
-              <div key={recall.recallId} className={styles.recallItem}>
-                <span style={{ color: currentTheme.text }}>{recall.title}</span>
-                {recall.hasImage ? (
-                  <span className={styles.hasImage} style={{ color: currentTheme.success }}>Image</span>
-                ) : (
-                  <span className={styles.noImage} style={{ color: currentTheme.warning }}>No Image</span>
-                )}
-              </div>
-            ))}
-            {queue.recalls.length > 3 && (
-              <div className={styles.moreRecalls} style={{ color: currentTheme.textSecondary }}>
-                +{queue.recalls.length - 3} more recalls
-              </div>
-            )}
+        {/* Queue Summary */}
+        <div className={styles.queueSummary}>
+          <div className={styles.summaryItem}>
+            <span className={styles.summaryLabel} style={{ color: currentTheme.textSecondary }}>
+              Created:
+            </span>
+            <span className={styles.summaryValue} style={{ color: currentTheme.text }}>
+              {queue.createdAt.toLocaleDateString()}
+            </span>
+          </div>
+          <div className={styles.summaryItem}>
+            <span className={styles.summaryLabel} style={{ color: currentTheme.textSecondary }}>
+              Last Updated:
+            </span>
+            <span className={styles.summaryValue} style={{ color: currentTheme.text }}>
+              {queue.lastUpdated.toLocaleTimeString()}
+            </span>
           </div>
         </div>
 
@@ -265,6 +435,78 @@ export function AutomaticQueuesTab() {
         {renderQueue(usdaQueue, 'USDA Daily Queue')}
         {renderQueue(fdaQueue, 'FDA Weekly Queue')}
       </div>
+      
+      {/* Preview Modal */}
+      {previewModal.isOpen && (
+        <div className={styles.modalOverlay}>
+          <div 
+            className={styles.modalContent}
+            style={{
+              backgroundColor: currentTheme.cardBackground,
+              borderColor: currentTheme.cardBorder
+            }}
+          >
+            <div className={styles.modalHeader}>
+              <h2 style={{ color: currentTheme.text }}>
+                {previewModal.queueType === 'USDA_DAILY' ? 'USDA Daily' : 'FDA Weekly'} Queue Preview
+              </h2>
+              <button 
+                className={styles.closeButton}
+                onClick={handleClosePreview}
+                style={{ color: currentTheme.textSecondary }}
+              >
+                ×
+              </button>
+            </div>
+            
+            {previewModal.loading ? (
+              <div className={styles.modalLoading} style={{ color: currentTheme.textSecondary }}>
+                Loading preview...
+              </div>
+            ) : previewModal.data ? (
+              <>
+                <div className={styles.modalInfo}>
+                  <div style={{ color: currentTheme.textSecondary }}>
+                    Deselected recalls will be removed from the queue.
+                  </div>
+                </div>
+                
+                <div className={styles.modalRecalls}>
+                  <EditableRecallList
+                    recalls={previewModal.data.recalls}
+                    loading={false}
+                    error={null}
+                    onEdit={() => {}} // No edit functionality needed in queue preview
+                    enableSelection={true}
+                    selectedRecalls={previewModal.selectedRecalls}
+                    onRecallSelect={handleRecallSelect}
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={handleDeselectAll}
+                    imageStats={previewModal.data.imageStats}
+                  />
+                </div>
+                
+                <div className={styles.modalActions}>
+                  <Button onClick={handleClosePreview} variant="secondary">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSaveChanges}
+                    variant="primary"
+                    disabled={previewModal.selectedRecalls.size === 0}
+                  >
+                    Save Changes ({previewModal.selectedRecalls.size} selected)
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className={styles.modalError} style={{ color: currentTheme.danger }}>
+                Failed to load preview data
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

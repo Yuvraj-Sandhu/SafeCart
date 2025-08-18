@@ -85,47 +85,31 @@
   font-weight: 600;
 }
 
-.recallPreview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.previewTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.recallList {
+/* Queue Summary Section */
+.queueSummary {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
   background: var(--color-background);
   border-radius: 0.5rem;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
-.recallItem {
+.summaryItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem;
   font-size: 0.875rem;
 }
 
-.hasImage,
-.noImage {
-  font-weight: 700;
-  font-size: 1rem;
+.summaryLabel {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
-.moreRecalls {
-  text-align: center;
-  padding: 0.5rem;
-  font-style: italic;
+.summaryValue {
+  font-weight: 600;
 }
 
 .queueActions {
@@ -137,6 +121,101 @@
 
 .queueActions button {
   flex: 1;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 1rem;
+  border: 2px solid;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-cardBorder);
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.closeButton:hover {
+  background: var(--color-backgroundSecondary);
+}
+
+.modalInfo {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-cardBorder);
+}
+
+
+.modalLoading {
+  padding: 4rem;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.modalError {
+  padding: 2rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.modalRecalls {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+}
+
+.modalActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid var(--color-cardBorder);
+  background: var(--color-backgroundSecondary);
 }
 
 /* Responsive */
@@ -161,5 +240,17 @@
 
   .queueActions {
     flex-direction: column;
+  }
+  
+  .modalOverlay {
+    padding: 1rem;
+  }
+  
+  .modalContent {
+    max-height: 95vh;
+  }
+  
+  .modalActions {
+    flex-direction: column-reverse;
   }
 }
