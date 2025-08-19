@@ -586,7 +586,31 @@ export class EmailQueueService {
    * Private helper: Get affected states from recall
    */
   private getAffectedStates(recall: RecallData): string[] {
-    return recall.affectedStates || [];
+    const states = recall.affectedStates || [];
+    // Convert full state names to state codes for matching with user subscriptions
+    return states.map(state => this.convertStateNameToCode(state));
+  }
+
+  /**
+   * Private helper: Convert full state name to state code
+   */
+  private convertStateNameToCode(stateName: string): string {
+    const stateMap: { [key: string]: string } = {
+      'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+      'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+      'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+      'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+      'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+      'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+      'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+      'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+      'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+      'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+      'District of Columbia': 'DC', 'Puerto Rico': 'PR', 'Virgin Islands': 'VI', 'Guam': 'GU'
+    };
+
+    // Return the state code if found, otherwise return the original (might already be a code)
+    return stateMap[stateName] || stateName;
   }
 
   /**
