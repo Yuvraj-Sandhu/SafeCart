@@ -58,11 +58,12 @@ export function EmailHistoryTab() {
     setIsLoading(true);
     try {
       const response = await api.getEmailHistory(currentPage, itemsPerPage);
-      setDigests(response.digests.map((digest: any) => ({
+      const digests = response.digests || []; // Default to empty array if undefined
+      setDigests(digests.map((digest: any) => ({
         ...digest,
         sentAt: new Date(digest.sentAt)
       })));
-      setTotalPages(response.totalPages);
+      setTotalPages(response.totalPages || 1);
     } catch (error) {
       console.error('Failed to load email history:', error);
       setDigests([]);
