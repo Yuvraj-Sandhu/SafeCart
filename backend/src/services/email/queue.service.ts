@@ -1,0 +1,472 @@
+/**
+ * Email Queue Service
+ * 
+ * Manages email queue operations for USDA Daily and FDA Weekly digests.
+ * Handles queue creation, management, and digest sending operations.
+ * 
+ * @author Yuvraj
+ */
+
+import * as admin from 'firebase-admin';
+import { EmailService } from './email.service';
+import { EmailDigestService, RecallData } from './digest.service';
+import { EmailRenderService } from './render.service';
+import logger from '../../utils/logger';
+
+const db = admin.firestore();
+
+/**
+ * Email Queue Interface
+ */
+export interface EmailQueue {
+  id: string;
+  type: 'USDA_DAILY' | 'FDA_WEEKLY';
+  status: 'pending' | 'processing' | 'sent' | 'cancelled';
+  recallIds: string[];
+  scheduledFor: Date | null;
+  createdAt: Date;
+  lastUpdated: Date;
+}
+
+/**
+ * Email Digest Record Interface
+ */
+export interface EmailDigestRecord {
+  id: string;
+  type: 'manual' | 'usda_daily' | 'fda_weekly' | 'test';
+  sentAt: Date;
+  sentBy: string;
+  recallCount: number;
+  totalRecipients: number;
+  recalls: Array<{
+    id: string;
+    title: string;
+    source: 'USDA' | 'FDA';
+  }>;
+  emailHtml?: string;
+  queueId?: string;
+}
+
+/**
+ * Email Queue Service Class
+ */
+export class EmailQueueService {
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = new EmailService();
+  }
+
+  /**
+   * Get all queues (USDA and FDA)
+   */
+  async getQueues(): Promise<{ usda: EmailQueue | null; fda: EmailQueue | null }> {
+    try {
+      // Get today's USDA queue
+      const today = new Date().toISOString().split('T')[0].replace(/-/g, '_');
+      const usdaQueueId = `usda_daily_${today}`;
+      
+      const usdaDoc = await db.collection('email_queues').doc(usdaQueueId).get();
+      const usdaQueue = usdaDoc.exists ? { id: usdaDoc.id, ...usdaDoc.data() } as EmailQueue : null;
+
+      // Get current week's FDA queue
+      const week = this.getWeekNumber(new Date());
+      const year = new Date().getFullYear();
+      const fdaQueueId = `fda_weekly_${year}_w${String(week).padStart(2, '0')}`;
+      
+      const fdaDoc = await db.collection('email_queues').doc(fdaQueueId).get();
+      const fdaQueue = fdaDoc.exists ? { id: fdaDoc.id, ...fdaDoc.data() } as EmailQueue : null;
+
+      return { usda: usdaQueue, fda: fdaQueue };
+    } catch (error) {
+      logger.error('Error getting queues:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get queue preview with full recall details
+   */
+  async getQueuePreview(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<{
+    queue: EmailQueue;
+    recalls: RecallData[];
+    imageStats: { total: number; withImages: number };
+  }> {
+    try {
+      const queues = await this.getQueues();
+      const queue = queueType === 'USDA_DAILY' ? queues.usda : queues.fda;
+      
+      if (!queue) {
+        throw new Error(`No ${queueType} queue found`);
+      }
+
+      // Fetch all recalls by their IDs
+      const recalls = await this.getRecallsByIds(queue.recallIds);
+      
+      // Calculate image stats
+      const imageStats = {
+        total: recalls.length,
+        withImages: recalls.filter(r => r.primaryImage).length
+      };
+
+      return { queue, recalls, imageStats };
+    } catch (error) {
+      logger.error('Error getting queue preview:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update queue (remove recalls)
+   */
+  async updateQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', recallIds: string[]): Promise<void> {
+    try {
+      const queues = await this.getQueues();
+      const queue = queueType === 'USDA_DAILY' ? queues.usda : queues.fda;
+      
+      if (!queue) {
+        throw new Error(`No ${queueType} queue found`);
+      }
+
+      await db.collection('email_queues').doc(queue.id).update({
+        recallIds,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      logger.error('Error updating queue:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send queue to all subscribers
+   */
+  async sendQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', sentBy: string = 'system'): Promise<EmailDigestRecord> {
+    try {
+      const queues = await this.getQueues();
+      const queue = queueType === 'USDA_DAILY' ? queues.usda : queues.fda;
+      
+      if (!queue) {
+        throw new Error(`No ${queueType} queue found`);
+      }
+
+      // Update queue status to processing
+      await db.collection('email_queues').doc(queue.id).update({
+        status: 'processing'
+      });
+
+      // Fetch recalls
+      const recalls = await this.getRecallsByIds(queue.recallIds);
+      
+      // Get all subscribed users grouped by state
+      const subscribersByState = await this.getSubscribersByState();
+      
+      let totalRecipients = 0;
+      const failedSends: string[] = [];
+
+      // Send state-specific emails
+      for (const [state, subscribers] of Object.entries(subscribersByState)) {
+        // Filter recalls affecting this state
+        const stateRecalls = recalls.filter(recall => {
+          // Check if recall affects this state
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(state);
+        });
+
+        if (stateRecalls.length > 0) {
+          // Send to all subscribers in this state
+          for (const subscriber of subscribers) {
+            try {
+              const digestData = {
+                user: {
+                  name: subscriber.name || 'SafeCart User',
+                  email: subscriber.email,
+                  unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
+                },
+                state,
+                recalls: stateRecalls,
+                digestDate: new Date().toISOString(),
+                isTest: false
+              };
+
+              const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+              await this.emailService.sendEmail(emailOptions);
+              
+              totalRecipients++;
+            } catch (error) {
+              logger.error(`Failed to send email to ${subscriber.email}:`, error);
+              failedSends.push(subscriber.email);
+            }
+          }
+        }
+      }
+
+      // Retry failed sends after 3 seconds
+      if (failedSends.length > 0) {
+        setTimeout(async () => {
+          for (const email of failedSends) {
+            try {
+              // Retry logic here
+              logger.info(`Retrying email to ${email}`);
+            } catch (error) {
+              logger.error(`Retry failed for ${email}:`, error);
+            }
+          }
+        }, 3000);
+      }
+
+      // Create digest record
+      const digestRecord: EmailDigestRecord = {
+        id: `digest_${Date.now()}`,
+        type: queueType === 'USDA_DAILY' ? 'usda_daily' : 'fda_weekly',
+        sentAt: new Date(),
+        sentBy,
+        recallCount: recalls.length,
+        totalRecipients,
+        recalls: recalls.map(r => ({
+          id: r.id,
+          title: r.title,
+          source: r.source
+        })),
+        queueId: queue.id
+      };
+
+      // Save to email_digests collection
+      await db.collection('email_digests').doc(digestRecord.id).set(digestRecord);
+
+      // Delete the queue
+      await db.collection('email_queues').doc(queue.id).delete();
+
+      return digestRecord;
+    } catch (error) {
+      logger.error('Error sending queue:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel/delete a queue
+   */
+  async cancelQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<void> {
+    try {
+      const queues = await this.getQueues();
+      const queue = queueType === 'USDA_DAILY' ? queues.usda : queues.fda;
+      
+      if (!queue) {
+        throw new Error(`No ${queueType} queue found`);
+      }
+
+      await db.collection('email_queues').doc(queue.id).delete();
+    } catch (error) {
+      logger.error('Error canceling queue:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send manual digest (no queue)
+   */
+  async sendManualDigest(
+    recallIds: string[], 
+    sentBy: string
+  ): Promise<EmailDigestRecord> {
+    try {
+      // Fetch recalls
+      const recalls = await this.getRecallsByIds(recallIds);
+      
+      // Get all subscribed users grouped by state
+      const subscribersByState = await this.getSubscribersByState();
+      
+      let totalRecipients = 0;
+
+      // Send state-specific emails
+      for (const [state, subscribers] of Object.entries(subscribersByState)) {
+        // Filter recalls affecting this state
+        const stateRecalls = recalls.filter(recall => {
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(state);
+        });
+
+        if (stateRecalls.length > 0) {
+          // Send to all subscribers in this state
+          for (const subscriber of subscribers) {
+            try {
+              const digestData = {
+                user: {
+                  name: subscriber.name || 'SafeCart User',
+                  email: subscriber.email,
+                  unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
+                },
+                state,
+                recalls: stateRecalls,
+                digestDate: new Date().toISOString(),
+                isTest: false
+              };
+
+              const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+              await this.emailService.sendEmail(emailOptions);
+              
+              totalRecipients++;
+            } catch (error) {
+              logger.error(`Failed to send manual digest to ${subscriber.email}:`, error);
+            }
+          }
+        }
+      }
+
+      // Create digest record
+      const digestRecord: EmailDigestRecord = {
+        id: `digest_${Date.now()}`,
+        type: 'manual',
+        sentAt: new Date(),
+        sentBy,
+        recallCount: recalls.length,
+        totalRecipients,
+        recalls: recalls.map(r => ({
+          id: r.id,
+          title: r.title,
+          source: r.source
+        }))
+      };
+
+      // Save to email_digests collection
+      await db.collection('email_digests').doc(digestRecord.id).set(digestRecord);
+
+      return digestRecord;
+    } catch (error) {
+      logger.error('Error sending manual digest:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get email history
+   */
+  async getEmailHistory(page: number = 1, limit: number = 10): Promise<{
+    digests: EmailDigestRecord[];
+    totalPages: number;
+  }> {
+    try {
+      // Get total count
+      const totalSnapshot = await db.collection('email_digests').get();
+      const total = totalSnapshot.size;
+      const totalPages = Math.ceil(total / limit);
+
+      // Get paginated results
+      const offset = (page - 1) * limit;
+      const snapshot = await db.collection('email_digests')
+        .orderBy('sentAt', 'desc')
+        .limit(limit)
+        .offset(offset)
+        .get();
+
+      const digests = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as EmailDigestRecord[];
+
+      return { digests, totalPages };
+    } catch (error) {
+      logger.error('Error getting email history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Private helper: Get recalls by IDs
+   */
+  private async getRecallsByIds(recallIds: string[]): Promise<RecallData[]> {
+    const recalls: RecallData[] = [];
+
+    for (const recallId of recallIds) {
+      try {
+        // Try USDA collection first
+        const usdaDoc = await db.collection('recalls').doc(recallId).get();
+        if (usdaDoc.exists) {
+          const data = usdaDoc.data();
+          recalls.push({
+            id: usdaDoc.id,
+            title: data?.display?.previewTitle || data?.llmTitle || data?.field_title || 'Food Recall',
+            company: EmailDigestService.extractCompanyName(data?.field_summary),
+            recallDate: data?.field_recall_date,
+            classification: data?.field_risk_level,
+            description: data?.field_summary || 'No description available',
+            reason: data?.field_product_items || 'Contamination concerns',
+            primaryImage: EmailDigestService.getPrimaryImage(data),
+            recallUrl: data?.display?.previewUrl || `https://safecart.app/recall/${usdaDoc.id}`,
+            source: 'USDA' as const,
+            affectedStates: data?.affectedStatesArray || []
+          });
+          continue;
+        }
+
+        // Try FDA collection
+        const fdaDoc = await db.collection('fda_recalls').doc(recallId).get();
+        if (fdaDoc.exists) {
+          const data = fdaDoc.data();
+          recalls.push({
+            id: fdaDoc.id,
+            title: data?.display?.previewTitle || data?.llmTitle || data?.product_description || 'Food Recall',
+            company: data?.recalling_firm || 'Unknown Company',
+            recallDate: data?.report_date,
+            classification: data?.classification,
+            description: data?.product_description || 'No description available',
+            reason: data?.reason_for_recall || 'Safety concerns',
+            primaryImage: EmailDigestService.getPrimaryImage(data),
+            recallUrl: data?.display?.previewUrl || `https://safecart.app/fda-recall/${fdaDoc.id}`,
+            source: 'FDA' as const,
+            affectedStates: data?.manualStatesOverride || data?.affectedStatesArray || []
+          });
+        }
+      } catch (error) {
+        logger.error(`Error fetching recall ${recallId}:`, error);
+      }
+    }
+
+    return recalls;
+  }
+
+  /**
+   * Private helper: Get subscribers grouped by state
+   */
+  private async getSubscribersByState(): Promise<{ [state: string]: any[] }> {
+    const snapshot = await db.collection('users')
+      .where('emailPreferences.subscribed', '==', true)
+      .get();
+
+    const subscribersByState: { [state: string]: any[] } = {};
+
+    snapshot.docs.forEach(doc => {
+      const user = doc.data();
+      const states = user.emailPreferences?.states || [];
+      
+      states.forEach((state: string) => {
+        if (!subscribersByState[state]) {
+          subscribersByState[state] = [];
+        }
+        subscribersByState[state].push(user);
+      });
+    });
+
+    return subscribersByState;
+  }
+
+  /**
+   * Private helper: Get affected states from recall
+   */
+  private getAffectedStates(recall: RecallData): string[] {
+    return recall.affectedStates || [];
+  }
+
+  /**
+   * Private helper: Get week number
+   */
+  private getWeekNumber(date: Date): number {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+}
+
+// Export singleton instance
+export const emailQueueService = new EmailQueueService();

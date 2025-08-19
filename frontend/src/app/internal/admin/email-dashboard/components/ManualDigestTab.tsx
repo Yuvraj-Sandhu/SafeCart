@@ -20,6 +20,7 @@ export function ManualDigestTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageStats, setImageStats] = useState({ total: 0, withImages: 0 });
+  const [isSending, setIsSending] = useState(false);
   
   // Edit modal state
   const [editModal, setEditModal] = useState<{
@@ -118,14 +119,45 @@ export function ManualDigestTab() {
   };
 
   const handleSendTest = async () => {
-    console.log('Sending test email with recalls:', Array.from(selectedRecalls));
-    // TODO: Implement test email sending
+    if (selectedRecalls.size === 0) return;
+    
+    setIsSending(true);
+    try {
+      // For test emails, we'll send a manual digest but only to a test recipient
+      // This would be implemented differently based on your requirements
+      console.log('Test email functionality would be implemented here');
+      alert('Test email functionality would require a separate endpoint for sending to test recipients only.');
+    } catch (error) {
+      setError('Failed to send test email');
+      console.error('Test email error:', error);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleSendToAll = async () => {
-    if (confirm('Are you sure you want to send this digest to all subscribers?')) {
-      console.log('Sending to all subscribers with recalls:', Array.from(selectedRecalls));
-      // TODO: Implement bulk sending
+    if (selectedRecalls.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to send this digest with ${selectedRecalls.size} recalls to all subscribers?`)) {
+      return;
+    }
+
+    setIsSending(true);
+    setError(null);
+    
+    try {
+      const recallIds = Array.from(selectedRecalls);
+      const response = await api.sendManualDigest(recallIds);
+      
+      alert(`Digest sent successfully!\n- ${response.totalRecipients} recipients\n- ${response.recallCount} recalls`);
+      
+      // Clear selection after successful send
+      setSelectedRecalls(new Set());
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to send digest');
+      console.error('Manual digest send error:', error);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -221,17 +253,17 @@ export function ManualDigestTab() {
           <div className={styles.actionButtons}>
             <Button
               onClick={handleSendTest}
-              disabled={selectedRecalls.size === 0}
+              disabled={selectedRecalls.size === 0 || isSending}
               variant="secondary"
             >
-              Send Test Email
+              {isSending ? 'Sending...' : 'Send Test Email'}
             </Button>
             <Button
               onClick={handleSendToAll}
-              disabled={selectedRecalls.size === 0}
+              disabled={selectedRecalls.size === 0 || isSending}
               variant="primary"
             >
-              Send to All Subscribers
+              {isSending ? 'Sending...' : 'Send to All Subscribers'}
             </Button>
           </div>
         </>

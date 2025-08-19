@@ -55,31 +55,23 @@ export function AutomaticQueuesTab() {
   const loadQueues = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.getQueues();
-      // setUsdaQueue(response.data.usda);
-      // setFdaQueue(response.data.fda);
+      const response = await api.getQueues();
       
-      // Mock data for now with new structure
-      setUsdaQueue({
-        id: 'usda_daily_2024_01_18',
-        type: 'USDA_DAILY',
-        status: 'pending',
-        recallIds: ['usda-recall-1', 'usda-recall-2', 'usda-recall-3'],
-        scheduledFor: new Date(new Date().setHours(17, 0, 0, 0)), // 5pm today
-        createdAt: new Date(),
-        lastUpdated: new Date()
-      });
+      // Convert date strings to Date objects if needed
+      if (response.data.usda) {
+        response.data.usda.scheduledFor = response.data.usda.scheduledFor ? new Date(response.data.usda.scheduledFor) : null;
+        response.data.usda.createdAt = new Date(response.data.usda.createdAt);
+        response.data.usda.lastUpdated = new Date(response.data.usda.lastUpdated);
+      }
       
-      setFdaQueue({
-        id: 'fda_weekly_2024_w03',
-        type: 'FDA_WEEKLY',
-        status: 'pending',
-        recallIds: ['fda-recall-1', 'fda-recall-2', 'fda-recall-3', 'fda-recall-4', 'fda-recall-5', 'fda-recall-6', 'fda-recall-7', 'fda-recall-8'],
-        scheduledFor: null, // Manual send only
-        createdAt: new Date(new Date().getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-        lastUpdated: new Date()
-      });
+      if (response.data.fda) {
+        response.data.fda.scheduledFor = response.data.fda.scheduledFor ? new Date(response.data.fda.scheduledFor) : null;
+        response.data.fda.createdAt = new Date(response.data.fda.createdAt);
+        response.data.fda.lastUpdated = new Date(response.data.fda.lastUpdated);
+      }
+      
+      setUsdaQueue(response.data.usda);
+      setFdaQueue(response.data.fda);
     } catch (error) {
       console.error('Failed to load queues:', error);
     } finally {

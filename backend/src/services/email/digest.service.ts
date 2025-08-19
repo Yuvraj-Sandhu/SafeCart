@@ -33,6 +33,7 @@ export interface RecallData {
   primaryImage?: string;
   recallUrl?: string;
   source: 'USDA' | 'FDA';
+  affectedStates?: string[];
 }
 
 /**
@@ -276,7 +277,7 @@ export class EmailDigestService {
    * @param summary - USDA recall summary text
    * @returns string - Extracted company name or fallback
    */
-  private static extractCompanyName(summary?: string): string {
+  static extractCompanyName(summary?: string): string {
     if (!summary) return 'Unknown Company';
     
     // USDA summaries often start with company name
@@ -295,7 +296,7 @@ export class EmailDigestService {
    * @param recallData - Recall document data
    * @returns string | undefined - Primary image URL if available
    */
-  private static getPrimaryImage(recallData: any): string | undefined {
+  static getPrimaryImage(recallData: any): string | undefined {
     // Check for uploaded images first
     if (recallData.display?.uploadedImages?.length > 0) {
       const primaryIndex = recallData.display.primaryImageIndex || 0;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { EmailPreviewModal } from '@/components/ui/EmailPreviewModal';
+import { api } from '@/services/api';
 import styles from './EmailHistoryTab.module.css';
 
 interface EmailDigest {
@@ -45,76 +46,16 @@ export function EmailHistoryTab() {
   const loadHistory = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement API call
-      // const response = await fetch(`/api/admin/email-history?page=${currentPage}&limit=${itemsPerPage}`);
-      // const data = await response.json();
-      // setDigests(data.digests);
-      // setTotalPages(data.totalPages);
-      
-      // Mock data for now
-      const mockDigests: EmailDigest[] = [
-        {
-          id: '1',
-          type: 'usda_daily',
-          sentAt: new Date('2024-01-15T17:00:00'),
-          sentBy: 'John Admin',
-          recallCount: 5,
-          totalRecipients: 1247,
-          recalls: [
-            { id: 'usda-1', title: 'Ground Beef Recall - E. coli contamination', source: 'USDA' },
-            { id: 'usda-2', title: 'Chicken Products - Salmonella risk', source: 'USDA' },
-            { id: 'usda-3', title: 'Pork Sausages - Undeclared allergens', source: 'USDA' },
-            { id: 'usda-4', title: 'Turkey Slices - Listeria concern', source: 'USDA' },
-            { id: 'usda-5', title: 'Beef Patties - Foreign material', source: 'USDA' }
-          ],
-          emailHtml: '<html><body><h1>USDA Daily Digest</h1><p>5 new recalls affecting your area...</p></body></html>'
-        },
-        {
-          id: '2',
-          type: 'manual',
-          sentAt: new Date('2024-01-14T14:30:00'),
-          sentBy: 'Sarah Admin',
-          recallCount: 8,
-          totalRecipients: 892,
-          recalls: [
-            { id: 'mix-1', title: 'Frozen Vegetables - Listeria risk', source: 'FDA' },
-            { id: 'mix-2', title: 'Canned Soup - Botulism concern', source: 'FDA' },
-            { id: 'mix-3', title: 'Ground Turkey - Salmonella contamination', source: 'USDA' }
-          ],
-          emailHtml: '<html><body><h1>Manual Safety Alert</h1><p>8 critical recalls require immediate attention...</p></body></html>'
-        },
-        {
-          id: '3',
-          type: 'fda_weekly',
-          sentAt: new Date('2024-01-13T10:00:00'),
-          sentBy: 'Mike Admin',
-          recallCount: 12,
-          totalRecipients: 1534,
-          recalls: [
-            { id: 'fda-1', title: 'Baby Food - Heavy metals detected', source: 'FDA' },
-            { id: 'fda-2', title: 'Dietary Supplements - Undeclared ingredients', source: 'FDA' }
-          ],
-          emailHtml: '<html><body><h1>FDA Weekly Roundup</h1><p>12 FDA recalls this week...</p></body></html>'
-        },
-        {
-          id: '4',
-          type: 'test',
-          sentAt: new Date('2024-01-12T16:45:00'),
-          sentBy: 'John Admin',
-          recallCount: 3,
-          totalRecipients: 1,
-          recalls: [
-            { id: 'test-1', title: 'Test Recall 1', source: 'USDA' },
-            { id: 'test-2', title: 'Test Recall 2', source: 'FDA' }
-          ],
-          emailHtml: '<html><body><h1>Test Email</h1><p>This is a test digest...</p></body></html>'
-        }
-      ];
-      
-      setDigests(mockDigests);
-      setTotalPages(3);
+      const response = await api.getEmailHistory(currentPage, itemsPerPage);
+      setDigests(response.digests.map((digest: any) => ({
+        ...digest,
+        sentAt: new Date(digest.sentAt)
+      })));
+      setTotalPages(response.totalPages);
     } catch (error) {
       console.error('Failed to load email history:', error);
+      setDigests([]);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
