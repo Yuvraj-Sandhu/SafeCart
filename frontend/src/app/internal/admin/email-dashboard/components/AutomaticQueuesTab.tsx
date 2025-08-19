@@ -457,7 +457,7 @@ export function AutomaticQueuesTab() {
                   </div>
                 </div>
                 
-                <div className={styles.modalRecalls}>
+                <div className={`${styles.modalRecalls} modalContainer`}>
                   <EditableRecallList
                     recalls={previewModal.data.recalls}
                     loading={false}

@@ -207,6 +207,49 @@
   flex: 1;
   overflow: auto;
   padding: 2rem;
+  width: 100%;
+  min-width: 0; /* Allow flex item to shrink below content size */
+  box-sizing: border-box;
+}
+
+/* Force width constraints on ALL content within modal recalls */
+.modalRecalls {
+  contain: layout style;
+}
+
+/* Target the specific RecallList CSS classes within modal */
+.modalRecalls :global(.expandedDetails) {
+  max-width: 100%;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.modalRecalls :global(.detailSection) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.modalRecalls :global(.detailSection p),
+.modalRecalls :global(.detailSection div) {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Force all recall cards to constrain width */
+.modalRecalls :global(.recallCard) {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+/* Force masonry columns to respect modal width */
+.modalRecalls :global(.masonryColumn) {
+  max-width: calc(100% / var(--columns, 1)) !important;
+  min-width: 0 !important;
 }
 
 .modalActions {

@@ -390,7 +390,11 @@ export function EditableRecallList({
         </div>
       </div>
       
-      <div ref={containerRef} className={styles.masonry}>
+      <div 
+        ref={containerRef} 
+        className={styles.masonry}
+        style={{ '--masonry-columns': columnCount } as React.CSSProperties}
+      >
         {masonryColumns.map((column, columnIndex) => (
           <div key={columnIndex} className={styles.column}>
             {column.map((expandedRecall, cardIndex) => {
