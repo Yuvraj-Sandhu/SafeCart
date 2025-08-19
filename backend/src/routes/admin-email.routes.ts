@@ -81,17 +81,17 @@ router.get('/queues/:type/email-preview', authenticate, requireAdmin, async (req
     // Get queue preview data
     const preview = await emailQueueService.getQueuePreview(type);
     
-    // Generate email HTML with ALL recalls (no state filtering for admin preview)
+    // Generate email HTML with ALL recalls (show as real user would see it)
     const digestData = {
       user: {
-        name: 'Admin Preview',
-        email: 'admin@safecart.app',
-        unsubscribeToken: 'admin-preview-token'
+        name: 'SafeCart User',
+        email: 'user@example.com',
+        unsubscribeToken: 'preview-unsubscribe-token'
       },
       state: 'ALL', // Show all recalls regardless of state
       recalls: preview.recalls, // All recalls in queue
       digestDate: new Date().toISOString(),
-      isTest: true,
+      isTest: false, // Show as production email, not test
       isAdminPreview: true // Flag to indicate this is admin preview
     };
 
@@ -103,7 +103,7 @@ router.get('/queues/:type/email-preview', authenticate, requireAdmin, async (req
       id: `preview_${Date.now()}`,
       type: type === 'USDA_DAILY' ? 'usda_daily' : 'fda_weekly',
       sentAt: new Date(),
-      sentBy: 'Admin Preview (All States)',
+      sentBy: 'Preview (Production Format)',
       recallCount: preview.recalls.length,
       totalRecipients: 0, // Preview only - shows all recalls regardless of state
       recalls: preview.recalls.map((r: any) => ({
