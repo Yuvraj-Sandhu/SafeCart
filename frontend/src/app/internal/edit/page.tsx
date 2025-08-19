@@ -25,6 +25,7 @@ export default function InternalEditPage() {
   const { totalPendingCount, refetch: refetchPendingChanges, hasPendingChanges } = usePendingChanges();
   const hasInitialSearched = useRef(false);
   const hasUserInteracted = useRef(false);
+  const hasCheckedHealth = useRef(false);
   
   // Filter states
   const [selectedState, setSelectedState] = useState('');
@@ -57,6 +58,10 @@ export default function InternalEditPage() {
 
   // Check server health on mount
   useEffect(() => {
+    // Prevent double API call in React StrictMode
+    if (hasCheckedHealth.current) return;
+    hasCheckedHealth.current = true;
+    
     api.getHealth().catch(() => {
       setError('Backend server is not running. Please start the server on port 3001.');
     });

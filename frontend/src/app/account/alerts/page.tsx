@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +26,9 @@ function AlertsContent() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showTestEmailButton, setShowTestEmailButton] = useState(false);
+  
+  // Ref to prevent double API calls in React StrictMode
+  const hasLoadedPreferences = useRef(false);
 
   // Load user preferences on mount
   useEffect(() => {
@@ -36,6 +39,11 @@ function AlertsContent() {
       router.push('/account/login');
       return;
     }
+    
+    // Prevent double API call in React StrictMode
+    if (hasLoadedPreferences.current) return;
+    hasLoadedPreferences.current = true;
+    
     loadUserPreferences();
   }, [isAccountAuthenticated, isAuthLoading]);
 
