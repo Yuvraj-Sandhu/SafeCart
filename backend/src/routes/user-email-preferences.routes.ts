@@ -163,6 +163,7 @@ router.put('/email-preferences', authenticateUser, async (req: any, res) => {
     // Prevents invalid data that would cause email delivery failures
     if (emailPreferences.states && emailPreferences.states.length > 0) {
       const validStates = [
+        'ALL', // Allow users to subscribe to all states
         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
         'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
         'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',

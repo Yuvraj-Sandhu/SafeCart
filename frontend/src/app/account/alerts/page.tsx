@@ -92,7 +92,10 @@ function AlertsContent() {
   };
 
   const getAvailableStates = () => {
-    return US_STATES.filter(state => !selectedStates.includes(state.value));
+    return US_STATES.filter(state => 
+      !selectedStates.includes(state.value) && 
+      state.value !== 'Nationwide' // Remove Nationwide to avoid confusion with All States
+    );
   };
 
   const handleSavePreferences = async () => {

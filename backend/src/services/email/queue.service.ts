@@ -202,7 +202,15 @@ export class EmailQueueService {
       const statesWithRecalls = Object.entries(subscribersByState).find(([state, subscribers]) => {
         const stateRecalls = recalls.filter(recall => {
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(state);
+          const isStateSpecific = affectedStates.includes(state);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = state === 'ALL';
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR  
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
         return stateRecalls.length > 0 && subscribers.length > 0;
       });
@@ -211,7 +219,15 @@ export class EmailQueueService {
         const [sampleState, sampleSubscribers] = statesWithRecalls;
         const sampleRecalls = recalls.filter(recall => {
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(sampleState);
+          const isStateSpecific = affectedStates.includes(sampleState);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = sampleState === 'ALL';
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR  
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
 
         const sampleDigestData = {
@@ -237,9 +253,24 @@ export class EmailQueueService {
       for (const [state, subscribers] of Object.entries(subscribersByState)) {
         // Filter recalls affecting this state
         const stateRecalls = recalls.filter(recall => {
-          // Check if recall affects this state
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(state);
+          const isStateSpecific = affectedStates.includes(state);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = state === 'ALL';
+          
+          if (isNationwide) {
+            logger.info(`Including nationwide recall ${recall.id} for ${state} subscribers`);
+          }
+          
+          if (isAllStatesSubscription) {
+            logger.info(`Including recall ${recall.id} for ALL states subscribers`);
+          }
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
 
         if (stateRecalls.length > 0) {
@@ -363,7 +394,15 @@ export class EmailQueueService {
       const statesWithRecalls = Object.entries(subscribersByState).find(([state, subscribers]) => {
         const stateRecalls = recalls.filter(recall => {
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(state);
+          const isStateSpecific = affectedStates.includes(state);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = state === 'ALL';
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR  
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
         return stateRecalls.length > 0 && subscribers.length > 0;
       });
@@ -372,7 +411,15 @@ export class EmailQueueService {
         const [sampleState, sampleSubscribers] = statesWithRecalls;
         const sampleRecalls = recalls.filter(recall => {
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(sampleState);
+          const isStateSpecific = affectedStates.includes(sampleState);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = sampleState === 'ALL';
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR  
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
 
         const sampleDigestData = {
@@ -399,7 +446,15 @@ export class EmailQueueService {
         // Filter recalls affecting this state
         const stateRecalls = recalls.filter(recall => {
           const affectedStates = this.getAffectedStates(recall);
-          return affectedStates.includes(state);
+          const isStateSpecific = affectedStates.includes(state);
+          const isNationwide = affectedStates.includes('Nationwide');
+          const isAllStatesSubscription = state === 'ALL';
+          
+          // Include recall if:
+          // 1. It specifically affects this state, OR
+          // 2. It's a nationwide recall (affects all states), OR  
+          // 3. User subscribed to "ALL" states (receives everything)
+          return isStateSpecific || isNationwide || isAllStatesSubscription;
         });
 
         if (stateRecalls.length > 0) {
