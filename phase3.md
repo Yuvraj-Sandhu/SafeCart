@@ -98,7 +98,7 @@ Public user accounts with simplified immediate alert preferences:
 
 **Route - IMPLEMENTED**: `/account/alerts`
 
-### Step 4: Admin Email Dashboard - PLANNED IMPLEMENTATION
+### Step 4: Admin Email Dashboard - COMPLETED IMPLEMENTATION
 
 **Overview**: Centralized dashboard for managing email digests with both manual and queue-based systems.
 
@@ -188,6 +188,65 @@ Each subscriber receives only recalls affecting their selected states:
 
 **History**:
 - `GET /api/admin/email-history` - View past digests with stats
+
+#### Manual Testing Setup
+
+To manually test the email dashboard system, add sample data to Firestore collections:
+
+**For Automatic Queues** (`email_queues` collection):
+```javascript
+// Document ID: "usda_daily_2024_01_19" (today's date)
+{
+  type: "USDA_DAILY",
+  status: "pending",
+  recallIds: ["actual-recall-id-1", "actual-recall-id-2"],
+  scheduledFor: null,
+  createdAt: [Firestore timestamp],
+  lastUpdated: [Firestore timestamp]
+}
+
+// Document ID: "fda_weekly_2024_w03" (current week)  
+{
+  type: "FDA_WEEKLY",
+  status: "pending", 
+  recallIds: ["fda-recall-id-1", "fda-recall-id-2"],
+  scheduledFor: null,
+  createdAt: [Firestore timestamp],
+  lastUpdated: [Firestore timestamp]
+}
+```
+
+**For Email History** (`email_digests` collection):
+```javascript
+// Document ID: "digest_1705123456789" (any timestamp)
+{
+  type: "manual", // or "usda_daily", "fda_weekly", "test"
+  sentAt: [Firestore timestamp],
+  sentBy: "Admin Name",
+  recallCount: 3,
+  totalRecipients: 150,
+  recalls: [
+    {
+      id: "recall-id-1",
+      title: "Ground Beef Recall - E. coli Risk",
+      source: "USDA"
+    },
+    {
+      id: "recall-id-2", 
+      title: "Frozen Vegetables - Listeria",
+      source: "FDA"
+    }
+  ],
+  emailHtml: "<html><body>Sample digest content</body></html>",
+  queueId: "usda_daily_2024_01_19" // optional
+}
+```
+
+**Testing Steps**:
+1. Add queue documents using today's date format
+2. Use actual recall IDs from your `recalls`/`fda_recalls` collections
+3. Add digest history with past dates to see in Email History tab
+4. Access `/internal/admin/email-dashboard` to view populated data
 
 ### Step 5: Queue Integration with Sync Services - TO BE IMPLEMENTED
 

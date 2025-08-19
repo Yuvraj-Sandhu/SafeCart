@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { requireAuth, requireAdmin } from '../middleware/auth.middleware';
+import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import { emailQueueService } from '../services/email/queue.service';
 import logger from '../utils/logger';
 
@@ -18,7 +18,7 @@ const router = Router();
  * GET /api/admin/queues
  * Get both queue statuses (USDA and FDA)
  */
-router.get('/queues', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.get('/queues', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const queues = await emailQueueService.getQueues();
     res.json({
@@ -38,7 +38,7 @@ router.get('/queues', requireAuth, requireAdmin, async (req: Request, res: Respo
  * GET /api/admin/queues/:type/preview
  * Get queue preview with full recall details
  */
-router.get('/queues/:type/preview', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.get('/queues/:type/preview', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
     
@@ -67,7 +67,7 @@ router.get('/queues/:type/preview', requireAuth, requireAdmin, async (req: Reque
  * PUT /api/admin/queues/:type
  * Update queue (remove recalls)
  */
-router.put('/queues/:type', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.put('/queues/:type', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
     const { recallIds } = req.body;
@@ -104,7 +104,7 @@ router.put('/queues/:type', requireAuth, requireAdmin, async (req: Request, res:
  * POST /api/admin/queues/:type/send
  * Send queue manually
  */
-router.post('/queues/:type/send', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.post('/queues/:type/send', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
     const { testMode } = req.body;
@@ -144,7 +144,7 @@ router.post('/queues/:type/send', requireAuth, requireAdmin, async (req: Request
  * DELETE /api/admin/queues/:type
  * Cancel/delete queue
  */
-router.delete('/queues/:type', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.delete('/queues/:type', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { type } = req.params;
     
@@ -173,7 +173,7 @@ router.delete('/queues/:type', requireAuth, requireAdmin, async (req: Request, r
  * POST /api/admin/digest/test
  * Send test email to admin
  */
-router.post('/digest/test', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.post('/digest/test', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { recallIds } = req.body;
     const adminEmail = (req as any).user?.email;
@@ -203,7 +203,7 @@ router.post('/digest/test', requireAuth, requireAdmin, async (req: Request, res:
  * POST /api/admin/digest/send
  * Send manual digest to all subscribers
  */
-router.post('/digest/send', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.post('/digest/send', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { recallIds } = req.body;
     const sentBy = (req as any).user?.email || 'admin';
@@ -234,7 +234,7 @@ router.post('/digest/send', requireAuth, requireAdmin, async (req: Request, res:
  * GET /api/admin/email-history
  * Get paginated email history
  */
-router.get('/email-history', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+router.get('/email-history', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;

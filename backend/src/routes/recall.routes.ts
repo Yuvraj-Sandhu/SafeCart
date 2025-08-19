@@ -22,7 +22,7 @@ import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
 import { SyncService } from '../services/sync.service';
 import { PendingChangesService } from '../services/pending-changes.service';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -245,7 +245,7 @@ router.get('/recalls/:id', async (req: Request, res: Response) => {
  * @example
  * POST /api/sync/trigger
  */
-router.post('/sync/trigger', async (req: Request, res: Response) => {
+router.post('/sync/trigger', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     res.json({
       success: true,
@@ -282,7 +282,7 @@ router.post('/sync/trigger', async (req: Request, res: Response) => {
  * Content-Type: application/json
  * { "years": 3 }
  */
-router.post('/sync/historical', async (req: Request, res: Response) => {
+router.post('/sync/historical', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const years = parseInt(req.body.years) || 2;
     
@@ -321,7 +321,7 @@ router.post('/sync/historical', async (req: Request, res: Response) => {
  * Content-Type: application/json
  * { "days": 30 }
  */
-router.post('/sync/fda/trigger', async (req: Request, res: Response) => {
+router.post('/sync/fda/trigger', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { days = 60 } = req.body;
     
@@ -360,7 +360,7 @@ router.post('/sync/fda/trigger', async (req: Request, res: Response) => {
  * Content-Type: application/json
  * { "days": 730 }
  */
-router.post('/sync/fda/historical', async (req: Request, res: Response) => {
+router.post('/sync/fda/historical', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { days = 365 } = req.body;
     
@@ -535,7 +535,7 @@ router.post('/recalls/batch', async (req: Request, res: Response) => {
  *   }
  * }
  */
-router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { display } = req.body;
@@ -602,7 +602,7 @@ router.put('/recalls/:id/display', authenticate, async (req: Request, res: Respo
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, requireAdmin, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];
