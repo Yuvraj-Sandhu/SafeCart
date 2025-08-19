@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { EditableRecallList } from '@/components/EditableRecallList';
+import { EditModal } from '@/components/EditModal';
 import { UnifiedRecall } from '@/types/recall.types';
 import { api } from '@/services/api';
 import styles from './AutomaticQueuesTab.module.css';
@@ -51,6 +52,15 @@ export function AutomaticQueuesTab() {
     loading: false
   });
 
+  // Edit modal state for editing recalls within preview
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    recall: UnifiedRecall | null;
+  }>({
+    isOpen: false,
+    recall: null
+  });
+
   useEffect(() => {
     // Prevent double API calls in React StrictMode (development)
     if (hasFetched.current) return;
@@ -79,96 +89,43 @@ export function AutomaticQueuesTab() {
     setPreviewModal(prev => ({ ...prev, loading: true, isOpen: true, queueType }));
     
     try {
-      // TODO: Replace with actual API call
-      // const response = await api.getQueuePreview(queueType);
-      // const previewData = response.data;
+      const response = await api.getQueuePreview(queueType);
+      const previewData = response.data;
       
-      // Mock preview data for now
-      const mockRecalls: UnifiedRecall[] = queueType === 'USDA_DAILY' ? [
-        {
-          id: 'usda-recall-1',
-          recallNumber: 'USDA-2024-001',
-          source: 'USDA' as const,
-          isActive: true,
-          classification: 'Class I',
-          recallingFirm: 'ABC Beef Company',
-          productTitle: 'Ground Beef Products',
-          productDescription: 'Various ground beef products that may be contaminated with E. coli O157:H7',
-          reasonForRecall: 'Possible E. coli O157:H7 contamination',
-          recallDate: '2024-01-18',
-          recallInitiationDate: '2024-01-18',
-          affectedStates: ['CA', 'NV', 'AZ'],
-          originalData: {},
-          images: [{ type: 'image', storageUrl: 'https://via.placeholder.com/400x300', filename: 'beef-recall.jpg' }]
-        },
-        {
-          id: 'usda-recall-2',
-          recallNumber: 'USDA-2024-002',
-          source: 'USDA' as const,
-          isActive: true,
-          classification: 'Class II',
-          recallingFirm: 'XYZ Poultry Inc',
-          productTitle: 'Chicken Breast Products',
-          productDescription: 'Frozen chicken breast products with undeclared allergens',
-          reasonForRecall: 'Undeclared soy allergen',
-          recallDate: '2024-01-18',
-          recallInitiationDate: '2024-01-18',
-          affectedStates: ['TX', 'OK', 'AR'],
-          originalData: {},
-          images: [{ type: 'image', storageUrl: 'https://via.placeholder.com/400x250', filename: 'chicken-recall.jpg' }]
-        },
-        {
-          id: 'usda-recall-3',
-          recallNumber: 'USDA-2024-003',
-          source: 'USDA' as const,
-          isActive: true,
-          classification: 'Class I',
-          recallingFirm: 'DEF Pork Products',
-          productTitle: 'Pork Sausage Links',
-          productDescription: 'Pork sausage links with possible Salmonella contamination',
-          reasonForRecall: 'Possible Salmonella contamination',
-          recallDate: '2024-01-18',
-          recallInitiationDate: '2024-01-18',
-          affectedStates: ['NY', 'NJ', 'PA'],
-          originalData: {},
-          images: []
-        }
-      ] : [
-        // FDA mock data - 8 recalls
-        ...Array.from({ length: 8 }, (_, i) => ({
-          id: `fda-recall-${i + 1}`,
-          recallNumber: `FDA-2024-${String(i + 1).padStart(3, '0')}`,
-          source: 'FDA' as const,
-          isActive: true,
-          classification: i % 3 === 0 ? 'Class I' : i % 2 === 0 ? 'Class II' : 'Class III',
-          recallingFirm: `FDA Company ${String.fromCharCode(65 + i)}`,
-          productTitle: `FDA Product ${i + 1}`,
-          productDescription: `FDA product ${i + 1} description with various safety issues`,
-          reasonForRecall: `Safety issue ${i + 1}`,
-          recallDate: '2024-01-15',
-          recallInitiationDate: '2024-01-15',
-          affectedStates: ['CA', 'TX', 'FL'],
-          originalData: {},
-          images: i % 3 === 0 ? [] : [{ type: 'image', storageUrl: `https://via.placeholder.com/400x${300 + i * 10}`, filename: `fda-recall-${i + 1}.jpg` }]
-        }))
-      ];
-      
-      const mockPreviewData: QueuePreviewData = {
-        queue: queueType === 'USDA_DAILY' ? usdaQueue! : fdaQueue!,
-        recalls: mockRecalls,
-        imageStats: {
-          total: mockRecalls.length,
-          withImages: mockRecalls.filter(r => r.images && r.images.length > 0).length
-        }
-      };
+      // Transform RecallData to UnifiedRecall format for EditableRecallList
+      const transformedRecalls = previewData.recalls.map((recall: any) => ({
+        ...recall,
+        // Map RecallData fields to UnifiedRecall fields
+        productTitle: recall.title,
+        recallingFirm: recall.company,
+        productDescription: recall.description,
+        reasonForRecall: recall.reason,
+        affectedStates: recall.affectedStates || [],
+        // Set required fields with defaults
+        source: recall.source,
+        isActive: true,
+        classification: recall.classification,
+        // Transform primaryImage string to images array structure
+        images: recall.primaryImage ? [{
+          storageUrl: recall.primaryImage,
+          type: 'image',
+          filename: `${recall.id}_primary`
+        }] : [],
+        // Set recallUrl if available
+        recallUrl: recall.recallUrl,
+        originalData: recall
+      }));
       
       // All recalls are initially selected
-      const allRecallIds = new Set(mockRecalls.map(r => r.id));
+      const allRecallIds = new Set<string>(transformedRecalls.map((r: UnifiedRecall) => r.id));
       
       setPreviewModal({
         isOpen: true,
         queueType,
-        data: mockPreviewData,
+        data: {
+          ...previewData,
+          recalls: transformedRecalls
+        },
         selectedRecalls: allRecallIds,
         loading: false
       });
@@ -181,8 +138,14 @@ export function AutomaticQueuesTab() {
   const handleSendNow = async (queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
     if (confirm(`Are you sure you want to send the ${queueType === 'USDA_DAILY' ? 'USDA' : 'FDA'} queue now?`)) {
       console.log('Sending queue:', queueType);
-      // TODO: Implement send - api.sendQueue(queueType)
-      await loadQueues();
+      try {
+        const result = await api.sendQueue(queueType);
+        alert(`Queue sent successfully!\n- ${result.totalRecipients} recipients\n- ${result.recallCount} recalls`);
+        await loadQueues();
+      } catch (error) {
+        console.error('Failed to send queue:', error);
+        alert('Failed to send queue. Please try again.');
+      }
     }
   };
 
@@ -190,8 +153,14 @@ export function AutomaticQueuesTab() {
     const queueName = queueType === 'USDA_DAILY' ? 'USDA daily' : 'FDA weekly';
     if (confirm(`Are you sure you want to cancel and delete the ${queueName} queue? This cannot be undone.`)) {
       console.log('Cancelling queue:', queueType);
-      // TODO: Implement cancel - api.cancelQueue(queueType)
-      await loadQueues();
+      try {
+        await api.cancelQueue(queueType);
+        alert(`${queueName} queue cancelled successfully.`);
+        await loadQueues();
+      } catch (error) {
+        console.error('Failed to cancel queue:', error);
+        alert('Failed to cancel queue. Please try again.');
+      }
     }
   };
 
@@ -217,6 +186,34 @@ export function AutomaticQueuesTab() {
     setPreviewModal(prev => ({ ...prev, selectedRecalls: new Set() }));
   };
 
+  const handleEditInPreview = (recall: UnifiedRecall) => {
+    setEditModal({
+      isOpen: true,
+      recall
+    });
+  };
+
+  const handleSaveEdit = async (updatedRecall: UnifiedRecall) => {
+    // Update the recall in the preview data
+    if (previewModal.data) {
+      const updatedRecalls = previewModal.data.recalls.map(r => 
+        r.id === updatedRecall.id ? updatedRecall : r
+      );
+      
+      setPreviewModal(prev => ({
+        ...prev,
+        data: {
+          ...prev.data!,
+          recalls: updatedRecalls
+        }
+      }));
+    }
+    
+    // Close edit modal
+    setEditModal({ isOpen: false, recall: null });
+    console.log('Recall updated successfully in queue preview');
+  };
+
   const handleSaveChanges = async () => {
     if (!previewModal.data || !previewModal.queueType) return;
     
@@ -236,8 +233,7 @@ export function AutomaticQueuesTab() {
           removedRecalls: originalRecallIds.filter(id => !previewModal.selectedRecalls.has(id))
         });
         
-        // TODO: Implement API call to update queue
-        // await api.updateQueue(previewModal.queueType, { recallIds: selectedRecallIds });
+        await api.updateQueue(previewModal.queueType, selectedRecallIds);
         
         // Update local state
         if (previewModal.queueType === 'USDA_DAILY') {
@@ -466,7 +462,7 @@ export function AutomaticQueuesTab() {
                     recalls={previewModal.data.recalls}
                     loading={false}
                     error={null}
-                    onEdit={() => {}} // No edit functionality needed in queue preview
+                    onEdit={handleEditInPreview} // Enable edit functionality in preview
                     enableSelection={true}
                     selectedRecalls={previewModal.selectedRecalls}
                     onRecallSelect={handleRecallSelect}
@@ -496,6 +492,15 @@ export function AutomaticQueuesTab() {
             )}
           </div>
         </div>
+      )}
+      
+      {/* Edit Modal for editing recalls within preview */}
+      {editModal.isOpen && editModal.recall && (
+        <EditModal
+          recall={editModal.recall}
+          onClose={() => setEditModal({ isOpen: false, recall: null })}
+          onSave={handleSaveEdit}
+        />
       )}
     </div>
   );

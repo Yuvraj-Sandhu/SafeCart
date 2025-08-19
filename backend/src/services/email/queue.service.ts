@@ -419,7 +419,7 @@ export class EmailQueueService {
             description: data?.field_summary || 'No description available',
             reason: data?.field_product_items || 'Contamination concerns',
             primaryImage: EmailDigestService.getPrimaryImage(data),
-            recallUrl: data?.display?.previewUrl || `https://safecart.app/recall/${usdaDoc.id}`,
+            recallUrl: data?.display?.previewUrl,
             source: 'USDA' as const,
             affectedStates: data?.affectedStatesArray || []
           });
@@ -439,7 +439,7 @@ export class EmailQueueService {
             description: data?.product_description || 'No description available',
             reason: data?.reason_for_recall || 'Safety concerns',
             primaryImage: EmailDigestService.getPrimaryImage(data),
-            recallUrl: data?.display?.previewUrl || `https://safecart.app/fda-recall/${fdaDoc.id}`,
+            recallUrl: data?.display?.previewUrl,
             source: 'FDA' as const,
             affectedStates: data?.manualStatesOverride || data?.affectedStatesArray || []
           });
