@@ -546,23 +546,38 @@ export class EmailQueueService {
    * Private helper: Get subscribers grouped by state
    */
   private async getSubscribersByState(): Promise<{ [state: string]: any[] }> {
+    logger.info('Querying for subscribed users...');
+    
     const snapshot = await db.collection('users')
       .where('emailPreferences.subscribed', '==', true)
       .get();
+
+    logger.info(`Found ${snapshot.size} users with subscribed=true`);
 
     const subscribersByState: { [state: string]: any[] } = {};
 
     snapshot.docs.forEach(doc => {
       const user = doc.data();
+      const userEmail = user.email || doc.id;
+      
+      logger.info(`Processing user: ${userEmail}`);
+      logger.info(`User emailPreferences:`, JSON.stringify(user.emailPreferences, null, 2));
+      
       const states = user.emailPreferences?.states || [];
+      logger.info(`User ${userEmail} subscribed to states: [${states.join(', ')}]`);
       
       states.forEach((state: string) => {
         if (!subscribersByState[state]) {
           subscribersByState[state] = [];
         }
         subscribersByState[state].push(user);
+        logger.info(`Added user ${userEmail} to state ${state}`);
       });
     });
+
+    logger.info(`Final subscriber distribution:`, Object.keys(subscribersByState).map(state => 
+      `${state}: ${subscribersByState[state].length} subscribers`
+    ));
 
     return subscribersByState;
   }
