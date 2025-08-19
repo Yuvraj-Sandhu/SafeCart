@@ -187,6 +187,13 @@ export class EmailQueueService {
       // Get all subscribed users grouped by state
       const subscribersByState = await this.getSubscribersByState();
       
+      // Debug logging
+      logger.info(`Found ${Object.keys(subscribersByState).length} states with subscribers`);
+      logger.info(`Total recalls in queue: ${recalls.length}`);
+      for (const [state, subscribers] of Object.entries(subscribersByState)) {
+        logger.info(`State ${state}: ${subscribers.length} subscribers`);
+      }
+      
       let totalRecipients = 0;
       const failedSends: string[] = [];
 
@@ -221,6 +228,9 @@ export class EmailQueueService {
 
         const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
         digestHtml = sampleEmailOptions.html;
+        logger.info(`Generated email HTML length: ${digestHtml?.length || 0} characters`);
+      } else {
+        logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
 
       // Send state-specific emails
@@ -233,6 +243,7 @@ export class EmailQueueService {
         });
 
         if (stateRecalls.length > 0) {
+          logger.info(`Sending ${stateRecalls.length} recalls to ${subscribers.length} subscribers in ${state}`);
           // Send to all subscribers in this state
           for (const subscriber of subscribers) {
             try {
@@ -249,14 +260,22 @@ export class EmailQueueService {
               };
 
               const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
-              await this.emailService.sendEmail(emailOptions);
+              const result = await this.emailService.sendEmail(emailOptions);
               
-              totalRecipients++;
+              if (result.success) {
+                logger.info(`Email sent successfully to ${subscriber.email}`);
+                totalRecipients++;
+              } else {
+                logger.error(`Email failed to ${subscriber.email}: ${result.error}`);
+                failedSends.push(subscriber.email);
+              }
             } catch (error) {
               logger.error(`Failed to send email to ${subscriber.email}:`, error);
               failedSends.push(subscriber.email);
             }
           }
+        } else {
+          logger.info(`No recalls for state ${state}, skipping ${subscribers.length} subscribers`);
         }
       }
 
@@ -370,6 +389,9 @@ export class EmailQueueService {
 
         const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
         digestHtml = sampleEmailOptions.html;
+        logger.info(`Generated email HTML length: ${digestHtml?.length || 0} characters`);
+      } else {
+        logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
 
       // Send state-specific emails

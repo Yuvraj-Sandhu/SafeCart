@@ -18,8 +18,9 @@
   border-radius: 1rem;
   border: 2px solid;
   width: 100%;
-  max-width: 1000px;
-  max-height: 90vh;
+  max-width: 700px;
+  height: 95vh;
+  max-height: 95vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -81,7 +82,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  min-height: 600px;
+  margin: 1rem 2rem;
 }
 
 .emailIframe {
@@ -123,11 +125,12 @@
   }
   
   .modalContent {
-    max-height: 95vh;
+    max-width: 95vw;
+    height: 90vh;
+    max-height: 90vh;
   }
   
-  
   .emailFrame {
-    min-height: 300px;
+    min-height: 400px;
   }
 }
