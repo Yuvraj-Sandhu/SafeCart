@@ -105,7 +105,6 @@ export function EmailPreviewModal({ digest, onClose }: EmailPreviewModalProps) {
                 }}
               >
                 <p>Email preview not available</p>
-                <p>This digest was sent before HTML storage was implemented.</p>
               </div>
             )}
           </div>

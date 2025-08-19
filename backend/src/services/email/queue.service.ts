@@ -34,7 +34,7 @@ export interface EmailQueue {
 export interface EmailDigestRecord {
   id: string;
   type: 'manual' | 'usda_daily' | 'fda_weekly' | 'test';
-  sentAt: Date;
+  sentAt: Date | string; // Date when stored, string (ISO) when returned from API
   sentBy: string;
   recallCount: number;
   totalRecipients: number;
@@ -476,10 +476,15 @@ export class EmailQueueService {
         .offset(offset)
         .get();
 
-      const digests = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EmailDigestRecord[];
+      const digests = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Convert Firestore timestamp to ISO string for frontend
+          sentAt: data.sentAt ? this.convertFirestoreTimestamp(data.sentAt) : new Date().toISOString()
+        };
+      }) as EmailDigestRecord[];
 
       return { digests, totalPages };
     } catch (error) {
@@ -524,7 +529,7 @@ export class EmailQueueService {
             id: fdaDoc.id,
             title: data?.display?.previewTitle || data?.llmTitle || data?.product_description || 'Food Recall',
             company: data?.recalling_firm || 'Unknown Company',
-            recallDate: data?.report_date,
+            recallDate: this.formatFDADate(data?.report_date),
             classification: data?.classification,
             description: data?.product_description || 'No description available',
             reason: data?.reason_for_recall || 'Safety concerns',
@@ -620,6 +625,29 @@ export class EmailQueueService {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
     const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+
+  /**
+   * Private helper: Format FDA date from YYYYMMDD to YYYY-MM-DD
+   */
+  private formatFDADate(dateString: string | undefined): string {
+    if (!dateString) return '';
+    
+    // If already in YYYY-MM-DD format, return as is
+    if (dateString.includes('-')) {
+      return dateString;
+    }
+    
+    // Convert YYYYMMDD to YYYY-MM-DD
+    if (dateString.length === 8) {
+      const year = dateString.substring(0, 4);
+      const month = dateString.substring(4, 6);
+      const day = dateString.substring(6, 8);
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Return original if format is unexpected
+    return dateString;
   }
 
   /**

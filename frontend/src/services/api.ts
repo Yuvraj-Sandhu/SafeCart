@@ -445,7 +445,9 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to fetch email history');
     }
-    return response.json();
+    const result = await response.json();
+    // Backend wraps response in { success: true, data: { digests, totalPages } }
+    return result.data;
   }
 };
 
