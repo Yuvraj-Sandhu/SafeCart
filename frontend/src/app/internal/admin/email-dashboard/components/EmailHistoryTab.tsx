@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { EmailPreviewModal } from '@/components/ui/EmailPreviewModal';
@@ -33,6 +33,10 @@ export function EmailHistoryTab() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortField, setSortField] = useState<SortField>('sentAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Ref to prevent double API calls in development (React StrictMode)
+  const hasFetched = useRef(false);
+  const lastPageFetched = useRef<number>(0);
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
     digest: EmailDigest | null;
@@ -40,6 +44,13 @@ export function EmailHistoryTab() {
   const itemsPerPage = 10;
 
   useEffect(() => {
+    // Prevent double API calls in React StrictMode (development)
+    // Allow legitimate page changes but prevent duplicate calls for same page
+    if (hasFetched.current && lastPageFetched.current === currentPage) return;
+    
+    hasFetched.current = true;
+    lastPageFetched.current = currentPage;
+    
     loadHistory();
   }, [currentPage]);
 

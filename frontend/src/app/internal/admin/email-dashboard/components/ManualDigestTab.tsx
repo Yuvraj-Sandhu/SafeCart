@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
@@ -22,6 +22,9 @@ export function ManualDigestTab() {
   const [imageStats, setImageStats] = useState({ total: 0, withImages: 0 });
   const [isSending, setIsSending] = useState(false);
   
+  // Ref to prevent double API calls in development (React StrictMode)
+  const hasFetched = useRef(false);
+  
   // Edit modal state
   const [editModal, setEditModal] = useState<{
     isOpen: boolean;
@@ -33,6 +36,10 @@ export function ManualDigestTab() {
 
   // Check server health on mount
   useEffect(() => {
+    // Prevent double API calls in React StrictMode (development)
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+    
     api.getHealth().catch(() => {
       setError('Backend server is not running. Please start the server on port 3001.');
     });

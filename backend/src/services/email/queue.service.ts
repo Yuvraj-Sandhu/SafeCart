@@ -23,9 +23,9 @@ export interface EmailQueue {
   type: 'USDA_DAILY' | 'FDA_WEEKLY';
   status: 'pending' | 'processing' | 'sent' | 'cancelled';
   recallIds: string[];
-  scheduledFor: Date | null;
-  createdAt: Date;
-  lastUpdated: Date;
+  scheduledFor: string | null; // ISO string
+  createdAt: string; // ISO string
+  lastUpdated: string; // ISO string
 }
 
 /**
@@ -67,7 +67,20 @@ export class EmailQueueService {
       const usdaQueueId = `usda_daily_${today}`;
       
       const usdaDoc = await db.collection('email_queues').doc(usdaQueueId).get();
-      const usdaQueue = usdaDoc.exists ? { id: usdaDoc.id, ...usdaDoc.data() } as EmailQueue : null;
+      let usdaQueue: EmailQueue | null = null;
+      
+      if (usdaDoc.exists) {
+        const data = usdaDoc.data()!;
+        usdaQueue = {
+          id: usdaDoc.id,
+          type: data.type,
+          status: data.status,
+          recallIds: data.recallIds || [],
+          scheduledFor: data.scheduledFor ? this.convertFirestoreTimestamp(data.scheduledFor) : null,
+          createdAt: data.createdAt ? this.convertFirestoreTimestamp(data.createdAt) : new Date().toISOString(),
+          lastUpdated: data.lastUpdated ? this.convertFirestoreTimestamp(data.lastUpdated) : new Date().toISOString()
+        } as any;
+      }
 
       // Get current week's FDA queue
       const week = this.getWeekNumber(new Date());
@@ -75,7 +88,20 @@ export class EmailQueueService {
       const fdaQueueId = `fda_weekly_${year}_w${String(week).padStart(2, '0')}`;
       
       const fdaDoc = await db.collection('email_queues').doc(fdaQueueId).get();
-      const fdaQueue = fdaDoc.exists ? { id: fdaDoc.id, ...fdaDoc.data() } as EmailQueue : null;
+      let fdaQueue: EmailQueue | null = null;
+      
+      if (fdaDoc.exists) {
+        const data = fdaDoc.data()!;
+        fdaQueue = {
+          id: fdaDoc.id,
+          type: data.type,
+          status: data.status,
+          recallIds: data.recallIds || [],
+          scheduledFor: data.scheduledFor ? this.convertFirestoreTimestamp(data.scheduledFor) : null,
+          createdAt: data.createdAt ? this.convertFirestoreTimestamp(data.createdAt) : new Date().toISOString(),
+          lastUpdated: data.lastUpdated ? this.convertFirestoreTimestamp(data.lastUpdated) : new Date().toISOString()
+        } as any;
+      }
 
       return { usda: usdaQueue, fda: fdaQueue };
     } catch (error) {
@@ -465,6 +491,30 @@ export class EmailQueueService {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
     const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+
+  /**
+   * Private helper: Convert Firestore timestamp to ISO string
+   */
+  private convertFirestoreTimestamp(timestamp: any): string {
+    // Handle Firestore Timestamp objects that have been serialized
+    if (timestamp && timestamp._seconds !== undefined) {
+      return new Date(timestamp._seconds * 1000 + (timestamp._nanoseconds || 0) / 1000000).toISOString();
+    }
+    // Handle native Firestore Timestamp objects (if they have toDate method)
+    if (timestamp && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toISOString();
+    }
+    // Handle regular Date objects
+    if (timestamp instanceof Date) {
+      return timestamp.toISOString();
+    }
+    // Handle ISO strings (already converted)
+    if (typeof timestamp === 'string') {
+      return timestamp;
+    }
+    // Fallback
+    return new Date().toISOString();
   }
 }
 

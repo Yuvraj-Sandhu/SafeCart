@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { EditableRecallList } from '@/components/EditableRecallList';
@@ -13,9 +13,9 @@ interface QueueData {
   type: 'USDA_DAILY' | 'FDA_WEEKLY';
   status: 'pending' | 'processing' | 'sent' | 'cancelled';
   recallIds: string[]; // Just store IDs
-  scheduledFor: Date | null;
-  createdAt: Date;
-  lastUpdated: Date;
+  scheduledFor: string | null; // ISO string
+  createdAt: string; // ISO string  
+  lastUpdated: string; // ISO string
 }
 
 interface QueuePreviewData {
@@ -33,6 +33,9 @@ export function AutomaticQueuesTab() {
   const [fdaQueue, setFdaQueue] = useState<QueueData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Ref to prevent double API calls in development (React StrictMode)
+  const hasFetched = useRef(false);
+  
   // Preview modal state
   const [previewModal, setPreviewModal] = useState<{
     isOpen: boolean;
@@ -49,6 +52,10 @@ export function AutomaticQueuesTab() {
   });
 
   useEffect(() => {
+    // Prevent double API calls in React StrictMode (development)
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+    
     loadQueues();
   }, []);
 
@@ -57,18 +64,7 @@ export function AutomaticQueuesTab() {
     try {
       const response = await api.getQueues();
       
-      // Convert date strings to Date objects if needed
-      if (response.data.usda) {
-        response.data.usda.scheduledFor = response.data.usda.scheduledFor ? new Date(response.data.usda.scheduledFor) : null;
-        response.data.usda.createdAt = new Date(response.data.usda.createdAt);
-        response.data.usda.lastUpdated = new Date(response.data.usda.lastUpdated);
-      }
-      
-      if (response.data.fda) {
-        response.data.fda.scheduledFor = response.data.fda.scheduledFor ? new Date(response.data.fda.scheduledFor) : null;
-        response.data.fda.createdAt = new Date(response.data.fda.createdAt);
-        response.data.fda.lastUpdated = new Date(response.data.fda.lastUpdated);
-      }
+      // Backend now returns properly formatted ISO date strings
       
       setUsdaQueue(response.data.usda);
       setFdaQueue(response.data.fda);
@@ -245,9 +241,9 @@ export function AutomaticQueuesTab() {
         
         // Update local state
         if (previewModal.queueType === 'USDA_DAILY') {
-          setUsdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date() } : null);
+          setUsdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date().toISOString() } : null);
         } else {
-          setFdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date() } : null);
+          setFdaQueue(prev => prev ? { ...prev, recallIds: selectedRecallIds, lastUpdated: new Date().toISOString() } : null);
         }
         
         // Close modal
@@ -265,11 +261,13 @@ export function AutomaticQueuesTab() {
     setPreviewModal({ isOpen: false, queueType: null, data: null, selectedRecalls: new Set(), loading: false });
   };
 
-  const formatScheduleTime = (date: Date | null, queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
+  const formatScheduleTime = (dateISOString: string | null, queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
     if (queueType === 'FDA_WEEKLY') {
       return 'Manual send required';
     }
-    if (!date) return 'Not scheduled';
+    if (!dateISOString) return 'Not scheduled';
+    
+    const date = new Date(dateISOString);
     
     const today = new Date();
     const isToday = date.toDateString() === today.toDateString();
@@ -365,7 +363,7 @@ export function AutomaticQueuesTab() {
               Created:
             </span>
             <span className={styles.summaryValue} style={{ color: currentTheme.text }}>
-              {queue.createdAt.toLocaleDateString()}
+              {new Date(queue.createdAt).toLocaleDateString()}
             </span>
           </div>
           <div className={styles.summaryItem}>
@@ -373,7 +371,7 @@ export function AutomaticQueuesTab() {
               Last Updated:
             </span>
             <span className={styles.summaryValue} style={{ color: currentTheme.text }}>
-              {queue.lastUpdated.toLocaleTimeString()}
+              {new Date(queue.lastUpdated).toLocaleTimeString()}
             </span>
           </div>
         </div>
