@@ -233,24 +233,54 @@ export function UserMenu() {
                 style={{ backgroundColor: currentTheme.cardBorder }}
               />
               
-              {/* Pending section - for all users */}
-              <button 
-                className={styles.menuItem}
-                onClick={handlePendingClick}
-              >
-                <span>Pending</span>
-                {pendingChanges.length > 0 && (
-                  <span 
-                    className={styles.menuCount}
-                    style={{ 
-                      backgroundColor: internal_user?.role === 'admin' ? currentTheme.warning : currentTheme.info,
-                      color: 'white'
-                    }}
-                  >
-                    {pendingChanges.length}
-                  </span>
-                )}
-              </button>
+              {/* Edit button - when on pending pages or email dashboard */}
+              {(pathname === '/internal/pending' || pathname === '/internal/admin/pending' || pathname === '/internal/admin/email-dashboard') && (
+                <button 
+                  className={styles.menuItem}
+                  onClick={() => {
+                    window.location.href = '/internal/edit';
+                    setIsOpen(false);
+                  }}
+                  style={{ color: currentTheme.text }}
+                >
+                  <span>Edit</span>
+                </button>
+              )}
+              
+              {/* Pending section - for all users (hide when on pending pages) */}
+              {!(pathname === '/internal/pending' || pathname === '/internal/admin/pending') && (
+                <button 
+                  className={styles.menuItem}
+                  onClick={handlePendingClick}
+                >
+                  <span>Pending</span>
+                  {pendingChanges.length > 0 && (
+                    <span 
+                      className={styles.menuCount}
+                      style={{ 
+                        backgroundColor: internal_user?.role === 'admin' ? currentTheme.warning : currentTheme.info,
+                        color: 'white'
+                      }}
+                    >
+                      {pendingChanges.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              
+              {/* Email Dashboard - admin only (hide when on email dashboard) */}
+              {internal_user?.role === 'admin' && pathname !== '/internal/admin/email-dashboard' && (
+                <button 
+                  className={styles.menuItem}
+                  onClick={() => {
+                    window.location.href = '/internal/admin/email-dashboard';
+                    setIsOpen(false);
+                  }}
+                  style={{ color: currentTheme.text }}
+                >
+                  <span>Email Dashboard</span>
+                </button>
+              )}
               
               {/* Logout button */}
               <button 

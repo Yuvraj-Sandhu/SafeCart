@@ -61,9 +61,17 @@ export function RecallDigest({
     }
   };
 
+  const formatStateName = (stateName: string) => {
+    // Convert "ALL" to more natural language
+    if (stateName === 'ALL') {
+      return 'Nationwide';
+    }
+    return stateName;
+  };
+
   const previewText = recalls.length === 0 
-    ? `Good news! No food recalls reported in ${state} today.`
-    : `${recalls.length} food recall${recalls.length > 1 ? 's' : ''} reported in ${state}. Stay informed and stay safe.`;
+    ? `Good news! No food recalls reported ${formatStateName(state)} today.`
+    : `${recalls.length} food recall${recalls.length > 1 ? 's' : ''} reported ${formatStateName(state)}. Stay informed and stay safe.`;
 
   const unsubscribeUrl = `https://api.safecart.app/api/user/unsubscribe/${user.unsubscribeToken}`;
 
@@ -84,7 +92,7 @@ export function RecallDigest({
           Hello {user.name},
         </Text>
         <Text style={digestInfo}>
-          Your SafeCart digest for <strong>{state}</strong> {formatDate(digestDate)}
+          Your SafeCart digest for <strong>{formatStateName(state)}</strong> {formatDate(digestDate)}
         </Text>
       </Section>
 
@@ -95,7 +103,7 @@ export function RecallDigest({
             Great news!
           </Text>
           <Text style={noRecallsText}>
-            No food recalls were reported in {state} today. We'll continue monitoring 
+            No food recalls were reported {formatStateName(state)} today. We'll continue monitoring 
             and will notify you immediately if any recalls affect your area.
           </Text>
           <Text style={tipText}>
@@ -108,7 +116,7 @@ export function RecallDigest({
           {/* Recalls Summary */}
           <Section style={summarySection}>
             <Text style={summaryTitle}>
-              {recalls.length} Food Recall{recalls.length > 1 ? 's' : ''} in {state}
+              {recalls.length} Food Recall{recalls.length > 1 ? 's' : ''} {formatStateName(state)}
             </Text>
             <Text style={summaryText}>
               We found {recalls.length} food recall{recalls.length > 1 ? 's' : ''} that may affect your area. 
@@ -141,7 +149,7 @@ export function RecallDigest({
       {/* Preference Management */}
       <Section style={preferencesSection}>
         <Text style={preferencesText}>
-          You're receiving this digest for recalls in <strong>{state}</strong>.{' '}
+          You're receiving this digest for recalls <strong>{formatStateName(state)}</strong>.{' '}
           <Link href="https://safecart.app/preferences" style={preferencesLink}>
             Update your preferences
           </Link>{' '}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { detectUserLocation, LocationData } from '@/services/geolocation';
 import { ENABLE_AUTO_LOCATION } from '@/utils/stateMapping';
 
@@ -12,12 +12,21 @@ export function useUserLocation(): UseUserLocationResult {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Ref to prevent double API call in React StrictMode
+  const hasFetchedLocation = useRef(false);
 
   useEffect(() => {
     // Only run if feature is enabled
     if (!ENABLE_AUTO_LOCATION) {
       return;
     }
+
+    // Prevent double API call in React StrictMode
+    if (hasFetchedLocation.current) {
+      return;
+    }
+    hasFetchedLocation.current = true;
 
     const fetchLocation = async () => {
       setIsLoading(true);

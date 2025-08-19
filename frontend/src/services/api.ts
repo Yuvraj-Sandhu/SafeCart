@@ -324,6 +324,130 @@ export const api = {
       total: allRecalls.length,
       source: source
     };
+  },
+
+  // ========== Admin Email Queue Methods ==========
+  
+  // Get both queue statuses
+  async getQueues(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch queues');
+    }
+    return response.json();
+  },
+
+  // Get queue preview with full recall details
+  async getQueuePreview(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}/preview`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch queue preview');
+    }
+    return response.json();
+  },
+
+  // Get email preview for queue
+  async getQueueEmailPreview(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}/email-preview`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to generate email preview');
+    }
+    return response.json();
+  },
+
+  // Update queue (remove recalls)
+  async updateQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', recallIds: string[]): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recallIds })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update queue');
+    }
+    return response.json();
+  },
+
+  // Send queue manually
+  async sendQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', testMode: boolean = false): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}/send`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ testMode })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to send queue');
+    }
+    return response.json();
+  },
+
+  // Cancel/delete queue
+  async cancelQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to cancel queue');
+    }
+    return response.json();
+  },
+
+  // Send test email
+  async sendTestDigest(recallIds: string[]): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/digest/test`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recallIds })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to send test email');
+    }
+    return response.json();
+  },
+
+  // Send manual digest to all subscribers
+  async sendManualDigest(recallIds: string[]): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/digest/send`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recallIds })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to send manual digest');
+    }
+    return response.json();
+  },
+
+  // Get email history
+  async getEmailHistory(page: number = 1, limit: number = 10): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/email-history?page=${page}&limit=${limit}`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch email history');
+    }
+    const result = await response.json();
+    // Backend wraps response in { success: true, data: { digests, totalPages } }
+    return result.data;
   }
 };
 

@@ -12,16 +12,31 @@ export function formatRecallDate(dateString: string | undefined | null): string 
   if (!dateString) return 'N/A';
   
   try {
-    // For YYYY-MM-DD format, we need to parse it carefully to avoid timezone shifts
-    // Split the date string and create date with specific values
-    const [year, month, day] = dateString.split('-').map(Number);
+    let year: number, month: number, day: number;
+    
+    if (dateString.includes('-')) {
+      // Handle YYYY-MM-DD format (USDA)
+      [year, month, day] = dateString.split('-').map(Number);
+    } else if (dateString.length === 8) {
+      // Handle YYYYMMDD format (FDA)
+      year = parseInt(dateString.substring(0, 4));
+      month = parseInt(dateString.substring(4, 6));
+      day = parseInt(dateString.substring(6, 8));
+    } else {
+      throw new Error(`Unsupported date format: ${dateString}`);
+    }
+    
+    // Validate the parsed values
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      throw new Error(`Invalid date components: ${year}-${month}-${day}`);
+    }
     
     // Create date in Eastern Time by using the date parts directly
     // This avoids the UTC parsing issue
     const date = new Date(year, month - 1, day); // month is 0-indexed
     
     // Format as MM/DD/YYYY
-    const formattedMonth = (month).toString().padStart(2, '0');
+    const formattedMonth = month.toString().padStart(2, '0');
     const formattedDay = day.toString().padStart(2, '0');
     
     return `${formattedMonth}/${formattedDay}/${year}`;

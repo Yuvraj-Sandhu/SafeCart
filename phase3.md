@@ -98,46 +98,221 @@ Public user accounts with simplified immediate alert preferences:
 
 **Route - IMPLEMENTED**: `/account/alerts`
 
-### Step 4: Admin Dashboard - FUTURE ENHANCEMENT
-Changed from scheduled digest management to immediate alert administration:
-- Real-time recall monitoring with immediate alert triggers
-- Manual override system for alert suppression if needed
-- Subscriber management and analytics dashboard
-- Preview system for testing alert templates
+### Step 4: Admin Email Dashboard - COMPLETED IMPLEMENTATION
 
-**Future API Endpoints**:
-- `GET /api/admin/email/subscribers`
-- `GET /api/admin/email/recent-alerts`
-- `POST /api/admin/email/test-alert`
-- `POST /api/admin/email/suppress-alert`
+**Overview**: Centralized dashboard for managing email digests with both manual and queue-based systems.
 
-**Future Route**: `/internal/admin/email-alerts`
+**Route**: `/internal/admin/email-dashboard`
 
-### Step 5: Immediate Alert Service - FOUNDATION READY
-System ready for immediate alert implementation:
-- Recall aggregation by state (existing)
-- Real-time alert trigger system (to be implemented)
-- Email HTML generation (templates ready)
-- Individual and batch sending logic (service layer ready)
-- Error handling and retry mechanisms (to be enhanced)
+#### Dashboard UI Structure
 
-**Implementation Priority**:
-- Webhook system to trigger alerts on new recalls
-- State-based subscriber notification logic
-- Alert deduplication to prevent spam
-- Delivery confirmation and retry logic
+**Three Main Tabs**:
+1. **Manual Digest** - Build and send custom digests
+2. **Automatic Queues** - Manage USDA/FDA recall queues  
+3. **Email History** - View past sent digests
 
-### Step 6: Real-time Alert Triggers - FUTURE IMPLEMENTATION
-Replaced scheduled digest jobs with immediate alert system:
-- Recall database webhook triggers
-- State-based subscriber lookup
-- Immediate email dispatch
-- Alert delivery tracking
+#### Manual Digest Builder
+- **Filter Controls**: Source selector (USDA/FDA/Both), date range picker
+- **Recall Display**: Shows all filtered recalls with image status indicator
+- **Status Bar**: "15 of 25 recalls have images"
+- **Actions**: 
+  - Select All checkbox for bulk selection
+  - Send Test Email (admin only)
+  - Send to All Subscribers (state-filtered)
 
-**Future Alert Jobs**:
-- `new-recall-alert`: Trigger on recall insertion/update
-- `alert-retry`: Handle failed deliveries
-- `alert-digest-fallback`: Optional daily summary for users who prefer batched alerts
+#### Automatic Queue System
+
+**USDA Daily Queue**:
+- Created by sync service when new recalls detected
+- Displays pending recalls with image status
+- Auto-triggers at 5pm ET daily if queue exists
+- Admin controls: Preview, Send Now, Cancel (delete queue)
+
+**FDA Weekly Queue**:
+- Created by sync service when new FDA recalls detected
+- Accumulates recalls throughout the week
+- NO automatic sending - fully manual control
+- Admin controls: Preview, Send Now, Cancel (delete queue)
+
+**Queue Display Format**:
+```
+USDA Queue: 3 new recalls (2 with images) - Next: Today 5pm ET
+FDA Queue: 8 new recalls (5 with images) - Manual send required
+```
+
+#### State-Based Email Filtering
+Each subscriber receives only recalls affecting their selected states:
+- Digest with 25 total recalls
+- User selected California
+- 8 recalls affect California
+- User receives email with only those 8 recalls
+
+#### Firestore Collections
+
+**email_queues**:
+```javascript
+{
+  type: 'USDA_DAILY' | 'FDA_WEEKLY',
+  status: 'pending' | 'sent' | 'cancelled',
+  recalls: [{ recallId, source, hasImage, addedAt }],
+  scheduledFor: timestamp,  // 5pm ET for USDA, null for FDA
+  imageStats: { total, withImages }
+}
+```
+
+**email_digests**:
+```javascript
+{
+  type: 'manual' | 'automatic',
+  queueId: string | null,
+  recalls: [{ recallId, source, hasImage }],
+  sentAt: timestamp,
+  sentBy: string,
+  recipientStats: { total, byState },
+  testMode: boolean
+}
+```
+
+#### API Endpoints
+
+**Manual Digest**:
+- `POST /api/admin/digest/search` - Search recalls by source and date
+- `POST /api/admin/digest/test` - Send test to admin
+- `POST /api/admin/digest/send` - Send to all subscribers
+
+**Queue Management**:
+- `GET /api/admin/queues` - Get both queue statuses
+- `GET /api/admin/queues/:type/preview` - Preview queue content
+- `POST /api/admin/queues/:type/send` - Manually send queue
+- `DELETE /api/admin/queues/:type` - Cancel/delete queue
+
+**History**:
+- `GET /api/admin/email-history` - View past digests with stats
+
+#### Manual Testing Setup
+
+To manually test the email dashboard system, add sample data to Firestore collections:
+
+**For Automatic Queues** (`email_queues` collection):
+```javascript
+// Document ID: "usda_daily_2024_01_19" (today's date)
+{
+  type: "USDA_DAILY",
+  status: "pending",
+  recallIds: ["actual-recall-id-1", "actual-recall-id-2"],
+  scheduledFor: null,
+  createdAt: [Firestore timestamp],
+  lastUpdated: [Firestore timestamp]
+}
+
+// Document ID: "fda_weekly_2024_w03" (current week)  
+{
+  type: "FDA_WEEKLY",
+  status: "pending", 
+  recallIds: ["fda-recall-id-1", "fda-recall-id-2"],
+  scheduledFor: null,
+  createdAt: [Firestore timestamp],
+  lastUpdated: [Firestore timestamp]
+}
+```
+
+**For Email History** (`email_digests` collection):
+```javascript
+// Document ID: "digest_1705123456789" (any timestamp)
+{
+  type: "manual", // or "usda_daily", "fda_weekly", "test"
+  sentAt: [Firestore timestamp],
+  sentBy: "Admin Name",
+  recallCount: 3,
+  totalRecipients: 150,
+  recalls: [
+    {
+      id: "recall-id-1",
+      title: "Ground Beef Recall - E. coli Risk",
+      source: "USDA"
+    },
+    {
+      id: "recall-id-2", 
+      title: "Frozen Vegetables - Listeria",
+      source: "FDA"
+    }
+  ],
+  emailHtml: "<html><body>Sample digest content</body></html>",
+  queueId: "usda_daily_2024_01_19" // optional
+}
+```
+
+**Testing Steps**:
+1. Add queue documents using today's date format
+2. Use actual recall IDs from your `recalls`/`fda_recalls` collections
+3. Add digest history with past dates to see in Email History tab
+4. Access `/internal/admin/email-dashboard` to view populated data
+
+### Step 5: Queue Integration with Sync Services - TO BE IMPLEMENTED
+
+**Sync Service Modifications**:
+- Update USDA sync to add new recalls to USDA_DAILY queue
+- Update FDA sync to add new recalls to FDA_WEEKLY queue  
+- Track queue status and prevent duplicates
+- Update image processing to update queue image stats
+
+**Queue Management Service**:
+```javascript
+// During sync operations
+async function onNewRecallDetected(recall) {
+  if (recall.source === 'USDA') {
+    await addToQueue('USDA_DAILY', recall);
+  } else if (recall.source === 'FDA') {
+    await addToQueue('FDA_WEEKLY', recall);
+  }
+}
+
+// Queue processing
+async function processQueue(queueType) {
+  const queue = await getActiveQueue(queueType);
+  if (!queue || queue.recalls.length === 0) return;
+  
+  // Generate digest email
+  const digest = await generateDigest(queue.recalls);
+  
+  // Send to subscribers based on states
+  await sendStateFilteredEmails(digest);
+  
+  // Mark queue as processed
+  await updateQueueStatus(queue.id, 'sent');
+}
+```
+
+### Step 6: Scheduling and Automatic Processing - TO BE IMPLEMENTED
+
+**USDA Daily Schedule**:
+- Cloud Scheduler job at 5:00 PM ET daily
+- Checks for pending USDA_DAILY queue
+- Auto-sends if queue exists and not cancelled
+- Notifies admin of send status
+
+**FDA Manual Process**:
+- No automatic scheduling
+- Queue accumulates throughout the week
+- Admin manually triggers send from dashboard
+- Queue resets after manual send
+
+**Cloud Scheduler Configuration**:
+```yaml
+# USDA Daily Job
+name: usda-daily-digest
+schedule: "0 17 * * *"  # 5pm ET
+timezone: America/New_York
+httpTarget:
+  uri: /api/admin/queues/USDA_DAILY/auto-send
+  httpMethod: POST
+```
+
+**Admin Override Capabilities**:
+- Cancel today's USDA auto-send (deletes queue)
+- Send USDA queue immediately (bypasses schedule)
+- Send FDA queue at any time (always manual)
+- Preview any queue before sending
 
 ### Step 7: Analytics & Tracking
 - Webhook handlers for email events

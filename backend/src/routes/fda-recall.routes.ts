@@ -3,7 +3,7 @@ import multer from 'multer';
 import { fdaFirebaseService } from '../services/fda/firebase.service';
 import { FDARecallResponse } from '../types/fda.types';
 import { PendingChangesService } from '../services/pending-changes.service';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, requireAdmin } from '../middleware/auth.middleware';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -166,7 +166,7 @@ router.get('/recalls/:id', async (req: Request, res: Response) => {
  * Update FDA recall display data
  * PUT /api/fda/recalls/:id/display
  */
-router.put('/recalls/:id/display', authenticate, async (req: Request, res: Response) => {
+router.put('/recalls/:id/display', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const displayData = req.body.display;
@@ -206,16 +206,13 @@ router.put('/recalls/:id/display', authenticate, async (req: Request, res: Respo
  * PUT /api/fda/recalls/:id/manual-states
  * Admin only
  */
-router.put('/recalls/:id/manual-states', authenticate, async (req: Request, res: Response) => {
+router.put('/recalls/:id/manual-states', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
-    // Check if user is admin
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Admin access required'
-      });
+    // Type guard - middleware ensures user exists
+    if (!req.user) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
     }
-    
+
     const { id } = req.params;
     const { states, useManualStates } = req.body;
     
@@ -303,7 +300,7 @@ router.get('/stats', async (req: Request, res: Response) => {
  * files: [image1.jpg, image2.png]
  * displayData: {"primaryImageIndex": 0, "previewTitle": "Custom Title"}
  */
-router.post('/recalls/:id/upload-images', authenticate, upload.array('images', 10), async (req: Request, res: Response) => {
+router.post('/recalls/:id/upload-images', authenticate, requireAdmin, upload.array('images', 10), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const files = req.files as Express.Multer.File[];

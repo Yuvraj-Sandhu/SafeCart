@@ -1,0 +1,299 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.description {
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-cardBorder);
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  font-size: 1.125rem;
+}
+
+.queuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 2rem;
+}
+
+.queueCard {
+  padding: 1.5rem;
+  border: 2px solid;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.queueHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.queueTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.queueBadge {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.emptyQueue {
+  text-align: center;
+  padding: 3rem 2rem;
+  font-size: 1.125rem;
+}
+
+.queueStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+}
+
+.statusItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statusLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.statusValue {
+  font-weight: 600;
+}
+
+/* Queue Summary Section */
+.queueSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: 0.5rem;
+}
+
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.summaryLabel {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.summaryValue {
+  font-weight: 600;
+}
+
+.queueActions {
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-cardBorder);
+}
+
+.queueActions button {
+  flex: 1;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 1rem;
+  border: 2px solid;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-cardBorder);
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.closeButton:hover {
+  background: var(--color-backgroundSecondary);
+}
+
+.modalInfo {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-cardBorder);
+}
+
+
+.modalLoading {
+  padding: 4rem;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.modalError {
+  padding: 2rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.modalRecalls {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+  width: 100%;
+  min-width: 0; /* Allow flex item to shrink below content size */
+  box-sizing: border-box;
+}
+
+/* Force width constraints on ALL content within modal recalls */
+.modalRecalls {
+  contain: layout style;
+}
+
+/* Target the specific RecallList CSS classes within modal */
+.modalRecalls :global(.expandedDetails) {
+  max-width: 100%;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.modalRecalls :global(.detailSection) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.modalRecalls :global(.detailSection p),
+.modalRecalls :global(.detailSection div) {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Force all recall cards to constrain width */
+.modalRecalls :global(.recallCard) {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+/* Force masonry columns to respect modal width */
+.modalRecalls :global(.masonryColumn) {
+  max-width: calc(100% / var(--columns, 1)) !important;
+  min-width: 0 !important;
+}
+
+.modalActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid var(--color-cardBorder);
+  background: var(--color-backgroundSecondary);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .queuesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .queueHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .statusItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .queueActions {
+    flex-direction: column;
+  }
+  
+  .modalOverlay {
+    padding: 1rem;
+  }
+  
+  .modalContent {
+    max-height: 95vh;
+  }
+  
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+}

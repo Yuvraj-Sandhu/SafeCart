@@ -9,11 +9,6 @@ export default function WelcomeEmailPreview() {
         unsubscribeToken: 'welcome-token-123456789'
       }}
       state="California"
-      schedule={{
-        weekdays: true,
-        weekends: false,
-        timeOfDay: 'morning'
-      }}
     />
   );
 }
@@ -28,30 +23,20 @@ export function WelcomeEmailMultiStatePreview() {
         unsubscribeToken: 'welcome-token-987654321'
       }}
       state="California, Texas, and New York"
-      schedule={{
-        weekdays: true,
-        weekends: true,
-        timeOfDay: 'evening'
-      }}
     />
   );
 }
 
-// Weekend only version
-export function WelcomeEmailWeekendPreview() {
+// Immediate alerts version
+export function WelcomeEmailImmediatePreview() {
   return (
     <WelcomeEmail
       user={{
         name: 'Bob Johnson',
         email: 'bob@example.com',
-        unsubscribeToken: 'weekend-token-555555555'
+        unsubscribeToken: 'immediate-token-555555555'
       }}
       state="Florida and Georgia"
-      schedule={{
-        weekdays: false,
-        weekends: true,
-        timeOfDay: 'morning'
-      }}
     />
   );
 }
