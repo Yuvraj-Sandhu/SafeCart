@@ -350,6 +350,17 @@ export const api = {
     return response.json();
   },
 
+  // Get email preview for queue
+  async getQueueEmailPreview(queueType: 'USDA_DAILY' | 'FDA_WEEKLY'): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}/email-preview`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to generate email preview');
+    }
+    return response.json();
+  },
+
   // Update queue (remove recalls)
   async updateQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', recallIds: string[]): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}`, {

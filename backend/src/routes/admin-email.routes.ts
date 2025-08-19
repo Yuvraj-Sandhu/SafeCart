@@ -64,6 +64,70 @@ router.get('/queues/:type/preview', authenticate, requireAdmin, async (req: Requ
 });
 
 /**
+ * GET /api/admin/queues/:type/email-preview
+ * Generate email HTML preview for queue
+ */
+router.get('/queues/:type/email-preview', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { type } = req.params;
+    
+    if (type !== 'USDA_DAILY' && type !== 'FDA_WEEKLY') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid queue type'
+      });
+    }
+
+    // Get queue preview data
+    const preview = await emailQueueService.getQueuePreview(type);
+    
+    // Generate email HTML with ALL recalls (no state filtering for admin preview)
+    const digestData = {
+      user: {
+        name: 'Admin Preview',
+        email: 'admin@safecart.app',
+        unsubscribeToken: 'admin-preview-token'
+      },
+      state: 'ALL', // Show all recalls regardless of state
+      recalls: preview.recalls, // All recalls in queue
+      digestDate: new Date().toISOString(),
+      isTest: true,
+      isAdminPreview: true // Flag to indicate this is admin preview
+    };
+
+    const { EmailRenderService } = require('../services/email/render.service');
+    const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+    
+    // Create digest object compatible with EmailPreviewModal
+    const digestPreview = {
+      id: `preview_${Date.now()}`,
+      type: type === 'USDA_DAILY' ? 'usda_daily' : 'fda_weekly',
+      sentAt: new Date(),
+      sentBy: 'Admin Preview (All States)',
+      recallCount: preview.recalls.length,
+      totalRecipients: 0, // Preview only - shows all recalls regardless of state
+      recalls: preview.recalls.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        source: r.source
+      })),
+      emailHtml: emailOptions.html
+    };
+
+    res.json({
+      success: true,
+      data: digestPreview
+    });
+  } catch (error) {
+    logger.error('Error generating email preview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate email preview'
+    });
+  }
+});
+
+/**
  * PUT /api/admin/queues/:type
  * Update queue (remove recalls)
  */

@@ -190,6 +190,39 @@ export class EmailQueueService {
       let totalRecipients = 0;
       const failedSends: string[] = [];
 
+      // Generate email HTML for storage (using first state with recalls as template)
+      let digestHtml = '';
+      const statesWithRecalls = Object.entries(subscribersByState).find(([state, subscribers]) => {
+        const stateRecalls = recalls.filter(recall => {
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(state);
+        });
+        return stateRecalls.length > 0 && subscribers.length > 0;
+      });
+
+      if (statesWithRecalls) {
+        const [sampleState, sampleSubscribers] = statesWithRecalls;
+        const sampleRecalls = recalls.filter(recall => {
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(sampleState);
+        });
+
+        const sampleDigestData = {
+          user: {
+            name: sampleSubscribers[0].name || 'SafeCart User',
+            email: sampleSubscribers[0].email,
+            unsubscribeToken: sampleSubscribers[0].emailPreferences?.unsubscribeToken || ''
+          },
+          state: sampleState,
+          recalls: sampleRecalls,
+          digestDate: new Date().toISOString(),
+          isTest: false
+        };
+
+        const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
+        digestHtml = sampleEmailOptions.html;
+      }
+
       // Send state-specific emails
       for (const [state, subscribers] of Object.entries(subscribersByState)) {
         // Filter recalls affecting this state
@@ -254,6 +287,7 @@ export class EmailQueueService {
           title: r.title,
           source: r.source
         })),
+        emailHtml: digestHtml, // Store sample email HTML for preview
         queueId: queue.id
       };
 
@@ -305,6 +339,39 @@ export class EmailQueueService {
       
       let totalRecipients = 0;
 
+      // Generate email HTML for storage (using first state with recalls as template)
+      let digestHtml = '';
+      const statesWithRecalls = Object.entries(subscribersByState).find(([state, subscribers]) => {
+        const stateRecalls = recalls.filter(recall => {
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(state);
+        });
+        return stateRecalls.length > 0 && subscribers.length > 0;
+      });
+
+      if (statesWithRecalls) {
+        const [sampleState, sampleSubscribers] = statesWithRecalls;
+        const sampleRecalls = recalls.filter(recall => {
+          const affectedStates = this.getAffectedStates(recall);
+          return affectedStates.includes(sampleState);
+        });
+
+        const sampleDigestData = {
+          user: {
+            name: sampleSubscribers[0].name || 'SafeCart User',
+            email: sampleSubscribers[0].email,
+            unsubscribeToken: sampleSubscribers[0].emailPreferences?.unsubscribeToken || ''
+          },
+          state: sampleState,
+          recalls: sampleRecalls,
+          digestDate: new Date().toISOString(),
+          isTest: false
+        };
+
+        const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
+        digestHtml = sampleEmailOptions.html;
+      }
+
       // Send state-specific emails
       for (const [state, subscribers] of Object.entries(subscribersByState)) {
         // Filter recalls affecting this state
@@ -352,7 +419,8 @@ export class EmailQueueService {
           id: r.id,
           title: r.title,
           source: r.source
-        }))
+        })),
+        emailHtml: digestHtml // Store sample email HTML for preview
       };
 
       // Save to email_digests collection

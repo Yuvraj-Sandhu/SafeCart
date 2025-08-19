@@ -5,6 +5,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/Button';
 import { EditableRecallList } from '@/components/EditableRecallList';
 import { EditModal } from '@/components/EditModal';
+import { EmailPreviewModal } from '@/components/ui/EmailPreviewModal';
 import { UnifiedRecall } from '@/types/recall.types';
 import { api } from '@/services/api';
 import styles from './AutomaticQueuesTab.module.css';
@@ -26,6 +27,21 @@ interface QueuePreviewData {
     total: number;
     withImages: number;
   };
+}
+
+interface EmailDigest {
+  id: string;
+  type: 'manual' | 'usda_daily' | 'fda_weekly' | 'test';
+  sentAt: Date;
+  sentBy: string;
+  recallCount: number;
+  totalRecipients: number;
+  recalls: Array<{
+    id: string;
+    title: string;
+    source: 'USDA' | 'FDA';
+  }>;
+  emailHtml?: string;
 }
 
 export function AutomaticQueuesTab() {
@@ -59,6 +75,17 @@ export function AutomaticQueuesTab() {
   }>({
     isOpen: false,
     recall: null
+  });
+
+  // Email preview modal state
+  const [emailPreviewModal, setEmailPreviewModal] = useState<{
+    isOpen: boolean;
+    digest: EmailDigest | null;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    digest: null,
+    loading: false
   });
 
   useEffect(() => {
@@ -212,6 +239,30 @@ export function AutomaticQueuesTab() {
     // Close edit modal
     setEditModal({ isOpen: false, recall: null });
     console.log('Recall updated successfully in queue preview');
+  };
+
+  const handleEmailPreview = async (queueType: 'USDA_DAILY' | 'FDA_WEEKLY') => {
+    setEmailPreviewModal(prev => ({ ...prev, loading: true, isOpen: true }));
+    
+    try {
+      const response = await api.getQueueEmailPreview(queueType);
+      const digestData = response.data;
+      
+      // Convert sentAt to Date object if it's a string
+      if (typeof digestData.sentAt === 'string') {
+        digestData.sentAt = new Date(digestData.sentAt);
+      }
+      
+      setEmailPreviewModal({
+        isOpen: true,
+        digest: digestData,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Failed to generate email preview:', error);
+      alert('Failed to generate email preview. Please try again.');
+      setEmailPreviewModal({ isOpen: false, digest: null, loading: false });
+    }
   };
 
   const handleSaveChanges = async () => {
@@ -382,6 +433,13 @@ export function AutomaticQueuesTab() {
             Preview
           </Button>
           <Button
+            onClick={() => handleEmailPreview(queue.type)}
+            variant="secondary"
+            size="small"
+          >
+            Preview Email
+          </Button>
+          <Button
             onClick={() => handleSendNow(queue.type)}
             variant="primary"
             size="small"
@@ -501,6 +559,31 @@ export function AutomaticQueuesTab() {
           onClose={() => setEditModal({ isOpen: false, recall: null })}
           onSave={handleSaveEdit}
         />
+      )}
+      
+      {/* Email Preview Modal */}
+      {emailPreviewModal.isOpen && (
+        <>
+          {emailPreviewModal.loading ? (
+            <div className={styles.modalOverlay}>
+              <div className={styles.modalContent} style={{
+                backgroundColor: currentTheme.cardBackground,
+                borderColor: currentTheme.cardBorder,
+                padding: '2rem',
+                textAlign: 'center'
+              }}>
+                <div style={{ color: currentTheme.textSecondary }}>
+                  Generating email preview...
+                </div>
+              </div>
+            </div>
+          ) : emailPreviewModal.digest && (
+            <EmailPreviewModal
+              digest={emailPreviewModal.digest}
+              onClose={() => setEmailPreviewModal({ isOpen: false, digest: null, loading: false })}
+            />
+          )}
+        </>
       )}
     </div>
   );
