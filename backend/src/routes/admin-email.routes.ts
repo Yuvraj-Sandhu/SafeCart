@@ -342,6 +342,46 @@ router.get('/email-history', authenticate, requireAdmin, async (req: Request, re
 });
 
 /**
+ * GET /api/admin/digest/:digestId/analytics
+ * Get analytics for a specific digest (for debugging)
+ */
+router.get('/digest/:digestId/analytics', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { digestId } = req.params;
+
+    if (!digestId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Digest ID is required'
+      });
+    }
+
+    // Import the webhook service for analytics
+    const { emailWebhookService } = await import('../services/email/webhook.service');
+    const analytics = await emailWebhookService.getDigestAnalytics(digestId);
+
+    if (!analytics) {
+      return res.status(404).json({
+        success: false,
+        message: 'No analytics found for this digest'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: analytics
+    });
+
+  } catch (error) {
+    logger.error('Error fetching digest analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch analytics'
+    });
+  }
+});
+
+/**
  * POST /api/admin/queues/:type/auto-send
  * Automatic sending endpoint for Cloud Scheduler (USDA only)
  */

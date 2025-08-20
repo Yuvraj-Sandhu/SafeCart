@@ -11,6 +11,7 @@ import * as admin from 'firebase-admin';
 import { EmailService } from './email.service';
 import { EmailDigestService, RecallData } from './digest.service';
 import { EmailRenderService } from './render.service';
+import { EmailAnalyticsSummary } from '../../types/email-analytics.types';
 import logger from '../../utils/logger';
 
 const db = admin.firestore();
@@ -45,6 +46,7 @@ export interface EmailDigestRecord {
   }>;
   emailHtml?: string;
   queueId?: string;
+  analytics?: EmailAnalyticsSummary; // Analytics from Mailchimp webhooks
 }
 
 /**
@@ -612,7 +614,14 @@ export class EmailQueueService {
         const data = doc.data();
         return {
           id: doc.id,
-          ...data,
+          type: data.type,
+          sentBy: data.sentBy,
+          recallCount: data.recallCount,
+          totalRecipients: data.totalRecipients,
+          recalls: data.recalls || [],
+          emailHtml: data.emailHtml,
+          queueId: data.queueId,
+          analytics: data.analytics, // Include analytics from webhook data
           // Convert Firestore timestamp to ISO string for frontend
           sentAt: data.sentAt ? this.convertFirestoreTimestamp(data.sentAt) : new Date().toISOString()
         };

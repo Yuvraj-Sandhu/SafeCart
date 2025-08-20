@@ -7,6 +7,22 @@ import { EmailPreviewModal } from '@/components/ui/EmailPreviewModal';
 import { api } from '@/services/api';
 import styles from './EmailHistoryTab.module.css';
 
+interface EmailAnalyticsSummary {
+  totalSent: number;
+  delivered: number;
+  bounced: number;
+  opened: number;
+  clicked: number;
+  unsubscribed: number;
+  complained: number;
+  rejected: number;
+  deliveryRate: number;    // delivered / totalSent * 100
+  openRate: number;        // opened / delivered * 100
+  clickRate: number;       // clicked / delivered * 100
+  bounceRate: number;      // bounced / totalSent * 100
+  lastUpdated: string;     // ISO timestamp
+}
+
 interface EmailDigest {
   id: string;
   type: 'manual' | 'usda_daily' | 'fda_weekly' | 'test';
@@ -20,6 +36,7 @@ interface EmailDigest {
     source: 'USDA' | 'FDA';
   }>;
   emailHtml?: string; // For preview functionality
+  analytics?: EmailAnalyticsSummary; // Analytics from Mailchimp webhooks
 }
 
 type SortField = 'sentAt' | 'type' | 'sentBy' | 'recallCount';
@@ -38,6 +55,11 @@ export function EmailHistoryTab() {
   const hasFetched = useRef(false);
   const lastPageFetched = useRef<number>(0);
   const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    digest: EmailDigest | null;
+  }>({ isOpen: false, digest: null });
+  
+  const [analyticsModal, setAnalyticsModal] = useState<{
     isOpen: boolean;
     digest: EmailDigest | null;
   }>({ isOpen: false, digest: null });
@@ -136,6 +158,10 @@ export function EmailHistoryTab() {
     setPreviewModal({ isOpen: true, digest });
   };
 
+  const handleAnalyticsView = (digest: EmailDigest) => {
+    setAnalyticsModal({ isOpen: true, digest });
+  };
+
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return '↕️';
     return sortDirection === 'asc' ? '↑' : '↓';
@@ -196,6 +222,8 @@ export function EmailHistoryTab() {
                 Recalls {getSortIcon('recallCount')}
               </th>
               <th style={{ color: currentTheme.text }}>Recipients</th>
+              <th style={{ color: currentTheme.text }}>Delivery Rate</th>
+              <th style={{ color: currentTheme.text }}>Open Rate</th>
               <th style={{ color: currentTheme.text }}>Actions</th>
             </tr>
           </thead>
@@ -225,14 +253,51 @@ export function EmailHistoryTab() {
                 <td style={{ color: currentTheme.text }}>
                   {digest.totalRecipients.toLocaleString()}
                 </td>
+                <td style={{ color: currentTheme.text }}>
+                  {digest.analytics ? (
+                    <span className={styles.metric} style={{ 
+                      color: digest.analytics.deliveryRate >= 95 ? currentTheme.success : 
+                             digest.analytics.deliveryRate >= 85 ? currentTheme.warning : 
+                             currentTheme.danger
+                    }}>
+                      {digest.analytics.deliveryRate}%
+                    </span>
+                  ) : (
+                    <span style={{ color: currentTheme.textSecondary }}>-</span>
+                  )}
+                </td>
+                <td style={{ color: currentTheme.text }}>
+                  {digest.analytics ? (
+                    <span className={styles.metric} style={{ 
+                      color: digest.analytics.openRate >= 20 ? currentTheme.success : 
+                             digest.analytics.openRate >= 10 ? currentTheme.warning : 
+                             currentTheme.danger
+                    }}>
+                      {digest.analytics.openRate}%
+                    </span>
+                  ) : (
+                    <span style={{ color: currentTheme.textSecondary }}>-</span>
+                  )}
+                </td>
                 <td>
-                  <Button 
-                    onClick={() => handlePreview(digest)}
-                    variant="secondary"
-                    size="small"
-                  >
-                    Preview
-                  </Button>
+                  <div className={styles.actionButtons}>
+                    <Button 
+                      onClick={() => handlePreview(digest)}
+                      variant="secondary"
+                      size="small"
+                    >
+                      Preview
+                    </Button>
+                    {digest.analytics && (
+                      <Button 
+                        onClick={() => handleAnalyticsView(digest)}
+                        variant="secondary"
+                        size="small"
+                      >
+                        Analytics
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -271,6 +336,218 @@ export function EmailHistoryTab() {
           digest={previewModal.digest}
           onClose={() => setPreviewModal({ isOpen: false, digest: null })}
         />
+      )}
+
+      {/* Email Analytics Modal */}
+      {analyticsModal.isOpen && analyticsModal.digest && (
+        <div className={styles.modalOverlay} onClick={() => setAnalyticsModal({ isOpen: false, digest: null })}>
+          <div 
+            className={styles.analyticsModal}
+            style={{ 
+              backgroundColor: currentTheme.cardBackground,
+              borderColor: currentTheme.cardBorder,
+              color: currentTheme.text
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader} style={{ borderBottomColor: currentTheme.cardBorder }}>
+              <h2 style={{ color: currentTheme.text }}>
+                Email Analytics - {getTypeLabel(analyticsModal.digest.type)}
+              </h2>
+              <button 
+                className={styles.closeButton}
+                onClick={() => setAnalyticsModal({ isOpen: false, digest: null })}
+                style={{ color: currentTheme.text }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className={styles.analyticsContent}>
+              {analyticsModal.digest.analytics ? (
+                <>
+                  {/* Overview Cards */}
+                  <div className={styles.analyticsGrid}>
+                    <div className={styles.analyticsCard} style={{ 
+                      backgroundColor: currentTheme.background,
+                      borderColor: currentTheme.cardBorder 
+                    }}>
+                      <div className={styles.cardHeader}>
+                        <h3 style={{ color: currentTheme.text }}>Email Performance</h3>
+                      </div>
+                      <div className={styles.metricsGrid}>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel} style={{ color: currentTheme.textSecondary }}>
+                            Delivery Rate
+                          </span>
+                          <span className={styles.metricValue} style={{ 
+                            color: analyticsModal.digest.analytics.deliveryRate >= 95 ? currentTheme.success : 
+                                   analyticsModal.digest.analytics.deliveryRate >= 85 ? currentTheme.warning : 
+                                   currentTheme.danger 
+                          }}>
+                            {analyticsModal.digest.analytics.deliveryRate}%
+                          </span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel} style={{ color: currentTheme.textSecondary }}>
+                            Open Rate
+                          </span>
+                          <span className={styles.metricValue} style={{ 
+                            color: analyticsModal.digest.analytics.openRate >= 20 ? currentTheme.success : 
+                                   analyticsModal.digest.analytics.openRate >= 10 ? currentTheme.warning : 
+                                   currentTheme.danger 
+                          }}>
+                            {analyticsModal.digest.analytics.openRate}%
+                          </span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel} style={{ color: currentTheme.textSecondary }}>
+                            Click Rate
+                          </span>
+                          <span className={styles.metricValue} style={{ 
+                            color: analyticsModal.digest.analytics.clickRate >= 3 ? currentTheme.success : 
+                                   analyticsModal.digest.analytics.clickRate >= 1 ? currentTheme.warning : 
+                                   currentTheme.danger 
+                          }}>
+                            {analyticsModal.digest.analytics.clickRate}%
+                          </span>
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricLabel} style={{ color: currentTheme.textSecondary }}>
+                            Bounce Rate
+                          </span>
+                          <span className={styles.metricValue} style={{ 
+                            color: analyticsModal.digest.analytics.bounceRate <= 2 ? currentTheme.success : 
+                                   analyticsModal.digest.analytics.bounceRate <= 5 ? currentTheme.warning : 
+                                   currentTheme.danger 
+                          }}>
+                            {analyticsModal.digest.analytics.bounceRate}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.analyticsCard} style={{ 
+                      backgroundColor: currentTheme.background,
+                      borderColor: currentTheme.cardBorder 
+                    }}>
+                      <div className={styles.cardHeader}>
+                        <h3 style={{ color: currentTheme.text }}>Email Counts</h3>
+                      </div>
+                      <div className={styles.countsGrid}>
+                        <div className={styles.countItem}>
+                          <span className={styles.countValue} style={{ color: currentTheme.primary }}>
+                            {analyticsModal.digest.analytics.totalSent.toLocaleString()}
+                          </span>
+                          <span className={styles.countLabel} style={{ color: currentTheme.textSecondary }}>
+                            Total Sent
+                          </span>
+                        </div>
+                        <div className={styles.countItem}>
+                          <span className={styles.countValue} style={{ color: currentTheme.success }}>
+                            {analyticsModal.digest.analytics.delivered.toLocaleString()}
+                          </span>
+                          <span className={styles.countLabel} style={{ color: currentTheme.textSecondary }}>
+                            Delivered
+                          </span>
+                        </div>
+                        <div className={styles.countItem}>
+                          <span className={styles.countValue} style={{ color: currentTheme.info }}>
+                            {analyticsModal.digest.analytics.opened.toLocaleString()}
+                          </span>
+                          <span className={styles.countLabel} style={{ color: currentTheme.textSecondary }}>
+                            Opened
+                          </span>
+                        </div>
+                        <div className={styles.countItem}>
+                          <span className={styles.countValue} style={{ color: currentTheme.warning }}>
+                            {analyticsModal.digest.analytics.clicked.toLocaleString()}
+                          </span>
+                          <span className={styles.countLabel} style={{ color: currentTheme.textSecondary }}>
+                            Clicked
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Issues Section */}
+                  {(analyticsModal.digest.analytics.bounced > 0 || 
+                    analyticsModal.digest.analytics.complained > 0 || 
+                    analyticsModal.digest.analytics.unsubscribed > 0 || 
+                    analyticsModal.digest.analytics.rejected > 0) && (
+                    <div className={styles.analyticsCard} style={{ 
+                      backgroundColor: currentTheme.background,
+                      borderColor: currentTheme.cardBorder 
+                    }}>
+                      <div className={styles.cardHeader}>
+                        <h3 style={{ color: currentTheme.text }}>Issues & Unsubscribes</h3>
+                      </div>
+                      <div className={styles.issuesGrid}>
+                        {analyticsModal.digest.analytics.bounced > 0 && (
+                          <div className={styles.issueItem}>
+                            <span className={styles.issueValue} style={{ color: currentTheme.danger }}>
+                              {analyticsModal.digest.analytics.bounced.toLocaleString()}
+                            </span>
+                            <span className={styles.issueLabel} style={{ color: currentTheme.textSecondary }}>
+                              Bounced
+                            </span>
+                          </div>
+                        )}
+                        {analyticsModal.digest.analytics.rejected > 0 && (
+                          <div className={styles.issueItem}>
+                            <span className={styles.issueValue} style={{ color: currentTheme.danger }}>
+                              {analyticsModal.digest.analytics.rejected.toLocaleString()}
+                            </span>
+                            <span className={styles.issueLabel} style={{ color: currentTheme.textSecondary }}>
+                              Rejected
+                            </span>
+                          </div>
+                        )}
+                        {analyticsModal.digest.analytics.complained > 0 && (
+                          <div className={styles.issueItem}>
+                            <span className={styles.issueValue} style={{ color: currentTheme.danger }}>
+                              {analyticsModal.digest.analytics.complained.toLocaleString()}
+                            </span>
+                            <span className={styles.issueLabel} style={{ color: currentTheme.textSecondary }}>
+                              Spam Complaints
+                            </span>
+                          </div>
+                        )}
+                        {analyticsModal.digest.analytics.unsubscribed > 0 && (
+                          <div className={styles.issueItem}>
+                            <span className={styles.issueValue} style={{ color: currentTheme.warning }}>
+                              {analyticsModal.digest.analytics.unsubscribed.toLocaleString()}
+                            </span>
+                            <span className={styles.issueLabel} style={{ color: currentTheme.textSecondary }}>
+                              Unsubscribed
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timestamp */}
+                  <div className={styles.analyticsFooter}>
+                    <span style={{ color: currentTheme.textSecondary }}>
+                      Last updated: {new Date(analyticsModal.digest.analytics.lastUpdated).toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.noAnalytics}>
+                  <p style={{ color: currentTheme.textSecondary }}>
+                    No analytics data available for this email digest.
+                  </p>
+                  <p style={{ color: currentTheme.textSecondary, fontSize: '0.875rem' }}>
+                    Analytics are collected via Mailchimp webhooks and may take some time to appear.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
