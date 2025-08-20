@@ -182,7 +182,6 @@ router.post('/queues/:type/send', authenticate, requireAdmin, async (req: Reques
     }
 
     if (testMode) {
-      // TODO: Implement test mode sending
       return res.status(501).json({
         success: false,
         message: 'Test mode not implemented yet'
@@ -249,10 +248,28 @@ router.post('/digest/test', authenticate, requireAdmin, async (req: Request, res
       });
     }
 
-    // TODO: Implement test email sending to admin only
-    res.status(501).json({
-      success: false,
-      message: 'Test email sending not implemented yet'
+    // Send test digest to admin only
+    const result = await emailQueueService.sendTestDigest(
+      recallIds,
+      adminEmail,
+      (req as any).user?.username || 'Admin'
+    );
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Failed to send test email'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Test email sent successfully to ${adminEmail}`,
+      data: {
+        recipientEmail: adminEmail,
+        recallCount: result.recallCount,
+        messageId: result.messageId
+      }
     });
   } catch (error) {
     logger.error('Error sending test email:', error);
