@@ -242,7 +242,7 @@ export function ManualDigestTab() {
 
       {/* Results Section - Use EditableRecallList with selection */}
       {recalls.length > 0 && (
-        <>
+        <div style={{ marginTop: '-1rem', padding: '0 0.25rem' }}>
           <EditableRecallList
             recalls={recalls}
             loading={false}
@@ -273,7 +273,7 @@ export function ManualDigestTab() {
               {isSending ? 'Sending...' : 'Send to All Subscribers'}
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       {/* Edit Modal */}
