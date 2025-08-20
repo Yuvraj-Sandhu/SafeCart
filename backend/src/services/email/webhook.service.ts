@@ -35,6 +35,12 @@ export class EmailWebhookService {
         return { success: false, error: 'Invalid signature' };
       }
 
+      // Handle webhook validation requests (during setup)
+      if (!payload.type || typeof payload.type !== 'string') {
+        logger.info('Webhook validation request received (no event type)');
+        return { success: true, processed: false };
+      }
+
       // Map Mailchimp event types to our internal types
       const eventType = this.mapMailchimpEventType(payload.type);
       if (!eventType) {
@@ -145,6 +151,10 @@ export class EmailWebhookService {
    * Map Mailchimp event types to our internal types
    */
   private mapMailchimpEventType(mailchimpType: string): MailchimpEventType | null {
+    if (!mailchimpType || typeof mailchimpType !== 'string') {
+      return null;
+    }
+
     const typeMap: { [key: string]: MailchimpEventType } = {
       'send': 'sent',
       'delivered': 'delivered',
