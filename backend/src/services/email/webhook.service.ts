@@ -141,10 +141,13 @@ export class EmailWebhookService {
         return true; // Allow if not configured (development)
       }
 
-      // Sort POST parameters alphabetically by key
+      // Sort POST parameters alphabetically by key and URL encode values
       const sortedParams = Object.keys(params)
         .sort()
-        .map(key => `${key}=${params[key]}`)
+        .map(key => {
+          const value = typeof params[key] === 'string' ? params[key] : JSON.stringify(params[key]);
+          return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+        })
         .join('&');
 
       // Create the signed data: webhook_url + sorted_params
@@ -160,6 +163,8 @@ export class EmailWebhookService {
       logger.info('Mandrill signature validation:', {
         webhookUrl,
         paramKeys: Object.keys(params),
+        sortedParams: sortedParams.substring(0, 100) + '...',
+        signedDataLength: signedData.length,
         receivedSignature: signature.substring(0, 10) + '...',
         expectedSignature: expectedSignature.substring(0, 10) + '...',
         match: signature === expectedSignature
