@@ -55,6 +55,9 @@ export class EmailWebhookService {
         return { success: false, error: 'Missing recipient email' };
       }
 
+      // Extract digest ID from custom header (X-Digest-ID)
+      const digestId = payload.data.headers?.['X-Digest-ID'] || payload.data['X-Digest-ID'];
+
       // Create analytics record
       const analyticsRecord: EmailAnalyticsRecord = {
         id: this.generateAnalyticsId(),
@@ -67,18 +70,27 @@ export class EmailWebhookService {
         createdAt: new Date().toISOString()
       };
 
-      // Try to find associated digest
-      const digestId = await this.findDigestForEmail(recipientEmail, analyticsRecord.timestamp);
+      // Use digest ID from header if available, otherwise try time-based matching
       if (digestId) {
         analyticsRecord.digestId = digestId;
+        // logger.info(`Analytics event matched to digest via header: ${digestId}`);
+      } else {
+        // Fallback to time-based matching for older emails
+        const foundDigestId = await this.findDigestForEmail(recipientEmail, analyticsRecord.timestamp);
+        if (foundDigestId) {
+          analyticsRecord.digestId = foundDigestId;
+          // logger.info(`Analytics event matched to digest via time: ${foundDigestId}`);
+        } else {
+          logger.warn(`No digest found for analytics event from ${recipientEmail}`);
+        }
       }
 
       // Store analytics record
       await db.collection('email_analytics').doc(analyticsRecord.id).set(analyticsRecord);
       
       // Update digest analytics if we found the associated digest
-      if (digestId) {
-        await this.updateDigestAnalytics(digestId);
+      if (analyticsRecord.digestId) {
+        await this.updateDigestAnalytics(analyticsRecord.digestId);
       }
 
       // Mark as processed
@@ -86,7 +98,7 @@ export class EmailWebhookService {
         processed: true
       });
 
-      logger.info(`Processed ${eventType} event for ${recipientEmail} (digest: ${digestId || 'unknown'})`);
+      // logger.info(`Processed ${eventType} event for ${recipientEmail} (digest: ${analyticsRecord.digestId || 'unknown'})`);
 
       return { success: true, processed: true };
     } catch (error) {
@@ -163,15 +175,15 @@ export class EmailWebhookService {
         .digest('base64');
 
       // Log signature details for debugging
-      logger.info('Mandrill signature validation:', {
-        webhookUrl,
-        paramKeys: sortedKeys,
-        signedDataPreview: signedData.substring(0, 200) + '...',
-        signedDataLength: signedData.length,
-        receivedSignature: signature.substring(0, 10) + '...',
-        expectedSignature: expectedSignature.substring(0, 10) + '...',
-        match: signature === expectedSignature
-      });
+      // logger.info('Mandrill signature validation:', {
+      //   webhookUrl,
+      //   paramKeys: sortedKeys,
+      //   signedDataPreview: signedData.substring(0, 200) + '...',
+      //   signedDataLength: signedData.length,
+      //   receivedSignature: signature.substring(0, 10) + '...',
+      //   expectedSignature: expectedSignature.substring(0, 10) + '...',
+      //   match: signature === expectedSignature
+      // });
 
       // Compare signatures
       return signature === expectedSignature;
@@ -231,7 +243,7 @@ export class EmailWebhookService {
       // TODO: In the future, we could store message IDs to make exact matches
       if (!digestsSnapshot.empty) {
         const mostRecentDigest = digestsSnapshot.docs[0];
-        logger.info(`Associated email event with digest ${mostRecentDigest.id} for ${email}`);
+        // logger.info(`Associated email event with digest ${mostRecentDigest.id} for ${email}`);
         return mostRecentDigest.id;
       }
 
@@ -262,7 +274,7 @@ export class EmailWebhookService {
         analytics: summary
       });
 
-      logger.info(`Updated analytics for digest ${digestId}`);
+      // logger.info(`Updated analytics for digest ${digestId}`);
     } catch (error) {
       logger.error(`Error updating digest analytics for ${digestId}:`, error);
     }

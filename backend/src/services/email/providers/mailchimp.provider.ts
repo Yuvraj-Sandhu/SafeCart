@@ -87,11 +87,17 @@ export class MailchimpProvider implements EmailProvider {
         merge_language: 'handlebars'
       };
 
+      // Add custom headers
+      message.headers = {};
+      
       // Add reply-to if provided
       if (options.replyTo) {
-        message.headers = {
-          'Reply-To': options.replyTo
-        };
+        message.headers['Reply-To'] = options.replyTo;
+      }
+
+      // Add digest ID for analytics tracking
+      if (options.digestId) {
+        message.headers['X-Digest-ID'] = options.digestId;
       }
 
       // Convert tags to Mailchimp format (metadata)

@@ -250,6 +250,9 @@ export class EmailQueueService {
         logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
 
+      // Generate digest ID first for analytics tracking
+      const digestId = this.generateDigestId();
+
       // Send state-specific emails
       for (const [state, subscribers] of Object.entries(subscribersByState)) {
         // Filter recalls affecting this state
@@ -292,6 +295,9 @@ export class EmailQueueService {
               };
 
               const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+              // Add digest ID for analytics tracking
+              emailOptions.digestId = digestId;
+              
               const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
               
               if (result.success) {
@@ -325,9 +331,8 @@ export class EmailQueueService {
         }, 3000);
       }
 
-      // Create digest record
       const digestRecord: EmailDigestRecord = {
-        id: `digest_${Date.now()}`,
+        id: digestId,
         type: queueType === 'USDA_DAILY' ? 'usda_daily' : 'fda_weekly',
         sentAt: new Date(),
         sentBy,
@@ -441,6 +446,9 @@ export class EmailQueueService {
         logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
 
+      // Generate digest ID first for analytics tracking
+      const digestId = this.generateDigestId();
+
       // Send state-specific emails
       for (const [state, subscribers] of Object.entries(subscribersByState)) {
         // Filter recalls affecting this state
@@ -474,6 +482,9 @@ export class EmailQueueService {
               };
 
               const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+              // Add digest ID for analytics tracking
+              emailOptions.digestId = digestId;
+              
               const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
               
               if (result.success) {
@@ -490,7 +501,7 @@ export class EmailQueueService {
 
       // Create digest record
       const digestRecord: EmailDigestRecord = {
-        id: `digest_${Date.now()}`,
+        id: digestId,
         type: 'manual',
         sentAt: new Date(),
         sentBy,
@@ -559,6 +570,8 @@ export class EmailQueueService {
       // Override the recipient to send only to admin and add TEST prefix to subject
       emailOptions.to = adminEmail;
       emailOptions.subject = `[TEST] SafeCart Recall Digest - ${recalls.length} recalls`;
+      // Add test digest ID for analytics tracking
+      emailOptions.digestId = this.generateDigestId('test');
       
       // Send test email to admin only with retry logic
       const result = await this.sendEmailWithRetry(emailOptions, adminEmail);
@@ -572,7 +585,7 @@ export class EmailQueueService {
         };
       }
 
-      logger.info(`Test email sent to admin ${adminEmail} with ${recalls.length} recalls`);
+      // logger.info(`Test email sent to admin ${adminEmail} with ${recalls.length} recalls`);
 
       return {
         success: true,
@@ -841,6 +854,33 @@ export class EmailQueueService {
     }
     // Fallback
     return new Date().toISOString();
+  }
+
+  /**
+   * Generate human-readable digest ID with date and time
+   * Format: [prefix_]YYYYMMDD-HHMM-random
+   * @param prefix Optional prefix (e.g., 'test')
+   */
+  private generateDigestId(prefix?: string): string {
+    const now = new Date();
+    
+    // Format date as YYYYMMDD
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+    
+    // Format time as HHMM
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}${minutes}`;
+    
+    // Add a short random suffix to avoid collisions
+    const randomSuffix = Math.random().toString(36).substr(2, 4);
+    
+    const baseId = `${dateStr}-${timeStr}-${randomSuffix}`;
+    
+    return prefix ? `${prefix}_${baseId}` : baseId;
   }
 }
 
