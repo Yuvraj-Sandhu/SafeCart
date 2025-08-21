@@ -95,17 +95,20 @@ export class MailchimpProvider implements EmailProvider {
         message.headers['Reply-To'] = options.replyTo;
       }
 
-      // Add digest ID for analytics tracking
-      if (options.digestId) {
-        message.headers['X-Digest-ID'] = options.digestId;
-      }
-
       // Convert tags to Mailchimp format (metadata)
       if (options.tags) {
         message.metadata = options.tags;
         
         // Also add as tags array for filtering
         message.tags = Object.keys(options.tags);
+      }
+
+      // Add digest ID to metadata for analytics tracking (headers aren't included in webhooks)
+      if (options.digestId) {
+        if (!message.metadata) {
+          message.metadata = {};
+        }
+        message.metadata['digest_id'] = options.digestId;
       }
 
       // Send the email via Mailchimp Transactional

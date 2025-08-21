@@ -27,11 +27,11 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
     const signature = req.headers['x-mandrill-signature'] as string;
     
     // Log webhook received (but not the full payload for privacy)
-    logger.info('Mailchimp webhook received', {
-      hasSignature: !!signature,
-      headers: Object.keys(req.headers), // Log all headers to debug
-      bodyKeys: Object.keys(req.body || {})
-    });
+    // logger.info('Mailchimp webhook received', {
+    //   hasSignature: !!signature,
+    //   headers: Object.keys(req.headers), // Log all headers to debug
+    //   bodyKeys: Object.keys(req.body || {})
+    // });
 
     // Mandrill sends events in a 'mandrill_events' parameter as a JSON string
     const eventsParam = req.body?.mandrill_events;
@@ -76,7 +76,7 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
       });
     }
 
-    logger.info(`Processing ${events.length} Mandrill events`);
+    // logger.info(`Processing ${events.length} Mandrill events`);
 
     // Process each event
     let processedCount = 0;
@@ -84,12 +84,12 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
 
     for (const event of events) {
       // Log event structure for debugging
-      logger.info('Processing Mandrill event:', {
-        event: event.event,
-        email: event.msg?.email || event.email,
-        ts: event.ts,
-        _id: event._id
-      });
+      // logger.info('Processing Mandrill event:', {
+      //   event: event.event,
+      //   email: event.msg?.email || event.email,
+      //   ts: event.ts,
+      //   _id: event._id
+      // });
 
       const payload = {
         type: event.event,
@@ -97,7 +97,6 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
         data: {
           id: event._id,
           email: event.msg?.email || event.email,
-          email_address: event.msg?.email || event.email,
           ...event.msg
         }
       } as MailchimpWebhookPayload;
@@ -113,7 +112,7 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
       }
     }
 
-    logger.info(`Processed ${processedCount} events, ${failedCount} failed`);
+    // logger.info(`Processed ${processedCount} events, ${failedCount} failed`);
 
     // Send success response
     res.json({

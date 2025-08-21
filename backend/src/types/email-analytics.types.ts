@@ -43,7 +43,7 @@ export interface MailchimpWebhookPayload {
   data: {
     id?: string;                 // Message ID
     email?: string;              // Recipient email
-    email_address?: string;      // Alternative email field
+    metadata?: Record<string, string>; // Custom metadata including digest_id
     timestamp?: string;          // Event timestamp
     reason?: string;             // Bounce/rejection reason
     url?: string;                // Clicked URL (for click events)

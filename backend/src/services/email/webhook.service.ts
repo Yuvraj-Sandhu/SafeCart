@@ -49,14 +49,14 @@ export class EmailWebhookService {
       }
 
       // Extract email address from payload
-      const recipientEmail = payload.data.email || payload.data.email_address;
+      const recipientEmail = payload.data.email;
       if (!recipientEmail) {
         logger.warn('No recipient email found in webhook payload');
         return { success: false, error: 'Missing recipient email' };
       }
 
-      // Extract digest ID from custom header (X-Digest-ID)
-      const digestId = payload.data.headers?.['X-Digest-ID'] || payload.data['X-Digest-ID'];
+      // Extract digest ID from metadata (headers aren't included in Mandrill webhooks)
+      const digestId = payload.data.metadata?.['digest_id'] || payload.data.metadata?.digest_id;
 
       // Create analytics record
       const analyticsRecord: EmailAnalyticsRecord = {
