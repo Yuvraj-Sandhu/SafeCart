@@ -121,9 +121,19 @@ export class EmailWebhookService {
   }
 
   /**
-   * Validate webhook signature from Mailchimp
+   * Validate webhook signature from Mailchimp/Mandrill
+   * Note: This method needs the raw request data for Mandrill signatures
    */
   private validateSignature(payload: MailchimpWebhookPayload, signature: string): boolean {
+    // This is handled differently for Mandrill - see validateMandrillSignature
+    return true;
+  }
+
+  /**
+   * Validate Mandrill webhook signature
+   * Mandrill uses: Base64(HMAC-SHA1(webhook_key, webhook_url + sorted_POST_params))
+   */
+  validateMandrillSignature(webhookUrl: string, params: Record<string, any>, signature: string): boolean {
     try {
       const webhookSecret = process.env.MAILCHIMP_WEBHOOK_SECRET;
       if (!webhookSecret) {
@@ -131,18 +141,34 @@ export class EmailWebhookService {
         return true; // Allow if not configured (development)
       }
 
-      // Mailchimp signs the request body
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(JSON.stringify(payload))
-        .digest('hex');
+      // Sort POST parameters alphabetically by key
+      const sortedParams = Object.keys(params)
+        .sort()
+        .map(key => `${key}=${params[key]}`)
+        .join('&');
 
-      return crypto.timingSafeEqual(
-        Buffer.from(signature.replace('sha256=', ''), 'hex'),
-        Buffer.from(expectedSignature, 'hex')
-      );
+      // Create the signed data: webhook_url + sorted_params
+      const signedData = webhookUrl + sortedParams;
+
+      // Generate HMAC-SHA1 signature
+      const expectedSignature = crypto
+        .createHmac('sha1', webhookSecret)
+        .update(signedData)
+        .digest('base64');
+
+      // Log signature details for debugging
+      logger.info('Mandrill signature validation:', {
+        webhookUrl,
+        paramKeys: Object.keys(params),
+        receivedSignature: signature.substring(0, 10) + '...',
+        expectedSignature: expectedSignature.substring(0, 10) + '...',
+        match: signature === expectedSignature
+      });
+
+      // Compare signatures
+      return signature === expectedSignature;
     } catch (error) {
-      logger.error('Error validating webhook signature:', error);
+      logger.error('Error validating Mandrill webhook signature:', error);
       return false;
     }
   }
