@@ -23,42 +23,68 @@ const router = Router();
  */
 router.post('/mailchimp', async (req: Request, res: Response) => {
   try {
-    // Extract webhook signature for validation
-    const signature = req.headers['x-mailchimp-signature'] as string;
+    // Extract webhook signature for validation - Mailchimp uses X-Mandrill-Signature header
+    const signature = req.headers['x-mandrill-signature'] as string;
     
     // Log webhook received (but not the full payload for privacy)
     logger.info('Mailchimp webhook received', {
-      type: req.body.type,
-      timestamp: req.body.fired_at,
-      hasSignature: !!signature
+      hasSignature: !!signature,
+      headers: Object.keys(req.headers), // Log all headers to debug
+      bodyKeys: Object.keys(req.body || {})
     });
 
-    // Validate payload structure
-    if (!req.body || typeof req.body !== 'object') {
-      logger.warn('Invalid webhook payload received');
+    // Mandrill sends events in a 'mandrill_events' parameter as a JSON string
+    const eventsParam = req.body?.mandrill_events;
+    if (!eventsParam) {
+      logger.warn('No mandrill_events parameter in webhook payload');
+      // This might be a validation request from Mailchimp
+      return res.status(200).send('OK');
+    }
+
+    // Parse the events JSON string
+    let events: any[];
+    try {
+      events = typeof eventsParam === 'string' ? JSON.parse(eventsParam) : eventsParam;
+    } catch (parseError) {
+      logger.error('Failed to parse mandrill_events:', parseError);
       return res.status(400).json({
         success: false,
-        error: 'Invalid payload'
+        error: 'Invalid events format'
       });
     }
 
-    const payload = req.body as MailchimpWebhookPayload;
+    // Process each event
+    let processedCount = 0;
+    let failedCount = 0;
 
-    // Process the webhook
-    const result = await emailWebhookService.processWebhook(payload, signature);
+    for (const event of events) {
+      const payload = {
+        type: event.event,
+        fired_at: new Date(event.ts * 1000).toISOString(), // Convert Unix timestamp
+        data: {
+          id: event._id,
+          email: event.msg?.email || event.email,
+          email_address: event.msg?.email || event.email,
+          ...event.msg
+        }
+      } as MailchimpWebhookPayload;
 
-    if (!result.success) {
-      logger.error('Webhook processing failed:', result.error);
-      return res.status(400).json({
-        success: false,
-        error: result.error
-      });
+      const result = await emailWebhookService.processWebhook(payload, signature);
+      
+      if (result.success && result.processed) {
+        processedCount++;
+      } else {
+        failedCount++;
+      }
     }
+
+    logger.info(`Processed ${processedCount} events, ${failedCount} failed`);
 
     // Send success response
     res.json({
       success: true,
-      processed: result.processed
+      processed: processedCount,
+      failed: failedCount
     });
 
   } catch (error) {

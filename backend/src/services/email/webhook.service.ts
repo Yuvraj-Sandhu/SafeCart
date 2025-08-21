@@ -148,23 +148,29 @@ export class EmailWebhookService {
   }
 
   /**
-   * Map Mailchimp event types to our internal types
+   * Map Mailchimp/Mandrill event types to our internal types
    */
   private mapMailchimpEventType(mailchimpType: string): MailchimpEventType | null {
     if (!mailchimpType || typeof mailchimpType !== 'string') {
       return null;
     }
 
+    // Mandrill uses different event names than generic Mailchimp
     const typeMap: { [key: string]: MailchimpEventType } = {
       'send': 'sent',
+      'deferral': 'sent', // Temporary failure, will retry
       'delivered': 'delivered',
       'hard_bounce': 'bounced',
       'soft_bounce': 'bounced',
+      'bounce': 'bounced',
       'open': 'opened',
       'click': 'clicked',
       'unsubscribe': 'unsubscribed',
+      'unsub': 'unsubscribed',
       'spam': 'complained',
-      'reject': 'rejected'
+      'reject': 'rejected',
+      'blacklist': 'rejected',
+      'whitelist': 'delivered'
     };
 
     return typeMap[mailchimpType.toLowerCase()] || null;
