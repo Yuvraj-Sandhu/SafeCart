@@ -167,7 +167,7 @@ export function AutomaticQueuesTab() {
       console.log('Sending queue:', queueType);
       try {
         const result = await api.sendQueue(queueType);
-        alert(`Queue sent successfully!\n- ${result.totalRecipients} recipients\n- ${result.recallCount} recalls`);
+        alert(`Queue sent successfully!`);
         await loadQueues();
       } catch (error) {
         console.error('Failed to send queue:', error);

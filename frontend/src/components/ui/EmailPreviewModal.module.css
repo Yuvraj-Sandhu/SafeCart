@@ -123,14 +123,23 @@
   .modalOverlay {
     padding: 1rem;
   }
+
+  .modalHeader {
+    padding: 1rem;
+  }
   
   .modalContent {
     max-width: 95vw;
     height: 90vh;
     max-height: 90vh;
   }
-  
+
+  .emailPreview {
+    padding: 1rem;
+  }
+
   .emailFrame {
-    min-height: 400px;
+    min-height: 450px;
+    margin: 0;
   }
 }

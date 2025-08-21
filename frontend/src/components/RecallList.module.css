@@ -16,6 +16,12 @@
   font-weight: 500;
 }
 
+@media (max-width: 768px) {
+  .header h2 {
+    font-size: 1.5rem;
+  }
+}
+
 .searchSection {
   display: flex;
   justify-content: center;

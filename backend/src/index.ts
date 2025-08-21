@@ -32,6 +32,7 @@ import pendingChangesRoutes from './routes/pending-changes.routes';
 import userAuthRoutes from './routes/user-auth.routes';
 import userEmailPreferencesRoutes from './routes/user-email-preferences.routes';
 import adminEmailRoutes from './routes/admin-email.routes';
+import webhookRoutes from './routes/webhook.routes';
 import { SyncService } from './services/sync.service';
 import logger from './utils/logger';
 
@@ -89,6 +90,7 @@ app.use('/api/user/auth', userAuthRoutes); // Public user auth: /api/user/auth/*
 app.use('/api/user', userEmailPreferencesRoutes); // User preferences: /api/user/*
 app.use('/api/pending-changes', pendingChangesRoutes); // Pending changes: /api/pending-changes/*
 app.use('/api/admin', adminEmailRoutes); // Admin email routes: /api/admin/*
+app.use('/api/webhooks', webhookRoutes); // Webhook endpoints: /api/webhooks/*
 app.use('/api', recallRoutes);        // USDA recalls: /api/recalls/*
 app.use('/api/fda', fdaRecallRoutes); // FDA recalls: /api/fda/recalls/*
 

@@ -11,6 +11,7 @@ import * as admin from 'firebase-admin';
 import { EmailService } from './email.service';
 import { EmailDigestService, RecallData } from './digest.service';
 import { EmailRenderService } from './render.service';
+import { EmailAnalyticsSummary } from '../../types/email-analytics.types';
 import logger from '../../utils/logger';
 
 const db = admin.firestore();
@@ -45,6 +46,7 @@ export interface EmailDigestRecord {
   }>;
   emailHtml?: string;
   queueId?: string;
+  analytics?: EmailAnalyticsSummary; // Analytics from Mailchimp webhooks
 }
 
 /**
@@ -187,12 +189,12 @@ export class EmailQueueService {
       // Get all subscribed users grouped by state
       const subscribersByState = await this.getSubscribersByState();
       
-      // Debug logging
-      logger.info(`Found ${Object.keys(subscribersByState).length} states with subscribers`);
-      logger.info(`Total recalls in queue: ${recalls.length}`);
-      for (const [state, subscribers] of Object.entries(subscribersByState)) {
-        logger.info(`State ${state}: ${subscribers.length} subscribers`);
-      }
+      // // Debug logging
+      // logger.info(`Found ${Object.keys(subscribersByState).length} states with subscribers`);
+      // logger.info(`Total recalls in queue: ${recalls.length}`);
+      // for (const [state, subscribers] of Object.entries(subscribersByState)) {
+      //   logger.info(`State ${state}: ${subscribers.length} subscribers`);
+      // }
       
       let totalRecipients = 0;
       const failedSends: string[] = [];
@@ -244,7 +246,6 @@ export class EmailQueueService {
 
         const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
         digestHtml = sampleEmailOptions.html;
-        logger.info(`Generated email HTML length: ${digestHtml?.length || 0} characters`);
       } else {
         logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
@@ -258,13 +259,13 @@ export class EmailQueueService {
           const isNationwide = affectedStates.includes('Nationwide');
           const isAllStatesSubscription = state === 'ALL';
           
-          if (isNationwide) {
-            logger.info(`Including nationwide recall ${recall.id} for ${state} subscribers`);
-          }
+          // if (isNationwide) {
+          //   logger.info(`Including nationwide recall ${recall.id} for ${state} subscribers`);
+          // }
           
-          if (isAllStatesSubscription) {
-            logger.info(`Including recall ${recall.id} for ALL states subscribers`);
-          }
+          // if (isAllStatesSubscription) {
+          //   logger.info(`Including recall ${recall.id} for ALL states subscribers`);
+          // }
           
           // Include recall if:
           // 1. It specifically affects this state, OR
@@ -274,7 +275,7 @@ export class EmailQueueService {
         });
 
         if (stateRecalls.length > 0) {
-          logger.info(`Sending ${stateRecalls.length} recalls to ${subscribers.length} subscribers in ${state}`);
+          // logger.info(`Sending ${stateRecalls.length} recalls to ${subscribers.length} subscribers in ${state}`);
           // Send to all subscribers in this state
           for (const subscriber of subscribers) {
             try {
@@ -291,13 +292,13 @@ export class EmailQueueService {
               };
 
               const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
-              const result = await this.emailService.sendEmail(emailOptions);
+              const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
               
               if (result.success) {
-                logger.info(`Email sent successfully to ${subscriber.email}`);
+                // logger.info(`Email sent successfully to ${subscriber.email}`);
                 totalRecipients++;
               } else {
-                logger.error(`Email failed to ${subscriber.email}: ${result.error}`);
+                logger.error(`Email failed to ${subscriber.email} after retries: ${result.error}`);
                 failedSends.push(subscriber.email);
               }
             } catch (error) {
@@ -436,7 +437,6 @@ export class EmailQueueService {
 
         const sampleEmailOptions = await EmailRenderService.renderRecallDigest(sampleDigestData);
         digestHtml = sampleEmailOptions.html;
-        logger.info(`Generated email HTML length: ${digestHtml?.length || 0} characters`);
       } else {
         logger.warn('No states with both recalls and subscribers found for email HTML generation');
       }
@@ -474,9 +474,13 @@ export class EmailQueueService {
               };
 
               const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
-              await this.emailService.sendEmail(emailOptions);
+              const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
               
-              totalRecipients++;
+              if (result.success) {
+                totalRecipients++;
+              } else {
+                logger.error(`Failed to send manual digest to ${subscriber.email} after retries: ${result.error}`);
+              }
             } catch (error) {
               logger.error(`Failed to send manual digest to ${subscriber.email}:`, error);
             }
@@ -511,6 +515,81 @@ export class EmailQueueService {
   }
 
   /**
+   * Send test digest to admin only
+   * Used for testing email templates before sending to real users
+   */
+  async sendTestDigest(
+    recallIds: string[], 
+    adminEmail: string,
+    adminName: string = 'Admin'
+  ): Promise<{
+    success: boolean;
+    messageId?: string;
+    error?: string;
+    recallCount: number;
+  }> {
+    try {
+      // Fetch recalls
+      const recalls = await this.getRecallsByIds(recallIds);
+      
+      if (recalls.length === 0) {
+        return {
+          success: false,
+          error: 'No recalls found with provided IDs',
+          recallCount: 0
+        };
+      }
+
+      // Prepare test email data for admin
+      const digestData = {
+        user: {
+          name: adminName,
+          email: adminEmail,
+          unsubscribeToken: 'test-unsubscribe-token' // Not functional for test emails
+        },
+        state: 'ALL', // Show all recalls in test email
+        recalls: recalls,
+        digestDate: new Date().toISOString(),
+        isTest: true // Mark as test email
+      };
+
+      // Generate email options with rendered HTML
+      const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+      
+      // Override the recipient to send only to admin and add TEST prefix to subject
+      emailOptions.to = adminEmail;
+      emailOptions.subject = `[TEST] SafeCart Recall Digest - ${recalls.length} recalls`;
+      
+      // Send test email to admin only with retry logic
+      const result = await this.sendEmailWithRetry(emailOptions, adminEmail);
+
+      if (!result.success) {
+        logger.error(`Failed to send test email to ${adminEmail}:`, result.error);
+        return {
+          success: false,
+          error: result.error,
+          recallCount: recalls.length
+        };
+      }
+
+      logger.info(`Test email sent to admin ${adminEmail} with ${recalls.length} recalls`);
+
+      return {
+        success: true,
+        messageId: result.messageId,
+        recallCount: recalls.length
+      };
+    } catch (error) {
+      logger.error('Error sending test digest:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        recallCount: 0
+      };
+    }
+  }
+
+  /**
    * Get email history
    */
   async getEmailHistory(page: number = 1, limit: number = 10): Promise<{
@@ -535,7 +614,14 @@ export class EmailQueueService {
         const data = doc.data();
         return {
           id: doc.id,
-          ...data,
+          type: data.type,
+          sentBy: data.sentBy,
+          recallCount: data.recallCount,
+          totalRecipients: data.totalRecipients,
+          recalls: data.recalls || [],
+          emailHtml: data.emailHtml,
+          queueId: data.queueId,
+          analytics: data.analytics, // Include analytics from webhook data
           // Convert Firestore timestamp to ISO string for frontend
           sentAt: data.sentAt ? this.convertFirestoreTimestamp(data.sentAt) : new Date().toISOString()
         };
@@ -603,41 +689,69 @@ export class EmailQueueService {
   }
 
   /**
+   * Private helper: Send email with retry logic
+   */
+  private async sendEmailWithRetry(
+    emailOptions: any,
+    recipientEmail: string,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<{ success: boolean; error?: string; messageId?: string }> {
+    let lastError = '';
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.emailService.sendEmail(emailOptions);
+        
+        if (result.success) {
+          if (attempt > 1) {
+            logger.info(`Email sent successfully to ${recipientEmail} on attempt ${attempt}`);
+          }
+          return result;
+        } else {
+          lastError = result.error || 'Unknown error';
+          logger.warn(`Email attempt ${attempt}/${maxRetries} failed for ${recipientEmail}: ${lastError}`);
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Unknown error';
+        logger.warn(`Email attempt ${attempt}/${maxRetries} threw error for ${recipientEmail}:`, error);
+      }
+      
+      // Wait before retry (exponential backoff)
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // 1s, 2s, 4s, etc.
+        logger.info(`Waiting ${delay}ms before retry ${attempt + 1} for ${recipientEmail}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    logger.error(`Failed to send email to ${recipientEmail} after ${maxRetries} attempts. Final error: ${lastError}`);
+    return { success: false, error: lastError };
+  }
+
+  /**
    * Private helper: Get subscribers grouped by state
    */
   private async getSubscribersByState(): Promise<{ [state: string]: any[] }> {
-    logger.info('Querying for subscribed users...');
     
     const snapshot = await db.collection('users')
       .where('emailPreferences.subscribed', '==', true)
       .get();
 
-    logger.info(`Found ${snapshot.size} users with subscribed=true`);
-
     const subscribersByState: { [state: string]: any[] } = {};
 
     snapshot.docs.forEach(doc => {
       const user = doc.data();
-      const userEmail = user.email || doc.id;
-      
-      logger.info(`Processing user: ${userEmail}`);
-      logger.info(`User emailPreferences:`, JSON.stringify(user.emailPreferences, null, 2));
       
       const states = user.emailPreferences?.states || [];
-      logger.info(`User ${userEmail} subscribed to states: [${states.join(', ')}]`);
       
       states.forEach((state: string) => {
         if (!subscribersByState[state]) {
           subscribersByState[state] = [];
         }
         subscribersByState[state].push(user);
-        logger.info(`Added user ${userEmail} to state ${state}`);
       });
     });
-
-    logger.info(`Final subscriber distribution:`, Object.keys(subscribersByState).map(state => 
-      `${state}: ${subscribersByState[state].length} subscribers`
-    ));
 
     return subscribersByState;
   }

@@ -275,18 +275,13 @@ export function EditableRecallList({
       {/* Select All Section with Image Stats - only show when enableSelection is true */}
       {enableSelection && filteredRecalls.length > 0 && (
         <div 
+          className={editStyles.selectAllSection}
           style={{
-            padding: '1rem',
             backgroundColor: currentTheme.background,
-            borderRadius: '0.75rem',
-            border: `1px solid ${currentTheme.cardBorder}`,
-            marginBottom: '1rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            border: `1px solid ${currentTheme.cardBorder}`
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className={editStyles.selectAllContainer}>
             <button
               onClick={handleSelectAllToggle}
               style={{
@@ -296,7 +291,6 @@ export function EditableRecallList({
                 padding: '0.5rem 0.75rem',
                 borderRadius: '0.375rem',
                 color: currentTheme.primary,
-                fontSize: '0.95rem',
                 fontWeight: '600',
                 transition: 'all 0.2s ease',
                 backgroundColor: 'transparent'
@@ -336,15 +330,14 @@ export function EditableRecallList({
               </div>
             )}
           </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+          <div className={editStyles.selectedContainer}>
             <div
               style={{
                 padding: '0.375rem 0.875rem',
                 backgroundColor: selectedRecalls.size > 0 ? `${currentTheme.success}15` : `${currentTheme.textSecondary}15`,
                 borderRadius: '1rem',
                 border: `1px solid ${selectedRecalls.size > 0 ? currentTheme.success + '30' : currentTheme.textSecondary + '30'}`,
-                fontSize: '0.875rem',
                 fontWeight: '600',
                 color: selectedRecalls.size > 0 ? currentTheme.success : currentTheme.textSecondary,
                 transition: 'all 0.2s ease'
@@ -353,8 +346,7 @@ export function EditableRecallList({
               {selectedRecalls.size} selected
             </div>
             <div style={{ 
-              color: currentTheme.textSecondary, 
-              fontSize: '0.875rem',
+              color: currentTheme.textSecondary,
               fontWeight: '500'
             }}>
               of {filteredRecalls.length} total
