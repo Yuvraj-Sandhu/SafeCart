@@ -11,12 +11,11 @@ import * as crypto from 'crypto';
 import logger from '../../utils/logger';
 import {
   MailchimpWebhookPayload,
-  EmailAnalyticsRecord,
-  MailchimpEventType,
-  EmailAnalyticsSummary
+  MailchimpEventType
 } from '../../types/email-analytics.types';
 
 const db = admin.firestore();
+const FieldValue = admin.firestore.FieldValue;
 
 export class EmailWebhookService {
   
@@ -55,52 +54,39 @@ export class EmailWebhookService {
         return { success: false, error: 'Missing recipient email' };
       }
 
+      // Extract message ID for duplicate prevention
+      const messageId = payload.data.id;
+      if (!messageId) {
+        logger.warn('No message ID found in webhook payload');
+        return { success: false, error: 'Missing message ID' };
+      }
+
       // Extract digest ID from metadata (headers aren't included in Mandrill webhooks)
-      const digestId = payload.data.metadata?.['digest_id'] || payload.data.metadata?.digest_id;
-
-      // Create analytics record
-      const analyticsRecord: EmailAnalyticsRecord = {
-        id: this.generateAnalyticsId(),
-        messageId: payload.data.id || 'unknown',
-        recipientEmail: recipientEmail,
-        eventType: eventType,
-        timestamp: payload.fired_at || new Date().toISOString(),
-        eventData: payload.data,
-        processed: false,
-        createdAt: new Date().toISOString()
-      };
-
-      // Use digest ID from header if available, otherwise try time-based matching
-      if (digestId) {
-        analyticsRecord.digestId = digestId;
-        // logger.info(`Analytics event matched to digest via header: ${digestId}`);
-      } else {
-        // Fallback to time-based matching for older emails
-        const foundDigestId = await this.findDigestForEmail(recipientEmail, analyticsRecord.timestamp);
-        if (foundDigestId) {
-          analyticsRecord.digestId = foundDigestId;
-          // logger.info(`Analytics event matched to digest via time: ${foundDigestId}`);
-        } else {
-          logger.warn(`No digest found for analytics event from ${recipientEmail}`);
-        }
-      }
-
-      // Store analytics record
-      await db.collection('email_analytics').doc(analyticsRecord.id).set(analyticsRecord);
+      let digestId = payload.data.metadata?.['digest_id'] || payload.data.metadata?.digest_id;
       
-      // Update digest analytics if we found the associated digest
-      if (analyticsRecord.digestId) {
-        await this.updateDigestAnalytics(analyticsRecord.digestId);
+      // If no digest ID in metadata, try time-based matching as fallback
+      if (!digestId) {
+        const foundDigestId = await this.findDigestForEmail(recipientEmail, payload.fired_at || new Date().toISOString());
+        if (!foundDigestId) {
+          logger.warn(`No digest found for analytics event from ${recipientEmail}`);
+          return { success: true, processed: false };
+        }
+        digestId = foundDigestId;
+        // logger.info(`Analytics event matched to digest via time: ${digestId}`);
+      } else {
+        // logger.info(`Analytics event matched to digest via metadata: ${digestId}`);
       }
 
-      // Mark as processed
-      await db.collection('email_analytics').doc(analyticsRecord.id).update({
-        processed: true
-      });
+      // Directly update digest analytics with bulletproof duplicate prevention
+      const result = await this.updateDigestAnalyticsDirect(digestId, eventType, messageId);
+      
+      if (result.success) {
+        // logger.info(`Processed ${eventType} event for ${recipientEmail} (digest: ${digestId}, duplicate: ${result.isDuplicate})`);
+      } else {
+        logger.error(`Failed to update analytics for digest ${digestId}: ${result.error}`);
+      }
 
-      // logger.info(`Processed ${eventType} event for ${recipientEmail} (digest: ${analyticsRecord.digestId || 'unknown'})`);
-
-      return { success: true, processed: true };
+      return { success: result.success, processed: !result.isDuplicate };
     } catch (error) {
       logger.error('Error processing webhook:', error);
       return { 
@@ -111,21 +97,17 @@ export class EmailWebhookService {
   }
 
   /**
-   * Get analytics summary for a specific digest
+   * Get analytics summary for a specific digest (reads directly from digest)
    */
-  async getDigestAnalytics(digestId: string): Promise<EmailAnalyticsSummary | null> {
+  async getDigestAnalytics(digestId: string): Promise<any | null> {
     try {
-      const analyticsSnapshot = await db.collection('email_analytics')
-        .where('digestId', '==', digestId)
-        .get();
-
-      if (analyticsSnapshot.empty) {
+      const digestDoc = await db.collection('email_digests').doc(digestId).get();
+      
+      if (!digestDoc.exists) {
         return null;
       }
 
-      const events = analyticsSnapshot.docs.map(doc => doc.data() as EmailAnalyticsRecord);
-      
-      return this.calculateAnalyticsSummary(events);
+      return digestDoc.data()?.analytics || null;
     } catch (error) {
       logger.error(`Error getting digest analytics for ${digestId}:`, error);
       return null;
@@ -255,84 +237,195 @@ export class EmailWebhookService {
   }
 
   /**
-   * Update aggregate analytics for a digest
+   * Directly update digest analytics with bulletproof duplicate prevention
+   * Uses atomic operations to prevent race conditions
+   * Uses separate collection for processed events (future-proof approach)
    */
-  private async updateDigestAnalytics(digestId: string): Promise<void> {
+  private async updateDigestAnalyticsDirect(
+    digestId: string, 
+    eventType: MailchimpEventType, 
+    messageId: string
+  ): Promise<{ success: boolean; isDuplicate?: boolean; error?: string }> {
     try {
-      // Get all analytics for this digest
-      const analyticsSnapshot = await db.collection('email_analytics')
-        .where('digestId', '==', digestId)
-        .get();
-
-      if (analyticsSnapshot.empty) return;
-
-      const events = analyticsSnapshot.docs.map(doc => doc.data() as EmailAnalyticsRecord);
-      const summary = this.calculateAnalyticsSummary(events);
-
-      // Update the digest document
-      await db.collection('email_digests').doc(digestId).update({
-        analytics: summary
+      // Create a unique event key to prevent duplicate processing
+      const eventKey = `${digestId}_${messageId}_${eventType}`;
+      
+      // Use a transaction for atomic operations and duplicate prevention
+      const result = await db.runTransaction(async (transaction) => {
+        // Check for duplicate in processed_events collection
+        const processedEventRef = db.collection('processed_events').doc(eventKey);
+        const processedEventDoc = await transaction.get(processedEventRef);
+        
+        // If event already processed, return as duplicate
+        if (processedEventDoc.exists) {
+          return { isDuplicate: true };
+        }
+        
+        // Get the digest document
+        const digestRef = db.collection('email_digests').doc(digestId);
+        const digestDoc = await transaction.get(digestRef);
+        
+        // Check if digest exists
+        if (!digestDoc.exists) {
+          throw new Error(`Digest ${digestId} does not exist`);
+        }
+        
+        const digestData = digestDoc.data();
+        
+        // Ensure digestData exists (TypeScript safety)
+        if (!digestData) {
+          throw new Error(`Digest ${digestId} data is undefined`);
+        }
+        
+        // Initialize analytics structure if it doesn't exist
+        if (!digestData.analytics) {
+          const initialAnalytics = {
+            totalSent: 0,
+            delivered: 0,
+            bounced: 0,
+            opened: 0,
+            clicked: 0,
+            unsubscribed: 0,
+            complained: 0,
+            rejected: 0,
+            deliveryRate: 0,
+            openRate: 0,
+            clickRate: 0,
+            bounceRate: 0,
+            lastUpdated: new Date().toISOString()
+          };
+          
+          // Set initial analytics structure
+          transaction.update(digestRef, { analytics: initialAnalytics });
+        }
+        
+        // Mark this event as processed in the processed_events collection
+        transaction.set(processedEventRef, {
+          digestId: digestId,
+          messageId: messageId,
+          eventType: eventType,
+          processedAt: new Date().toISOString()
+        });
+        
+        // Update the specific counter based on event type
+        const updates: any = {
+          'analytics.lastUpdated': new Date().toISOString()
+        };
+        
+        // Increment the appropriate counter atomically
+        switch (eventType) {
+          case 'sent':
+            updates['analytics.totalSent'] = FieldValue.increment(1);
+            break;
+          case 'delivered':
+            updates['analytics.delivered'] = FieldValue.increment(1);
+            break;
+          case 'bounced':
+            updates['analytics.bounced'] = FieldValue.increment(1);
+            break;
+          case 'opened':
+            updates['analytics.opened'] = FieldValue.increment(1);
+            break;
+          case 'clicked':
+            updates['analytics.clicked'] = FieldValue.increment(1);
+            break;
+          case 'unsubscribed':
+            updates['analytics.unsubscribed'] = FieldValue.increment(1);
+            break;
+          case 'complained':
+            updates['analytics.complained'] = FieldValue.increment(1);
+            break;
+          case 'rejected':
+            updates['analytics.rejected'] = FieldValue.increment(1);
+            break;
+        }
+        
+        // Update the document
+        transaction.update(digestRef, updates);
+        
+        // After updating counts, recalculate rates
+        // Note: This requires a second transaction since we need the updated values
+        return { isDuplicate: false };
       });
-
-      // logger.info(`Updated analytics for digest ${digestId}`);
+      
+      // If not a duplicate, update the calculated rates
+      if (!result.isDuplicate) {
+        await this.updateAnalyticsRates(digestId);
+      }
+      
+      return { success: true, isDuplicate: result.isDuplicate };
     } catch (error) {
       logger.error(`Error updating digest analytics for ${digestId}:`, error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+  
+  /**
+   * Update calculated analytics rates (delivery rate, open rate, etc.)
+   * Called after counters are updated
+   */
+  private async updateAnalyticsRates(digestId: string): Promise<void> {
+    try {
+      const digestDoc = await db.collection('email_digests').doc(digestId).get();
+      if (!digestDoc.exists) return;
+      
+      const analytics = digestDoc.data()?.analytics;
+      if (!analytics) return;
+      
+      // Calculate rates safely (avoid division by zero)
+      const totalSent = Math.max(analytics.totalSent || 0, 1);
+      const delivered = Math.max(analytics.delivered || 0, 1);
+      
+      const rates = {
+        'analytics.deliveryRate': Math.round((analytics.delivered / totalSent) * 100),
+        'analytics.openRate': Math.round((analytics.opened / delivered) * 100),
+        'analytics.clickRate': Math.round((analytics.clicked / delivered) * 100),
+        'analytics.bounceRate': Math.round((analytics.bounced / totalSent) * 100)
+      };
+      
+      await db.collection('email_digests').doc(digestId).update(rates);
+    } catch (error) {
+      logger.error(`Error updating analytics rates for ${digestId}:`, error);
     }
   }
 
   /**
-   * Calculate analytics summary from events
+   * Optional: Clean up old processed events (can be run periodically)
+   * Removes processed events older than specified days
    */
-  private calculateAnalyticsSummary(events: EmailAnalyticsRecord[]): EmailAnalyticsSummary {
-    const counts = {
-      sent: 0,
-      delivered: 0,
-      bounced: 0,
-      opened: 0,
-      clicked: 0,
-      unsubscribed: 0,
-      complained: 0,
-      rejected: 0
-    };
-
-    // Count events by type
-    events.forEach(event => {
-      if (event.eventType === 'sent') counts.sent++;
-      else if (event.eventType === 'delivered') counts.delivered++;
-      else if (event.eventType === 'bounced') counts.bounced++;
-      else if (event.eventType === 'opened') counts.opened++;
-      else if (event.eventType === 'clicked') counts.clicked++;
-      else if (event.eventType === 'unsubscribed') counts.unsubscribed++;
-      else if (event.eventType === 'complained') counts.complained++;
-      else if (event.eventType === 'rejected') counts.rejected++;
-    });
-
-    // Calculate rates
-    const totalSent = Math.max(counts.sent, 1); // Avoid division by zero
-    const delivered = Math.max(counts.delivered, 1); // Avoid division by zero
-
-    return {
-      totalSent: counts.sent,
-      delivered: counts.delivered,
-      bounced: counts.bounced,
-      opened: counts.opened,
-      clicked: counts.clicked,
-      unsubscribed: counts.unsubscribed,
-      complained: counts.complained,
-      rejected: counts.rejected,
-      deliveryRate: Math.round((counts.delivered / totalSent) * 100),
-      openRate: Math.round((counts.opened / delivered) * 100),
-      clickRate: Math.round((counts.clicked / delivered) * 100),
-      bounceRate: Math.round((counts.bounced / totalSent) * 100),
-      lastUpdated: new Date().toISOString()
-    };
-  }
-
-  /**
-   * Generate unique ID for analytics record
-   */
-  private generateAnalyticsId(): string {
-    return `analytics_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async cleanupOldProcessedEvents(daysToKeep: number = 30): Promise<number> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+      const cutoffTimestamp = cutoffDate.toISOString();
+      
+      // Query for old processed events
+      const snapshot = await db.collection('processed_events')
+        .where('processedAt', '<', cutoffTimestamp)
+        .limit(500) // Process in batches to avoid timeouts
+        .get();
+      
+      if (snapshot.empty) {
+        return 0;
+      }
+      
+      // Delete in batches
+      const batch = db.batch();
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      
+      // logger.info(`Cleaned up ${snapshot.size} old processed events`);
+      return snapshot.size;
+    } catch (error) {
+      logger.error('Error cleaning up processed events:', error);
+      return 0;
+    }
   }
 }
 
