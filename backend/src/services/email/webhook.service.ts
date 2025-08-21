@@ -131,7 +131,11 @@ export class EmailWebhookService {
 
   /**
    * Validate Mandrill webhook signature
-   * Mandrill uses: Base64(HMAC-SHA1(webhook_key, webhook_url + sorted_POST_params))
+   * Per Mandrill docs:
+   * 1. Start with webhook URL exactly as entered in Mailchimp
+   * 2. Append each POST variable's key and value with NO delimiter
+   * 3. Hash with HMAC-SHA1 using webhook authentication key
+   * 4. Base64 encode the result
    */
   validateMandrillSignature(webhookUrl: string, params: Record<string, any>, signature: string): boolean {
     try {
@@ -141,17 +145,16 @@ export class EmailWebhookService {
         return true; // Allow if not configured (development)
       }
 
-      // Sort POST parameters alphabetically by key and URL encode values
-      const sortedParams = Object.keys(params)
-        .sort()
-        .map(key => {
-          const value = typeof params[key] === 'string' ? params[key] : JSON.stringify(params[key]);
-          return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
-        })
-        .join('&');
+      // Start with the webhook URL
+      let signedData = webhookUrl;
 
-      // Create the signed data: webhook_url + sorted_params
-      const signedData = webhookUrl + sortedParams;
+      // Sort POST parameters alphabetically by key
+      // Append each key and value with NO delimiter (no = or &)
+      const sortedKeys = Object.keys(params).sort();
+      for (const key of sortedKeys) {
+        const value = typeof params[key] === 'string' ? params[key] : JSON.stringify(params[key]);
+        signedData += key + value;
+      }
 
       // Generate HMAC-SHA1 signature
       const expectedSignature = crypto
@@ -162,8 +165,8 @@ export class EmailWebhookService {
       // Log signature details for debugging
       logger.info('Mandrill signature validation:', {
         webhookUrl,
-        paramKeys: Object.keys(params),
-        sortedParams: sortedParams.substring(0, 100) + '...',
+        paramKeys: sortedKeys,
+        signedDataPreview: signedData.substring(0, 200) + '...',
         signedDataLength: signedData.length,
         receivedSignature: signature.substring(0, 10) + '...',
         expectedSignature: expectedSignature.substring(0, 10) + '...',
