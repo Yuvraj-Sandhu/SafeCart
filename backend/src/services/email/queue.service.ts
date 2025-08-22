@@ -271,7 +271,7 @@ export class EmailQueueService {
         processedEmails.add(subscriber.email);
         
         // Get user's subscribed states
-        const userStates = subscriber.emailPreferences?.recallAlertStates || [];
+        const userStates = subscriber.emailPreferences?.states || [];
         
         // Skip if user has no state preferences
         if (userStates.length === 0) {
@@ -479,7 +479,7 @@ export class EmailQueueService {
         processedEmails.add(subscriber.email);
         
         // Get user's subscribed states
-        const userStates = subscriber.emailPreferences?.recallAlertStates || [];
+        const userStates = subscriber.emailPreferences?.states || [];
         
         // Skip if user has no state preferences
         if (userStates.length === 0) {
