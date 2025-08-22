@@ -31,7 +31,8 @@ export interface RecallDigestData {
     email: string;
     unsubscribeToken: string;
   };
-  state: string;
+  state: string; // Can be "Multiple States", state names, or single state
+  states?: string[]; // Array of all user's subscribed states (for consolidated emails)
   recalls: Array<{
     id: string;
     title: string;

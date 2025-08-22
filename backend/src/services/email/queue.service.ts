@@ -238,8 +238,9 @@ export class EmailQueueService {
             email: sampleSubscribers[0].email,
             unsubscribeToken: sampleSubscribers[0].emailPreferences?.unsubscribeToken || ''
           },
-          state: sampleState,
-          recalls: sampleRecalls,
+          state: 'ALL', // Use 'ALL' to show all recalls in preview HTML
+          states: ['ALL'], // Pass as array for consistency
+          recalls: recalls, // Include all recalls, not just state-filtered ones
           digestDate: new Date().toISOString(),
           isTest: false
         };
@@ -253,67 +254,78 @@ export class EmailQueueService {
       // Generate digest ID first for analytics tracking
       const digestId = this.generateDigestId();
 
-      // Send state-specific emails
-      for (const [state, subscribers] of Object.entries(subscribersByState)) {
-        // Filter recalls affecting this state
-        const stateRecalls = recalls.filter(recall => {
-          const affectedStates = this.getAffectedStates(recall);
-          const isStateSpecific = affectedStates.includes(state);
-          const isNationwide = affectedStates.includes('Nationwide');
-          const isAllStatesSubscription = state === 'ALL';
-          
-          // if (isNationwide) {
-          //   logger.info(`Including nationwide recall ${recall.id} for ${state} subscribers`);
-          // }
-          
-          // if (isAllStatesSubscription) {
-          //   logger.info(`Including recall ${recall.id} for ALL states subscribers`);
-          // }
-          
-          // Include recall if:
-          // 1. It specifically affects this state, OR
-          // 2. It's a nationwide recall (affects all states), OR
-          // 3. User subscribed to "ALL" states (receives everything)
-          return isStateSpecific || isNationwide || isAllStatesSubscription;
-        });
+      // Collect all unique subscribers from all states
+      const allSubscribers: any[] = [];
+      for (const stateSubscribers of Object.values(subscribersByState)) {
+        allSubscribers.push(...stateSubscribers);
+      }
 
-        if (stateRecalls.length > 0) {
-          // logger.info(`Sending ${stateRecalls.length} recalls to ${subscribers.length} subscribers in ${state}`);
-          // Send to all subscribers in this state
-          for (const subscriber of subscribers) {
-            try {
-              const digestData = {
-                user: {
-                  name: subscriber.name || 'SafeCart User',
-                  email: subscriber.email,
-                  unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
-                },
-                state,
-                recalls: stateRecalls,
-                digestDate: new Date().toISOString(),
-                isTest: false
-              };
+      // Process each subscriber individually (one email per user with all their relevant recalls)
+      const processedEmails = new Set<string>(); // Track processed emails to avoid duplicates
+      
+      for (const subscriber of allSubscribers) {
+        // Skip if we've already processed this email (user might be in multiple state groups)
+        if (processedEmails.has(subscriber.email)) {
+          continue;
+        }
+        processedEmails.add(subscriber.email);
+        
+        // Get user's subscribed states
+        const userStates = subscriber.emailPreferences?.recallAlertStates || [];
+        
+        // Skip if user has no state preferences
+        if (userStates.length === 0) {
+          logger.warn(`Skipping ${subscriber.email} - no state preferences`);
+          continue;
+        }
+        
+        // Get all unique recalls relevant to this user's subscribed states
+        const userRecalls = this.getRecallsForUser(recalls, userStates);
+        
+        // Skip if no recalls affect user's states
+        if (userRecalls.length === 0) {
+          logger.info(`No recalls for ${subscriber.email} in states: ${userStates.join(', ')}`);
+          continue;
+        }
+        
+        try {
+          // Generate smart email title based on affected states
+          const emailTitle = this.generateEmailTitle(userRecalls, userStates);
+          
+          // Create digest data with all user's recalls
+          const digestData = {
+            user: {
+              name: subscriber.name || 'SafeCart User',
+              email: subscriber.email,
+              unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
+            },
+            state: userStates.join(', '), // Show all user's states
+            states: userStates, // Pass the array of states for the template
+            recalls: userRecalls,
+            digestDate: new Date().toISOString(),
+            isTest: false
+          };
 
-              const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
-              // Add digest ID for analytics tracking
-              emailOptions.digestId = digestId;
-              
-              const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
-              
-              if (result.success) {
-                // logger.info(`Email sent successfully to ${subscriber.email}`);
-                totalRecipients++;
-              } else {
-                logger.error(`Email failed to ${subscriber.email} after retries: ${result.error}`);
-                failedSends.push(subscriber.email);
-              }
-            } catch (error) {
-              logger.error(`Failed to send email to ${subscriber.email}:`, error);
-              failedSends.push(subscriber.email);
-            }
+          const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+          
+          // Override the subject with our smart title
+          emailOptions.subject = `${emailTitle} - SafeCart Alert`;
+          
+          // Add digest ID for analytics tracking
+          emailOptions.digestId = digestId;
+          
+          const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
+          
+          if (result.success) {
+            logger.info(`Sent ${userRecalls.length} recalls to ${subscriber.email} for states: ${userStates.join(', ')}`);
+            totalRecipients++;
+          } else {
+            logger.error(`Email failed to ${subscriber.email} after retries: ${result.error}`);
+            failedSends.push(subscriber.email);
           }
-        } else {
-          logger.info(`No recalls for state ${state}, skipping ${subscribers.length} subscribers`);
+        } catch (error) {
+          logger.error(`Failed to send email to ${subscriber.email}:`, error);
+          failedSends.push(subscriber.email);
         }
       }
 
@@ -434,8 +446,9 @@ export class EmailQueueService {
             email: sampleSubscribers[0].email,
             unsubscribeToken: sampleSubscribers[0].emailPreferences?.unsubscribeToken || ''
           },
-          state: sampleState,
-          recalls: sampleRecalls,
+          state: 'ALL', // Use 'ALL' to show all recalls in preview HTML
+          states: ['ALL'], // Pass as array for consistency
+          recalls: recalls, // Include all recalls, not just state-filtered ones
           digestDate: new Date().toISOString(),
           isTest: false
         };
@@ -449,53 +462,76 @@ export class EmailQueueService {
       // Generate digest ID first for analytics tracking
       const digestId = this.generateDigestId();
 
-      // Send state-specific emails
-      for (const [state, subscribers] of Object.entries(subscribersByState)) {
-        // Filter recalls affecting this state
-        const stateRecalls = recalls.filter(recall => {
-          const affectedStates = this.getAffectedStates(recall);
-          const isStateSpecific = affectedStates.includes(state);
-          const isNationwide = affectedStates.includes('Nationwide');
-          const isAllStatesSubscription = state === 'ALL';
+      // Collect all unique subscribers from all states
+      const allSubscribers: any[] = [];
+      for (const stateSubscribers of Object.values(subscribersByState)) {
+        allSubscribers.push(...stateSubscribers);
+      }
+
+      // Process each subscriber individually (one email per user with all their relevant recalls)
+      const processedEmails = new Set<string>(); // Track processed emails to avoid duplicates
+      
+      for (const subscriber of allSubscribers) {
+        // Skip if we've already processed this email
+        if (processedEmails.has(subscriber.email)) {
+          continue;
+        }
+        processedEmails.add(subscriber.email);
+        
+        // Get user's subscribed states
+        const userStates = subscriber.emailPreferences?.recallAlertStates || [];
+        
+        // Skip if user has no state preferences
+        if (userStates.length === 0) {
+          logger.warn(`Skipping ${subscriber.email} - no state preferences`);
+          continue;
+        }
+        
+        // Get all unique recalls relevant to this user's subscribed states
+        const userRecalls = this.getRecallsForUser(recalls, userStates);
+        
+        // Skip if no recalls affect user's states
+        if (userRecalls.length === 0) {
+          logger.info(`No recalls for ${subscriber.email} in states: ${userStates.join(', ')}`);
+          continue;
+        }
+        
+        try {
+          // Generate smart email title based on affected states
+          const emailTitle = this.generateEmailTitle(userRecalls, userStates);
           
-          // Include recall if:
-          // 1. It specifically affects this state, OR
-          // 2. It's a nationwide recall (affects all states), OR  
-          // 3. User subscribed to "ALL" states (receives everything)
-          return isStateSpecific || isNationwide || isAllStatesSubscription;
-        });
+          // Create digest data with all user's recalls
+          const digestData = {
+            user: {
+              name: subscriber.name || 'SafeCart User',
+              email: subscriber.email,
+              unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
+            },
+            state: userStates.join(', '), // Show all user's states
+            states: userStates, // Pass the array of states for the template
+            recalls: userRecalls,
+            digestDate: new Date().toISOString(),
+            isTest: false
+          };
 
-        if (stateRecalls.length > 0) {
-          // Send to all subscribers in this state
-          for (const subscriber of subscribers) {
-            try {
-              const digestData = {
-                user: {
-                  name: subscriber.name || 'SafeCart User',
-                  email: subscriber.email,
-                  unsubscribeToken: subscriber.emailPreferences?.unsubscribeToken || ''
-                },
-                state,
-                recalls: stateRecalls,
-                digestDate: new Date().toISOString(),
-                isTest: false
-              };
-
-              const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
-              // Add digest ID for analytics tracking
-              emailOptions.digestId = digestId;
-              
-              const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
-              
-              if (result.success) {
-                totalRecipients++;
-              } else {
-                logger.error(`Failed to send manual digest to ${subscriber.email} after retries: ${result.error}`);
-              }
-            } catch (error) {
-              logger.error(`Failed to send manual digest to ${subscriber.email}:`, error);
-            }
+          const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+          
+          // Override the subject with our smart title
+          emailOptions.subject = `${emailTitle} - SafeCart Alert`;
+          
+          // Add digest ID for analytics tracking
+          emailOptions.digestId = digestId;
+          
+          const result = await this.sendEmailWithRetry(emailOptions, subscriber.email);
+          
+          if (result.success) {
+            logger.info(`Sent manual digest with ${userRecalls.length} recalls to ${subscriber.email} for states: ${userStates.join(', ')}`);
+            totalRecipients++;
+          } else {
+            logger.error(`Failed to send manual digest to ${subscriber.email} after retries: ${result.error}`);
           }
+        } catch (error) {
+          logger.error(`Failed to send manual digest to ${subscriber.email}:`, error);
         }
       }
 
@@ -559,6 +595,7 @@ export class EmailQueueService {
           unsubscribeToken: 'test-unsubscribe-token' // Not functional for test emails
         },
         state: 'ALL', // Show all recalls in test email
+        states: ['ALL'], // Pass as array for consistency
         recalls: recalls,
         digestDate: new Date().toISOString(),
         isTest: true // Mark as test email
@@ -854,6 +891,122 @@ export class EmailQueueService {
     }
     // Fallback
     return new Date().toISOString();
+  }
+
+  /**
+   * Get unique recalls for a user based on their subscribed states
+   * Includes recalls that affect any of the user's states or are nationwide
+   */
+  private getRecallsForUser(recalls: RecallData[], userStates: string[]): RecallData[] {
+    // Use a Set to track unique recall IDs (prevent duplicates)
+    const uniqueRecallIds = new Set<string>();
+    const userRecalls: RecallData[] = [];
+    
+    for (const recall of recalls) {
+      // Skip if we've already included this recall
+      if (uniqueRecallIds.has(recall.id)) {
+        continue;
+      }
+      
+      const affectedStates = this.getAffectedStates(recall);
+      
+      // Check if recall affects any of the user's subscribed states
+      const affectsUserState = userStates.some(userState => {
+        if (userState === 'ALL') {
+          // User subscribed to ALL gets everything
+          return true;
+        }
+        // Check if recall affects this specific state or is nationwide
+        return affectedStates.includes(userState) || affectedStates.includes('Nationwide');
+      });
+      
+      if (affectsUserState) {
+        uniqueRecallIds.add(recall.id);
+        userRecalls.push(recall);
+      }
+    }
+    
+    return userRecalls;
+  }
+  
+  /**
+   * Generate smart email title with proper state list and pluralization
+   * Examples:
+   * - "1 food recall in CA"
+   * - "3 food recalls in CA, TX, WA"
+   * - "5 food recalls in CA, TX, WA (and 2 other states)"
+   * - "2 food recalls nationwide"
+   */
+  private generateEmailTitle(recalls: RecallData[], userStates: string[]): string {
+    const recallCount = recalls.length;
+    const recallText = recallCount === 1 ? 'food recall' : 'food recalls';
+    
+    // If user subscribed to ALL states
+    if (userStates.includes('ALL')) {
+      // Check if any recalls are truly nationwide
+      const hasNationwideRecall = recalls.some(recall => 
+        this.getAffectedStates(recall).includes('Nationwide')
+      );
+      
+      if (hasNationwideRecall && recalls.every(recall => 
+        this.getAffectedStates(recall).includes('Nationwide')
+      )) {
+        // All recalls are nationwide
+        return `${recallCount} ${recallText} nationwide`;
+      }
+      
+      // For ALL subscription, list the actual affected states
+      const allAffectedStates = new Set<string>();
+      recalls.forEach(recall => {
+        const states = this.getAffectedStates(recall);
+        states.forEach(state => {
+          if (state !== 'Nationwide') {
+            allAffectedStates.add(state);
+          }
+        });
+      });
+      
+      const statesList = Array.from(allAffectedStates).sort();
+      return this.formatStatesList(recallCount, recallText, statesList);
+    }
+    
+    // For specific state subscriptions, find which of user's states are actually affected
+    const affectedUserStates = new Set<string>();
+    
+    recalls.forEach(recall => {
+      const recallStates = this.getAffectedStates(recall);
+      
+      userStates.forEach(userState => {
+        // If recall affects this user state or is nationwide
+        if (recallStates.includes(userState) || recallStates.includes('Nationwide')) {
+          affectedUserStates.add(userState);
+        }
+      });
+    });
+    
+    const statesList = Array.from(affectedUserStates).sort();
+    return this.formatStatesList(recallCount, recallText, statesList);
+  }
+  
+  /**
+   * Format states list with truncation after 3 states
+   */
+  private formatStatesList(recallCount: number, recallText: string, states: string[]): string {
+    if (states.length === 0) {
+      return `${recallCount} ${recallText}`;
+    }
+    
+    if (states.length <= 3) {
+      // Show all states if 3 or fewer
+      return `${recallCount} ${recallText} in ${states.join(', ')}`;
+    }
+    
+    // Show first 3 states and indicate how many more
+    const displayStates = states.slice(0, 3);
+    const remainingCount = states.length - 3;
+    const otherText = remainingCount === 1 ? 'other state' : 'other states';
+    
+    return `${recallCount} ${recallText} in ${displayStates.join(', ')} (and ${remainingCount} ${otherText})`;
   }
 
   /**
