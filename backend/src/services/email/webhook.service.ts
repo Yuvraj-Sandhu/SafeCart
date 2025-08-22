@@ -78,7 +78,7 @@ export class EmailWebhookService {
       }
 
       // Directly update digest analytics with bulletproof duplicate prevention
-      const result = await this.updateDigestAnalyticsDirect(digestId, eventType, messageId);
+      const result = await this.updateDigestAnalyticsDirect(digestId, eventType, messageId, recipientEmail);
       
       if (result.success) {
         // logger.info(`Processed ${eventType} event for ${recipientEmail} (digest: ${digestId}, duplicate: ${result.isDuplicate})`);
@@ -244,11 +244,14 @@ export class EmailWebhookService {
   private async updateDigestAnalyticsDirect(
     digestId: string, 
     eventType: MailchimpEventType, 
-    messageId: string
+    messageId: string,
+    recipientEmail: string
   ): Promise<{ success: boolean; isDuplicate?: boolean; error?: string }> {
     try {
-      // Create a unique event key to prevent duplicate processing
-      const eventKey = `${digestId}_${messageId}_${eventType}`;
+      // Create a unique event key with recipient email hash to prevent duplicate processing
+      // This ensures each recipient's events are tracked separately
+      const emailHash = this.hashEmail(recipientEmail);
+      const eventKey = `${digestId}_${messageId}_${eventType}_${emailHash}`;
       
       // Use a transaction for atomic operations and duplicate prevention
       const result = await db.runTransaction(async (transaction) => {
@@ -304,6 +307,7 @@ export class EmailWebhookService {
           digestId: digestId,
           messageId: messageId,
           eventType: eventType,
+          recipientEmail: recipientEmail,
           processedAt: new Date().toISOString()
         });
         
@@ -390,6 +394,20 @@ export class EmailWebhookService {
     } catch (error) {
       logger.error(`Error updating analytics rates for ${digestId}:`, error);
     }
+  }
+
+  /**
+   * Generate a consistent hash for email addresses
+   * Creates a short, privacy-friendly identifier
+   */
+  private hashEmail(email: string): string {
+    // Use crypto to create a consistent hash
+    // Take first 8 characters for reasonable document ID length
+    return crypto
+      .createHash('sha256')
+      .update(email.toLowerCase().trim())
+      .digest('hex')
+      .substring(0, 8);
   }
 
   /**

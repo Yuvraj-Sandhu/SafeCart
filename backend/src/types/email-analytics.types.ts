@@ -78,6 +78,7 @@ export interface ProcessedEventRecord {
   digestId: string;        // Reference to email_digests document
   messageId: string;       // Mailchimp message ID
   eventType: string;       // Event type (sent, opened, etc.)
+  recipientEmail: string;  // Email address of recipient (for debugging/auditing)
   processedAt: string;     // ISO timestamp when processed
 }
 
