@@ -685,9 +685,9 @@ export class EmailQueueService {
   }
 
   /**
-   * Private helper: Get recalls by IDs
+   * Public helper: Get recalls by IDs (used for manual digest preview)
    */
-  private async getRecallsByIds(recallIds: string[]): Promise<RecallData[]> {
+  async getRecallsByIds(recallIds: string[]): Promise<RecallData[]> {
     const recalls: RecallData[] = [];
 
     for (const recallId of recallIds) {

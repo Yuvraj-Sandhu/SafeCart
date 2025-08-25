@@ -361,6 +361,22 @@ export const api = {
     return response.json();
   },
 
+  // Get email preview for manual digest
+  async getManualDigestEmailPreview(recallIds: string[]): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/digest/email-preview`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recallIds })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to generate email preview');
+    }
+    return response.json();
+  },
+
   // Update queue (remove recalls)
   async updateQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', recallIds: string[]): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}`, {

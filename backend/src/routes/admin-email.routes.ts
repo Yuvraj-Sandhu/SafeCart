@@ -312,6 +312,70 @@ router.post('/digest/send', authenticate, requireAdmin, async (req: Request, res
 });
 
 /**
+ * POST /api/admin/digest/email-preview
+ * Generate email HTML preview for manual digest
+ */
+router.post('/digest/email-preview', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { recallIds } = req.body;
+    
+    if (!Array.isArray(recallIds) || recallIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'recallIds must be a non-empty array'
+      });
+    }
+
+    // Get recalls by their IDs
+    const recalls = await emailQueueService.getRecallsByIds(recallIds);
+    
+    // Generate email HTML with ALL recalls (show as real user would see it)
+    const digestData = {
+      user: {
+        name: 'SafeCart User',
+        email: 'user@example.com',
+        unsubscribeToken: 'preview-unsubscribe-token'
+      },
+      state: 'ALL', // Show all recalls regardless of state
+      recalls: recalls, // All selected recalls
+      digestDate: new Date().toISOString(),
+      isTest: false, // Show as production email, not test
+      isAdminPreview: true // Flag to indicate this is admin preview
+    };
+
+    const { EmailRenderService } = require('../services/email/render.service');
+    const emailOptions = await EmailRenderService.renderRecallDigest(digestData);
+    
+    // Create digest object compatible with EmailPreviewModal
+    const digestPreview = {
+      id: `manual_preview_${Date.now()}`,
+      type: 'manual',
+      sentAt: new Date(),
+      sentBy: 'Preview (Manual Digest)',
+      recallCount: recalls.length,
+      totalRecipients: 0, // Preview only
+      recalls: recalls.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        source: r.source
+      })),
+      emailHtml: emailOptions.html
+    };
+
+    res.json({
+      success: true,
+      data: digestPreview
+    });
+  } catch (error) {
+    logger.error('Error generating manual digest email preview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate email preview'
+    });
+  }
+});
+
+/**
  * GET /api/admin/email-history
  * Get paginated email history
  */
