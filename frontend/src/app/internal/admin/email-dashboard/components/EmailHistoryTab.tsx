@@ -51,6 +51,9 @@ export function EmailHistoryTab() {
   const [sortField, setSortField] = useState<SortField>('sentAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [pageJumpValue, setPageJumpValue] = useState<string>('');
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [isLimitDropdownOpen, setIsLimitDropdownOpen] = useState<boolean>(false);
+  const limitDropdownRef = useRef<HTMLDivElement>(null);
   
   // Ref to prevent double API calls in development (React StrictMode)
   const hasFetched = useRef(false);
@@ -64,7 +67,6 @@ export function EmailHistoryTab() {
     isOpen: boolean;
     digest: EmailDigest | null;
   }>({ isOpen: false, digest: null });
-  const itemsPerPage = 10;
 
   useEffect(() => {
     // Prevent double API calls in React StrictMode (development)
@@ -76,6 +78,31 @@ export function EmailHistoryTab() {
     
     loadHistory();
   }, [currentPage]);
+
+  // Reset to page 1 when itemsPerPage changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      loadHistory();
+    }
+  }, [itemsPerPage]);
+
+  // Close limit dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (limitDropdownRef.current && !limitDropdownRef.current.contains(event.target as Node)) {
+        setIsLimitDropdownOpen(false);
+      }
+    }
+
+    if (isLimitDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isLimitDropdownOpen]);
 
   const loadHistory = async () => {
     setIsLoading(true);
@@ -186,6 +213,22 @@ export function EmailHistoryTab() {
     }
   };
 
+  const handleLimitChange = (newLimit: number) => {
+    setItemsPerPage(newLimit);
+    setIsLimitDropdownOpen(false); // Close dropdown after selection
+  };
+
+  const handleLimitDropdownToggle = () => {
+    setIsLimitDropdownOpen(!isLimitDropdownOpen);
+  };
+
+  const limitOptions = [
+    { value: 10, label: '10' },
+    { value: 20, label: '20' },
+    { value: 30, label: '30' },
+    { value: 50, label: '50' }
+  ];
+
   const renderPaginationControls = () => (
     <>
       <Button
@@ -241,12 +284,10 @@ export function EmailHistoryTab() {
           Email History
         </h2>
         
-        {/* Top Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.topPagination}>
-            {renderPaginationControls()}
-          </div>
-        )}
+        {/* Top Pagination - Always render container for layout */}
+        <div className={styles.topPagination}>
+          {totalPages > 1 ? renderPaginationControls() : <div></div>}
+        </div>
 
         <svg 
           onClick={loadHistory}
@@ -380,12 +421,89 @@ export function EmailHistoryTab() {
         </table>
       </div>
 
-      {/* Bottom Pagination */}
-      {totalPages > 1 && (
-        <div className={styles.pagination}>
-          {renderPaginationControls()}
+      {/* Bottom Pagination and Limit Controls */}
+      <div className={styles.paginationWrapper}>
+        {/* Limit selector on the left */}
+        <div className={styles.limitContainer}>
+          <span style={{ color: currentTheme.textSecondary }}>
+            Limit of{' '}
+            <div className={styles.limitSelectWrapper} ref={limitDropdownRef}>
+              <div
+                className={styles.limitDropdown}
+                onClick={handleLimitDropdownToggle}
+                style={{
+                  backgroundColor: currentTheme.cardBackground,
+                  borderColor: isLimitDropdownOpen ? currentTheme.primary : currentTheme.cardBorder,
+                  color: currentTheme.text
+                }}
+              >
+                {itemsPerPage}
+              </div>
+              <div 
+                className={styles.limitDropdownArrow}
+                style={{ color: currentTheme.textSecondary }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{
+                    transform: isLimitDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease'
+                  }}
+                >
+                  <polyline
+                    points="6,9 12,15 18,9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              {/* Custom Dropdown Menu */}
+              {isLimitDropdownOpen && (
+                <div 
+                  className={styles.limitDropdownMenu}
+                  style={{
+                    backgroundColor: currentTheme.cardBackground,
+                    borderColor: currentTheme.cardBorder,
+                    boxShadow: `0 4px 12px ${currentTheme.shadowLight}`,
+                  }}
+                >
+                  {limitOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      className={`${styles.limitOption} ${
+                        itemsPerPage === option.value ? styles.selected : ''
+                      }`}
+                      onClick={() => handleLimitChange(option.value)}
+                      style={{
+                        backgroundColor: itemsPerPage === option.value ? currentTheme.primaryLight : 'transparent',
+                        color: currentTheme.text
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {' '}per page
+          </span>
         </div>
-      )}
+
+        {/* Pagination controls in the center - Always render container for layout */}
+        <div className={styles.pagination}>
+          {totalPages > 1 ? renderPaginationControls() : <div></div>}
+        </div>
+
+        {/* Empty space on the right for balance */}
+        <div className={styles.rightSpace}></div>
+      </div>
 
       {/* Email Preview Modal */}
       {previewModal.isOpen && previewModal.digest && (
