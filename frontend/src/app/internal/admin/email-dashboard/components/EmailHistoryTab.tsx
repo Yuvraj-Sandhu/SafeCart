@@ -50,6 +50,7 @@ export function EmailHistoryTab() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortField, setSortField] = useState<SortField>('sentAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [pageJumpValue, setPageJumpValue] = useState<string>('');
   
   // Ref to prevent double API calls in development (React StrictMode)
   const hasFetched = useRef(false);
@@ -167,6 +168,62 @@ export function EmailHistoryTab() {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  const handlePageJumpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setPageJumpValue(value);
+    }
+  };
+
+  const handlePageJumpSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const pageNumber = parseInt(pageJumpValue);
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        setCurrentPage(pageNumber);
+        setPageJumpValue(''); // Clear input after jumping
+      }
+    }
+  };
+
+  const renderPaginationControls = () => (
+    <>
+      <Button
+        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        variant="secondary"
+        size="small"
+      >
+        Previous
+      </Button>
+      <div className={styles.pageInfo} style={{ color: currentTheme.text }}>
+        <span>Page </span>
+        <input
+          type="text"
+          value={pageJumpValue}
+          onChange={handlePageJumpChange}
+          onKeyDown={handlePageJumpSubmit}
+          placeholder={currentPage.toString()}
+          className={styles.pageJumpInput}
+          style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
+            color: currentTheme.text
+          }}
+        />
+        <span> of {totalPages}</span>
+      </div>
+      <Button
+        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        variant="secondary"
+        size="small"
+      >
+        Next
+      </Button>
+    </>
+  );
+
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -181,11 +238,29 @@ export function EmailHistoryTab() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title} style={{ color: currentTheme.text }}>
-          Email Send History
+          Email History
         </h2>
-        <Button onClick={loadHistory} variant="secondary" size="small">
-          Refresh
-        </Button>
+        
+        {/* Top Pagination */}
+        {totalPages > 1 && (
+          <div className={styles.topPagination}>
+            {renderPaginationControls()}
+          </div>
+        )}
+
+        <svg 
+          onClick={loadHistory}
+          fill={currentTheme.text} 
+          viewBox="0 0 24 24" 
+          xmlns="http://www.w3.org/2000/svg"
+          className={styles.refreshIcon}
+          style={{ 
+            width: '24px', 
+            height: '24px'
+          }}
+        >
+          <path d="M19.146 4.854l-1.489 1.489A8 8 0 1 0 12 20a8.094 8.094 0 0 0 7.371-4.886 1 1 0 1 0-1.842-.779A6.071 6.071 0 0 1 12 18a6 6 0 1 1 4.243-10.243l-1.39 1.39a.5.5 0 0 0 .354.854H19.5A.5.5 0 0 0 20 9.5V5.207a.5.5 0 0 0-.854-.353z" />
+        </svg>
       </div>
 
       {/* History Table */}
@@ -305,28 +380,10 @@ export function EmailHistoryTab() {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Bottom Pagination */}
       {totalPages > 1 && (
         <div className={styles.pagination}>
-          <Button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            variant="secondary"
-            size="small"
-          >
-            Previous
-          </Button>
-          <span className={styles.pageInfo} style={{ color: currentTheme.text }}>
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            variant="secondary"
-            size="small"
-          >
-            Next
-          </Button>
+          {renderPaginationControls()}
         </div>
       )}
 
