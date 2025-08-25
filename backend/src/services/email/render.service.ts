@@ -38,12 +38,14 @@ export interface RecallDigestData {
     title: string;
     company: string;
     recallDate: string;
+    recallInitiationDate?: string; // For relative time display
     classification: string;
     description: string;
     reason: string;
     primaryImage?: string;
     recallUrl?: string;
     source: 'USDA' | 'FDA';
+    affectedStates?: string[];
   }>;
   digestDate: string;
   isTest?: boolean;

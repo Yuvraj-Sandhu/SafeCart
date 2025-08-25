@@ -27,6 +27,7 @@ export interface RecallData {
   title: string;
   company: string;
   recallDate: string;
+  recallInitiationDate?: string; // For relative time display
   classification: string;
   description: string;
   reason: string;

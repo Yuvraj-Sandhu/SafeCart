@@ -701,6 +701,7 @@ export class EmailQueueService {
             title: data?.display?.previewTitle || data?.llmTitle || data?.field_title || 'Food Recall',
             company: EmailDigestService.extractCompanyName(data?.field_summary),
             recallDate: data?.field_recall_date,
+            recallInitiationDate: data?.field_recall_date, // For USDA, use field_recall_date for relative time
             classification: data?.field_risk_level,
             description: data?.field_summary || 'No description available',
             reason: data?.field_product_items || 'Contamination concerns',
@@ -721,6 +722,7 @@ export class EmailQueueService {
             title: data?.display?.previewTitle || data?.llmTitle || data?.product_description || 'Food Recall',
             company: data?.recalling_firm || 'Unknown Company',
             recallDate: this.formatFDADate(data?.report_date),
+            recallInitiationDate: data?.recall_initiation_date ? this.formatFDADate(data?.recall_initiation_date) : this.formatFDADate(data?.report_date), // Use recall_initiation_date if available, else report_date
             classification: data?.classification,
             description: data?.product_description || 'No description available',
             reason: data?.reason_for_recall || 'Safety concerns',
