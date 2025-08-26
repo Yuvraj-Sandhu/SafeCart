@@ -60,13 +60,14 @@ export class EmailQueueService {
   }
 
   /**
-   * Get all queues (USDA and FDA)
+   * Get all queues (USDA and FDA) - Updated to match sync service naming convention
    */
   async getQueues(): Promise<{ usda: EmailQueue | null; fda: EmailQueue | null }> {
     try {
-      // Get today's USDA queue
-      const today = new Date().toISOString().split('T')[0].replace(/-/g, '_');
-      const usdaQueueId = `usda_daily_${today}`;
+      // Get today's USDA queue (matches sync service naming: USDA_DAILY_YYYY-MM-DD)
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const usdaQueueId = `USDA_DAILY_${todayString}`;
       
       const usdaDoc = await db.collection('email_queues').doc(usdaQueueId).get();
       let usdaQueue: EmailQueue | null = null;
@@ -84,10 +85,16 @@ export class EmailQueueService {
         } as any;
       }
 
-      // Get current week's FDA queue
-      const week = this.getWeekNumber(new Date());
-      const year = new Date().getFullYear();
-      const fdaQueueId = `fda_weekly_${year}_w${String(week).padStart(2, '0')}`;
+      // Get current week's FDA queue (matches sync service naming: FDA_WEEKLY_YYYY-MM-DD where date is Monday)
+      const dayOfWeek = today.getDay();
+      const monday = new Date(today);
+      // If today is Sunday (0), go back 6 days, otherwise go back (dayOfWeek - 1) days
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      monday.setDate(monday.getDate() - daysToSubtract);
+      monday.setHours(0, 0, 0, 0);
+      
+      const weekStart = monday.toISOString().split('T')[0]; // YYYY-MM-DD format for Monday
+      const fdaQueueId = `FDA_WEEKLY_${weekStart}`;
       
       const fdaDoc = await db.collection('email_queues').doc(fdaQueueId).get();
       let fdaQueue: EmailQueue | null = null;
