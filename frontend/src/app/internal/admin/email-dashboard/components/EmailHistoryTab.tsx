@@ -154,6 +154,73 @@ export function EmailHistoryTab() {
     }
   };
 
+  const exportToCsv = async () => {
+    try {
+      // Fetch all email history data for export
+      const allData = await api.getAllEmailHistoryForExport();
+      
+      // CSV headers
+      const headers = [
+        'Date',
+        'Type', 
+        'Sender',
+        'Recalls',
+        'Recipients',
+        'Delivery Rate',
+        'Open Rate',
+        'Click Rate',
+        'Bounce Rate',
+        'Total Sent',
+        'Delivered',
+        'Opened',
+        'Clicked'
+      ];
+
+      // Convert data to CSV format
+      const csvData = allData.map((digest: EmailDigest) => {
+        const analytics = digest.analytics;
+        const sentDate = formatDate(new Date(digest.sentAt));
+        
+        return [
+          sentDate,
+          getTypeLabel(digest.type),
+          digest.sentBy,
+          digest.recallCount.toString(),
+          digest.totalRecipients.toString(),
+          analytics ? `${analytics.deliveryRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.openRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.clickRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.bounceRate.toFixed(1)}%` : 'N/A',
+          analytics ? analytics.totalSent.toString() : 'N/A',
+          analytics ? analytics.delivered.toString() : 'N/A',
+          analytics ? analytics.opened.toString() : 'N/A',
+          analytics ? analytics.clicked.toString() : 'N/A'
+        ];
+      });
+
+      // Create CSV content
+      const csvContent = [headers, ...csvData]
+        .map(row => row.map((field: string) => `"${field}"`).join(','))
+        .join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `email-history-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV. Please try again.');
+    }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -289,19 +356,40 @@ export function EmailHistoryTab() {
           {totalPages > 1 ? renderPaginationControls() : <div></div>}
         </div>
 
-        <svg 
-          onClick={loadHistory}
-          fill={currentTheme.text} 
-          viewBox="0 0 24 24" 
-          xmlns="http://www.w3.org/2000/svg"
-          className={styles.refreshIcon}
-          style={{ 
-            width: '24px', 
-            height: '24px'
-          }}
-        >
-          <path d="M19.146 4.854l-1.489 1.489A8 8 0 1 0 12 20a8.094 8.094 0 0 0 7.371-4.886 1 1 0 1 0-1.842-.779A6.071 6.071 0 0 1 12 18a6 6 0 1 1 4.243-10.243l-1.39 1.39a.5.5 0 0 0 .354.854H19.5A.5.5 0 0 0 20 9.5V5.207a.5.5 0 0 0-.854-.353z" />
-        </svg>
+        <div className={styles.iconsContainer}>
+          <svg 
+            onClick={exportToCsv}
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className={styles.exportIcon}
+            style={{ 
+              width: '32px', 
+              height: '32px',
+              cursor: 'pointer'
+            }}
+          >
+            <title>Export to CSV</title>
+            <g>
+              <path d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H12M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke={currentTheme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+              <path d="M17.5 15V21M17.5 21L15 18.5M17.5 21L20 18.5" stroke={currentTheme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+            </g>
+          </svg>
+
+          <svg 
+            onClick={loadHistory}
+            fill={currentTheme.text} 
+            viewBox="0 0 24 24" 
+            xmlns="http://www.w3.org/2000/svg"
+            className={styles.refreshIcon}
+            style={{ 
+              width: '32px', 
+              height: '32px'
+            }}
+          >
+            <path d="M19.146 4.854l-1.489 1.489A8 8 0 1 0 12 20a8.094 8.094 0 0 0 7.371-4.886 1 1 0 1 0-1.842-.779A6.071 6.071 0 0 1 12 18a6 6 0 1 1 4.243-10.243l-1.39 1.39a.5.5 0 0 0 .354.854H19.5A.5.5 0 0 0 20 9.5V5.207a.5.5 0 0 0-.854-.353z" />
+          </svg>
+        </div>
       </div>
 
       {/* History Table */}

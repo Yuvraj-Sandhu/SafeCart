@@ -406,6 +406,27 @@ router.get('/email-history', authenticate, requireAdmin, async (req: Request, re
 });
 
 /**
+ * GET /api/admin/email-history/export
+ * Get all email history for CSV export (no pagination)
+ */
+router.get('/email-history/export', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Get all email history without pagination
+    const allHistory = await emailQueueService.getAllEmailHistoryForExport();
+    res.json({
+      success: true,
+      data: allHistory
+    });
+  } catch (error) {
+    logger.error('Error fetching email history for export:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch email history for export'
+    });
+  }
+});
+
+/**
  * GET /api/admin/digest/:digestId/analytics
  * Get analytics for a specific digest (for debugging)
  */

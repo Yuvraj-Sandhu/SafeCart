@@ -692,6 +692,40 @@ export class EmailQueueService {
   }
 
   /**
+   * Get all email history for CSV export (no pagination)
+   */
+  async getAllEmailHistoryForExport(): Promise<EmailDigestRecord[]> {
+    try {
+      // Get all results without pagination
+      const snapshot = await db.collection('email_digests')
+        .orderBy('sentAt', 'desc')
+        .get();
+
+      const digests = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: data.type,
+          sentBy: data.sentBy,
+          recallCount: data.recallCount,
+          totalRecipients: data.totalRecipients,
+          recalls: data.recalls || [],
+          emailHtml: data.emailHtml,
+          queueId: data.queueId,
+          analytics: data.analytics, // Include analytics from webhook data
+          // Convert Firestore timestamp to ISO string for frontend
+          sentAt: data.sentAt ? this.convertFirestoreTimestamp(data.sentAt) : new Date().toISOString()
+        };
+      }) as EmailDigestRecord[];
+
+      return digests;
+    } catch (error) {
+      logger.error('Error getting email history for export:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Public helper: Get recalls by IDs (used for manual digest preview)
    */
   async getRecallsByIds(recallIds: string[]): Promise<RecallData[]> {

@@ -464,6 +464,18 @@ export const api = {
     const result = await response.json();
     // Backend wraps response in { success: true, data: { digests, totalPages } }
     return result.data;
+  },
+
+  // Get all email history for CSV export (no pagination)
+  async getAllEmailHistoryForExport(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/email-history/export`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch email history for export');
+    }
+    const result = await response.json();
+    return result.data;
   }
 };
 

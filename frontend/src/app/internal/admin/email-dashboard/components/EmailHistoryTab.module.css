@@ -44,8 +44,32 @@
 }
 
 .header > button:last-child,
-.header > .refreshIcon {
+.header > .iconsContainer {
   justify-self: end;
+}
+
+.iconsContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.exportIcon {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.exportIcon:hover {
+  opacity: 0.75;
+}
+
+.refreshIcon {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.refreshIcon:hover {
+  opacity: 0.75;
 }
 
 .title {
