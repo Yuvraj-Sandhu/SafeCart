@@ -1067,7 +1067,7 @@ export class EmailQueueService {
   async createQueue(queue: EmailQueue): Promise<void> {
     try {
       await db.collection('email_queues').doc(queue.id).set(queue);
-      logger.info(`Created queue ${queue.id} with ${queue.recallIds.length} recalls`);
+      // logger.info(`Created queue ${queue.id} with ${queue.recallIds.length} recalls`);
     } catch (error) {
       logger.error(`Error creating queue ${queue.id}:`, error);
       throw error;
@@ -1080,7 +1080,7 @@ export class EmailQueueService {
   async updateQueueById(queueId: string, updates: Partial<EmailQueue>): Promise<void> {
     try {
       await db.collection('email_queues').doc(queueId).update(updates);
-      logger.info(`Updated queue ${queueId}`);
+      // logger.info(`Updated queue ${queueId}`);
     } catch (error) {
       logger.error(`Error updating queue ${queueId}:`, error);
       throw error;
