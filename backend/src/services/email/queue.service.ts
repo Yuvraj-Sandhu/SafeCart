@@ -1037,6 +1037,48 @@ export class EmailQueueService {
     
     return prefix ? `${prefix}_${baseId}` : baseId;
   }
+
+  /**
+   * Get a specific queue by ID
+   */
+  async getQueueById(queueId: string): Promise<EmailQueue | null> {
+    try {
+      const doc = await db.collection('email_queues').doc(queueId).get();
+      if (!doc.exists) {
+        return null;
+      }
+      return { id: doc.id, ...doc.data() } as EmailQueue;
+    } catch (error) {
+      logger.error(`Error getting queue ${queueId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new queue
+   */
+  async createQueue(queue: EmailQueue): Promise<void> {
+    try {
+      await db.collection('email_queues').doc(queue.id).set(queue);
+      logger.info(`Created queue ${queue.id} with ${queue.recallIds.length} recalls`);
+    } catch (error) {
+      logger.error(`Error creating queue ${queue.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update queue by ID (for sync service integration)
+   */
+  async updateQueueById(queueId: string, updates: Partial<EmailQueue>): Promise<void> {
+    try {
+      await db.collection('email_queues').doc(queueId).update(updates);
+      logger.info(`Updated queue ${queueId}`);
+    } catch (error) {
+      logger.error(`Error updating queue ${queueId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
