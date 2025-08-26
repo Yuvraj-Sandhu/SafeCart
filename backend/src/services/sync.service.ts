@@ -40,6 +40,7 @@ export class SyncService {
   private emailQueueService: EmailQueueService;
   private syncTask: cron.ScheduledTask | null = null;
   private fdaSyncTask: cron.ScheduledTask | null = null;
+  private usdaEmailTask: cron.ScheduledTask | null = null;
 
   /**
    * Initializes the sync service with USDA/FDA API and Firebase services
@@ -341,6 +342,98 @@ export class SyncService {
   }
 
   /**
+   * Starts automatic USDA email sending at 5 PM ET daily
+   * 
+   * This task runs daily at 5:00 PM Eastern Time to automatically
+   * send the USDA daily queue if it exists and is in pending status.
+   */
+  startUsdaEmailAutoSend(): void {
+    const timezone = process.env.SYNC_TIMEZONE || 'America/New_York';
+    // Cron expression for 5:00 PM every day
+    const cronExpression = '0 17 * * *'; // minute=0, hour=17 (5 PM), every day
+
+    this.usdaEmailTask = cron.schedule(cronExpression, async () => {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', { 
+        timeZone: timezone,
+        dateStyle: 'short',
+        timeStyle: 'medium'
+      });
+      logger.info(`Running scheduled USDA email send at ${timeString} (${timezone})`);
+      
+      try {
+        await this.sendUsdaDailyQueue();
+      } catch (error) {
+        logger.error('Scheduled USDA email send failed:', error);
+      }
+    }, {
+      timezone: timezone
+    });
+
+    logger.info(`USDA email auto-send scheduled for 5:00 PM daily in ${timezone} timezone`);
+    
+    // Log the next scheduled run
+    const tomorrow = new Date();
+    tomorrow.setHours(17, 0, 0, 0); // 5 PM
+    if (tomorrow <= new Date()) {
+      tomorrow.setDate(tomorrow.getDate() + 1);
+    }
+    const nextRunString = tomorrow.toLocaleString('en-US', {
+      timeZone: timezone,
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    });
+    logger.info(`Next USDA email send scheduled for: ${nextRunString} (${timezone})`);
+  }
+
+  /**
+   * Send USDA daily queue if it exists and is pending
+   * 
+   * This method checks for today's USDA queue and sends it if:
+   * - The queue exists
+   * - The queue status is 'pending'
+   * - The queue has recalls
+   */
+  private async sendUsdaDailyQueue(): Promise<void> {
+    try {
+      // Get today's USDA queue
+      const today = new Date();
+      const queueDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const queueId = `USDA_DAILY_${queueDate}`;
+      
+      // Check if queue exists
+      const queue = await this.emailQueueService.getQueueById(queueId);
+      
+      if (!queue) {
+        logger.info(`No USDA queue found for ${queueDate}, skipping auto-send`);
+        return;
+      }
+
+      // Check if queue is pending
+      if (queue.status !== 'pending') {
+        logger.info(`USDA queue ${queueId} status is '${queue.status}', skipping auto-send`);
+        return;
+      }
+
+      // Check if queue has recalls
+      if (!queue.recallIds || queue.recallIds.length === 0) {
+        logger.info(`USDA queue ${queueId} has no recalls, skipping auto-send`);
+        return;
+      }
+
+      logger.info(`Sending USDA queue ${queueId} with ${queue.recallIds.length} recalls`);
+      
+      // Send the queue
+      const result = await this.emailQueueService.sendQueue('USDA_DAILY', 'system');
+      
+      logger.info(`USDA queue ${queueId} sent successfully to ${result.totalRecipients} recipients`);
+    } catch (error) {
+      logger.error('Error in sendUsdaDailyQueue:', error);
+      // Don't throw - let the scheduler continue running
+    }
+  }
+
+  /**
    * Stops the automatic synchronization task
    * 
    * Useful for graceful shutdown or when disabling auto-sync
@@ -353,6 +446,10 @@ export class SyncService {
     if (this.fdaSyncTask) {
       this.fdaSyncTask.stop();
       logger.info('FDA auto-sync stopped');
+    }
+    if (this.usdaEmailTask) {
+      this.usdaEmailTask.stop();
+      logger.info('USDA email auto-send stopped');
     }
   }
 
