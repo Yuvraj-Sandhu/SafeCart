@@ -117,11 +117,22 @@ export function RecallCard({ recall }: RecallCardProps) {
           <tr>
             <td style={imageContainerWrapper}>
                 {/* Image fills the container */}
-                {/* Gmail-compatible clickable image with overlay badge */}
+                {/* Simple layout - time badge above image */}
                 <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  {/* Time badge row */}
+                  {recall.recallInitiationDate && (
+                    <tr>
+                      <td style={{ padding: '8px 8px 4px 8px', textAlign: 'left' }}>
+                        <span style={timeBadgeInline}>
+                          {getRelativeTime(recall.recallInitiationDate)}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  
+                  {/* Image row */}
                   <tr>
-                    <td style={{ position: 'relative', padding: '0', textAlign: 'center' }}>
-                      {/* Clickable image */}
+                    <td style={{ padding: '4px 8px 8px 8px', textAlign: 'center' }}>
                       <Link
                         href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
                         style={{ textDecoration: 'none', display: 'block' }}
@@ -129,30 +140,9 @@ export function RecallCard({ recall }: RecallCardProps) {
                         <Img
                           src={recall.primaryImage}
                           alt={`${recall.title} - Recall Image`}
-                          style={recallImageFullHeight}
+                          style={recallImage}
                         />
                       </Link>
-                      
-                      {/* Time badge positioned over image using negative margin */}
-                      {recall.recallInitiationDate && (
-                        <table cellPadding="0" cellSpacing="0" style={{ 
-                          width: '100%', 
-                          marginTop: '-200px', // Pull badge up to overlay on image
-                          borderCollapse: 'collapse'
-                        }}>
-                          <tr>
-                            <td style={{ 
-                              padding: '8px',
-                              textAlign: 'left',
-                              verticalAlign: 'top'
-                            }}>
-                              <span style={timeBadgeOverlay}>
-                                {getRelativeTime(recall.recallInitiationDate)}
-                              </span>
-                            </td>
-                          </tr>
-                        </table>
-                      )}
                     </td>
                   </tr>
                 </table>
@@ -165,33 +155,27 @@ export function RecallCard({ recall }: RecallCardProps) {
             <td style={imagePlaceholderWrapper}>
               {/* Placeholder fills the container */}
               <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tr>
-                  <td style={{ 
-                    ...imagePlaceholderFullHeight,
-                    padding: '8px',
-                    verticalAlign: 'top',
-                    textAlign: 'left'
-                  }}>
-                    {/* Time badge positioned in top-left */}
-                    {recall.recallInitiationDate && (
-                      <span style={timeBadgeOverlay}>
+                {/* Time badge row */}
+                {recall.recallInitiationDate && (
+                  <tr>
+                    <td style={{ padding: '8px 8px 4px 8px', textAlign: 'left' }}>
+                      <span style={timeBadgeInline}>
                         {getRelativeTime(recall.recallInitiationDate)}
                       </span>
-                    )}
-                    
-                    {/* Placeholder content */}
+                    </td>
+                  </tr>
+                )}
+                
+                {/* Placeholder row */}
+                <tr>
+                  <td style={{ padding: '4px 8px 8px 8px', textAlign: 'center' }}>
                     <Link
                       href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
-                      style={{ 
-                        textDecoration: 'none', 
-                        display: 'block', 
-                        width: '100%', 
-                        height: '100%',
-                        textAlign: 'center',
-                        paddingTop: '60px'
-                      }}
+                      style={{ textDecoration: 'none', display: 'block' }}
                     >
-                      <Text style={placeholderText}>No Image Available</Text>
+                      <div style={imagePlaceholder}>
+                        <Text style={placeholderText}>No Image Available</Text>
+                      </div>
                     </Link>
                   </td>
                 </tr>
@@ -277,7 +261,7 @@ const imagePlaceholderWrapper = {
   verticalAlign: 'top' as const,
 };
 
-const imagePlaceholder = {
+const imagePlaceholderOld = {
   backgroundColor: '#eceae4', // backgroundSecondary from light theme  
   padding: '24px 24px 48px 24px', // Reduced top padding, more bottom padding
   textAlign: 'center' as const,
@@ -293,6 +277,15 @@ const imagePlaceholderFullHeight = {
   borderRadius: '16px 16px 0 0', // Only round top corners
   height: '200px', // Fixed height to match image container
   width: '100%'
+};
+
+// Simple placeholder for email layout
+const imagePlaceholder = {
+  backgroundColor: '#eceae4', // backgroundSecondary from light theme  
+  borderRadius: '12px', // Slightly less rounded
+  padding: '60px 20px', // Vertical padding for centering text
+  textAlign: 'center' as const,
+  minHeight: '60px', // Smaller than full height version
 };
 
 const placeholderText = {
