@@ -479,7 +479,7 @@ export const api = {
   },
 
   // Get public recall by ID (no authentication required)
-  async getRecallById(id: string): Promise<any> {
+  async getRecallById(id: string): Promise<{ success: boolean; recall: UnifiedRecall }> {
     const response = await fetch(`${API_BASE_URL}/public/recall/${id}`, {
       method: 'GET',
       headers: {
@@ -492,7 +492,22 @@ export const api = {
       }
       throw new Error('Failed to fetch recall details');
     }
-    return response.json();
+    const data = await response.json();
+    
+    // Convert raw recall data to unified format based on source
+    let unifiedRecall: UnifiedRecall;
+    if (data.source === 'USDA') {
+      unifiedRecall = usdaToUnified(data.recall);
+    } else if (data.source === 'FDA') {
+      unifiedRecall = fdaToUnified(data.recall);
+    } else {
+      throw new Error('Unknown recall source');
+    }
+    
+    return {
+      success: data.success,
+      recall: unifiedRecall
+    };
   },
 
   // Trigger USDA sync (admin only)

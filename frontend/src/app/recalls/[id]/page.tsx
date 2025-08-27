@@ -2,26 +2,11 @@ import { Metadata } from 'next';
 import RecallDetailPageContent from './RecallDetailPageContent';
 import { api } from '@/services/api';
 import { Header } from '@/components/Header';
+import { UnifiedRecall } from '@/types/recall.types';
 import styles from '../../page.module.css';
 import { use } from 'react';
 
-interface RecallDetail {
-  id: string;
-  recallNumber: string;
-  source: 'USDA' | 'FDA';
-  title: string;
-  company: string;
-  summary: string;
-  recallDate: string;
-  riskLevel: string;
-  affectedStates: string[];
-  isActive: boolean;
-  images: any[];
-  primaryImage?: string;
-  recallUrl?: string;
-}
-
-async function getRecallData(id: string): Promise<RecallDetail | null> {
+async function getRecallData(id: string): Promise<UnifiedRecall | null> {
   try {
     const data = await api.getRecallById(id);
     return data.recall;
@@ -44,14 +29,14 @@ export async function generateMetadata(
     };
   }
 
-  const description = `${recall.company} - ${recall.summary.substring(0, 150)}...`;
-  const imageUrl = recall.primaryImage || recall.images?.[0]?.storageUrl || '/default-recall-image.jpg';
+  const description = `${recall.recallingFirm} - ${recall.productDescription.substring(0, 150)}...`;
+  const imageUrl = recall.images?.[0]?.storageUrl || '/default-recall-image.jpg';
   
   return {
-    title: `${recall.title} - SafeCart Food Recall`,
+    title: `${recall.productTitle} - SafeCart Food Recall`,
     description,
     openGraph: {
-      title: recall.title,
+      title: recall.productTitle,
       description,
       type: 'article',
       publishedTime: recall.recallDate,
@@ -60,14 +45,14 @@ export async function generateMetadata(
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: recall.title,
+          alt: recall.productTitle,
         },
       ],
       siteName: 'SafeCart',
     },
     twitter: {
       card: 'summary_large_image',
-      title: recall.title,
+      title: recall.productTitle,
       description,
       images: [imageUrl],
     },

@@ -32,6 +32,7 @@ const firebaseService = new FirebaseService();
 const fdaFirebaseService = new FDAFirebaseService();
 const syncService = new SyncService();
 
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -66,27 +67,10 @@ router.get('/public/recall/:id', async (req: Request, res: Response) => {
     const usdaRecall = await firebaseService.getRecallById(id);
     
     if (usdaRecall) {
-      // Format USDA recall data
-      const formattedRecall = {
-        id: usdaRecall.id,
-        recallNumber: usdaRecall.field_recall_number,
-        source: 'USDA' as const,
-        title: usdaRecall.display?.previewTitle || usdaRecall.llmTitle || usdaRecall.field_title || 'Food Recall',
-        company: usdaRecall.field_establishment || 'Unknown Company',
-        summary: usdaRecall.field_summary || usdaRecall.field_product_items || '',
-        recallDate: usdaRecall.field_recall_date,
-        riskLevel: usdaRecall.field_risk_level || 'Unknown',
-        affectedStates: usdaRecall.affectedStatesArray || [],
-        isActive: usdaRecall.isActive,
-        images: usdaRecall.processedImages || [],
-        primaryImage: usdaRecall.display?.uploadedImages?.[0]?.storageUrl || 
-                      usdaRecall.processedImages?.[usdaRecall.display?.primaryImageIndex || 0]?.storageUrl,
-        recallUrl: usdaRecall.display?.previewUrl || usdaRecall.field_recall_url
-      };
-      
       return res.json({
         success: true,
-        recall: formattedRecall
+        recall: usdaRecall,
+        source: 'USDA'
       });
     }
     
@@ -94,32 +78,10 @@ router.get('/public/recall/:id', async (req: Request, res: Response) => {
     const fdaRecall = await fdaFirebaseService.getRecallById(id);
     
     if (fdaRecall) {
-      // Format FDA recall data
-      const formattedRecall = {
-        id: fdaRecall.id,
-        recallNumber: fdaRecall.recall_number,
-        source: 'FDA' as const,
-        title: fdaRecall.display?.previewTitle || fdaRecall.llmTitle || fdaRecall.product_description || 'Food Recall',
-        company: fdaRecall.recalling_firm || 'Unknown Company',
-        summary: fdaRecall.reason_for_recall || '',
-        recallDate: fdaRecall.recall_initiation_date || fdaRecall.report_date,
-        riskLevel: fdaRecall.classification || 'Unknown',
-        affectedStates: fdaRecall.useManualStates ? 
-                        (fdaRecall.manualStatesOverride || []) : 
-                        (fdaRecall.affectedStatesArray || []),
-        isActive: fdaRecall.status !== 'Terminated',
-        images: fdaRecall.display?.uploadedImages?.map(img => ({
-          filename: img.filename,
-          storageUrl: img.storageUrl,
-          type: 'image' as const
-        })) || [],
-        primaryImage: fdaRecall.display?.uploadedImages?.[fdaRecall.display?.primaryImageIndex || 0]?.storageUrl,
-        recallUrl: fdaRecall.display?.previewUrl
-      };
-      
       return res.json({
         success: true,
-        recall: formattedRecall
+        recall: fdaRecall,
+        source: 'FDA'
       });
     }
     
