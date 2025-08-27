@@ -493,6 +493,37 @@ export const api = {
       throw new Error('Failed to fetch recall details');
     }
     return response.json();
+  },
+
+  // Trigger USDA sync (admin only)
+  async triggerUsdaSync(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger USDA sync');
+    }
+    return response.json();
+  },
+
+  // Trigger FDA sync (admin only)
+  async triggerFdaSync(days = 60): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/fda/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ days })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger FDA sync');
+    }
+    return response.json();
   }
 };
 

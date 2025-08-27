@@ -29,9 +29,10 @@ async function getRecallData(id: string): Promise<RecallDetail | null> {
 }
 
 export async function generateMetadata(
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<Metadata> {
-  const recall = await getRecallData(params.id);
+  const { id } = await params;
+  const recall = await getRecallData(id);
   
   if (!recall) {
     return {
@@ -70,8 +71,9 @@ export async function generateMetadata(
   };
 }
 
-export default async function RecallDetailPage({ params }: { params: { id: string } }) {
-  const recall = await getRecallData(params.id);
-  return <RecallDetailClient initialRecall={recall} recallId={params.id} />;
+export default async function RecallDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const recall = await getRecallData(id);
+  return <RecallDetailClient initialRecall={recall} recallId={id} />;
 }
 
