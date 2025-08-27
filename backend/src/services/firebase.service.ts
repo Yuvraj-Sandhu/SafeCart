@@ -408,8 +408,9 @@ export class FirebaseService {
       'field_establishment', 'field_labels', 'field_media_contact', 'field_year',
       'field_risk_level', 'field_processing', 'field_product_items',
       'field_recall_classification', 'field_recall_date', 'field_recall_number',
-      'field_recall_reason', 'field_recall_type', 'field_related_to_outbreak',
-      'field_summary', 'field_translation_language', 'field_has_spanish', 'langcode'
+      'field_recall_reason', 'field_recall_type', 'field_recall_url',
+      'field_related_to_outbreak', 'field_summary', 'field_translation_language', 
+      'field_has_spanish', 'langcode'
     ];
     
     usdaFields.forEach(field => {
