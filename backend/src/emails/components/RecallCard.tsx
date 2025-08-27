@@ -117,9 +117,11 @@ export function RecallCard({ recall }: RecallCardProps) {
           <tr>
             <td style={imageContainerWrapper}>
                 {/* Image fills the container */}
+                {/* Gmail-compatible clickable image with overlay badge */}
                 <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tr>
-                    <td align="center" style={{ textAlign: 'center', padding: '0', position: 'relative' }}>
+                    <td style={{ position: 'relative', padding: '0', textAlign: 'center' }}>
+                      {/* Clickable image */}
                       <Link
                         href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
                         style={{ textDecoration: 'none', display: 'block' }}
@@ -130,27 +132,30 @@ export function RecallCard({ recall }: RecallCardProps) {
                           style={recallImageFullHeight}
                         />
                       </Link>
+                      
+                      {/* Time badge positioned over image using negative margin */}
+                      {recall.recallInitiationDate && (
+                        <table cellPadding="0" cellSpacing="0" style={{ 
+                          width: '100%', 
+                          marginTop: '-200px', // Pull badge up to overlay on image
+                          borderCollapse: 'collapse'
+                        }}>
+                          <tr>
+                            <td style={{ 
+                              padding: '8px',
+                              textAlign: 'left',
+                              verticalAlign: 'top'
+                            }}>
+                              <span style={timeBadgeOverlay}>
+                                {getRelativeTime(recall.recallInitiationDate)}
+                              </span>
+                            </td>
+                          </tr>
+                        </table>
+                      )}
                     </td>
                   </tr>
                 </table>
-                {/* Time badge overlaid using table positioning */}
-                {recall.recallInitiationDate && (
-                  <table cellPadding="0" cellSpacing="0" style={{ 
-                    width: '100%', 
-                    borderCollapse: 'collapse',
-                    marginTop: '-200px', // Negative margin to overlay on image
-                    position: 'relative',
-                    zIndex: 2
-                  }}>
-                    <tr>
-                      <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', width: '100%' }}>
-                        <span style={timeBadgeOverlay}>
-                          {getRelativeTime(recall.recallInitiationDate)}
-                        </span>
-                      </td>
-                    </tr>
-                  </table>
-                )}
               </td>
             </tr>
           </table>
@@ -161,34 +166,36 @@ export function RecallCard({ recall }: RecallCardProps) {
               {/* Placeholder fills the container */}
               <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tr>
-                  <td align="center" style={imagePlaceholderFullHeight}>
+                  <td style={{ 
+                    ...imagePlaceholderFullHeight,
+                    padding: '8px',
+                    verticalAlign: 'top',
+                    textAlign: 'left'
+                  }}>
+                    {/* Time badge positioned in top-left */}
+                    {recall.recallInitiationDate && (
+                      <span style={timeBadgeOverlay}>
+                        {getRelativeTime(recall.recallInitiationDate)}
+                      </span>
+                    )}
+                    
+                    {/* Placeholder content */}
                     <Link
                       href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
-                      style={{ textDecoration: 'none', display: 'block' }}
+                      style={{ 
+                        textDecoration: 'none', 
+                        display: 'block', 
+                        width: '100%', 
+                        height: '100%',
+                        textAlign: 'center',
+                        paddingTop: '60px'
+                      }}
                     >
                       <Text style={placeholderText}>No Image Available</Text>
                     </Link>
                   </td>
                 </tr>
               </table>
-              {/* Time badge overlaid on placeholder */}
-              {recall.recallInitiationDate && (
-                <table cellPadding="0" cellSpacing="0" style={{ 
-                  width: '100%', 
-                  borderCollapse: 'collapse',
-                  marginTop: '-200px', // Negative margin to overlay on placeholder
-                  position: 'relative',
-                  zIndex: 2
-                }}>
-                  <tr>
-                    <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', width: '100%' }}>
-                      <span style={timeBadgeOverlay}>
-                        {getRelativeTime(recall.recallInitiationDate)}
-                      </span>
-                    </td>
-                  </tr>
-                </table>
-              )}
             </td>
           </tr>
         </table>
@@ -283,12 +290,9 @@ const imagePlaceholder = {
 // Full height placeholder that fills the container from top
 const imagePlaceholderFullHeight = {
   backgroundColor: '#eceae4', // backgroundSecondary from light theme  
-  padding: '80px 24px', // Vertical centering padding
-  textAlign: 'center' as const,
   borderRadius: '16px 16px 0 0', // Only round top corners
   height: '200px', // Fixed height to match image container
-  verticalAlign: 'middle' as const,
-  display: 'table-cell' as const, // For vertical centering
+  width: '100%'
 };
 
 const placeholderText = {
