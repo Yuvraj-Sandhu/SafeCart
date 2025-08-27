@@ -476,6 +476,23 @@ export const api = {
     }
     const result = await response.json();
     return result.data;
+  },
+
+  // Get public recall by ID (no authentication required)
+  async getRecallById(id: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/public/recall/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Recall not found');
+      }
+      throw new Error('Failed to fetch recall details');
+    }
+    return response.json();
   }
 };
 

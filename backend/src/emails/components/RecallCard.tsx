@@ -113,19 +113,24 @@ export function RecallCard({ recall }: RecallCardProps) {
     <Section style={cardContainer}>
       {/* Primary Image or Placeholder - matching website design */}
       {recall.primaryImage ? (
-        <Section style={imageContainerWrapper}>
-          <Img
-            src={recall.primaryImage}
-            alt={`${recall.title} - Recall Image`}
-            style={recallImage}
-          />
-          {/* Relative time badge - exactly matching frontend */}
-          {recall.recallInitiationDate && (
-            <Text style={timeBadge}>
-              {getRelativeTime(recall.recallInitiationDate)}
-            </Text>
-          )}
-        </Section>
+        <Link
+          href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
+          style={{ textDecoration: 'none', display: 'block' }}
+        >
+          <Section style={imageContainerWrapper}>
+            <Img
+              src={recall.primaryImage}
+              alt={`${recall.title} - Recall Image`}
+              style={recallImage}
+            />
+            {/* Relative time badge - exactly matching frontend */}
+            {recall.recallInitiationDate && (
+              <Text style={timeBadge}>
+                {getRelativeTime(recall.recallInitiationDate)}
+              </Text>
+            )}
+          </Section>
+        </Link>
       ) : (
         <Section style={imagePlaceholderWrapper}>
           <Section style={imagePlaceholder}>
@@ -152,7 +157,6 @@ export function RecallCard({ recall }: RecallCardProps) {
         <Text style={recallMeta}>
           {formatStates(recall.affectedStates)}
         </Text>
-
 
       </Section>
     </Section>

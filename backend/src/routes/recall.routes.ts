@@ -20,6 +20,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { USDAApiService } from '../services/usda-api.service';
 import { FirebaseService } from '../services/firebase.service';
+import { FDAFirebaseService } from '../services/fda/firebase.service';
 import { SyncService } from '../services/sync.service';
 import { PendingChangesService } from '../services/pending-changes.service';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware';
@@ -28,6 +29,7 @@ import logger from '../utils/logger';
 const router = Router();
 const usdaService = new USDAApiService();
 const firebaseService = new FirebaseService();
+const fdaFirebaseService = new FDAFirebaseService();
 const syncService = new SyncService();
 
 // Configure multer for file uploads
@@ -44,6 +46,95 @@ const upload = multer({
     } else {
       cb(new Error('Only image files are allowed'));
     }
+  }
+});
+
+/**
+ * GET /api/public/recall/:id
+ * 
+ * Public endpoint to fetch a specific recall by ID
+ * No authentication required - for email links and sharing
+ * 
+ * @param id - The Firestore document ID of the recall
+ * @returns JSON response with recall details
+ */
+router.get('/public/recall/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Try to find in USDA recalls first
+    const usdaRecall = await firebaseService.getRecallById(id);
+    
+    if (usdaRecall) {
+      // Format USDA recall data
+      const formattedRecall = {
+        id: usdaRecall.id,
+        recallNumber: usdaRecall.field_recall_number,
+        source: 'USDA' as const,
+        title: usdaRecall.display?.previewTitle || usdaRecall.llmTitle || usdaRecall.field_title || 'Food Recall',
+        company: usdaRecall.field_establishment || 'Unknown Company',
+        summary: usdaRecall.field_summary || usdaRecall.field_product_items || '',
+        recallDate: usdaRecall.field_recall_date,
+        riskLevel: usdaRecall.field_risk_level || 'Unknown',
+        affectedStates: usdaRecall.affectedStatesArray || [],
+        isActive: usdaRecall.isActive,
+        images: usdaRecall.processedImages || [],
+        primaryImage: usdaRecall.display?.uploadedImages?.[0]?.storageUrl || 
+                      usdaRecall.processedImages?.[usdaRecall.display?.primaryImageIndex || 0]?.storageUrl,
+        recallUrl: usdaRecall.display?.previewUrl || usdaRecall.field_recall_url
+      };
+      
+      return res.json({
+        success: true,
+        recall: formattedRecall
+      });
+    }
+    
+    // Try to find in FDA recalls
+    const fdaRecall = await fdaFirebaseService.getRecallById(id);
+    
+    if (fdaRecall) {
+      // Format FDA recall data
+      const formattedRecall = {
+        id: fdaRecall.id,
+        recallNumber: fdaRecall.recall_number,
+        source: 'FDA' as const,
+        title: fdaRecall.display?.previewTitle || fdaRecall.llmTitle || fdaRecall.product_description || 'Food Recall',
+        company: fdaRecall.recalling_firm || 'Unknown Company',
+        summary: fdaRecall.reason_for_recall || '',
+        recallDate: fdaRecall.recall_initiation_date || fdaRecall.report_date,
+        riskLevel: fdaRecall.classification || 'Unknown',
+        affectedStates: fdaRecall.useManualStates ? 
+                        (fdaRecall.manualStatesOverride || []) : 
+                        (fdaRecall.affectedStatesArray || []),
+        isActive: fdaRecall.status !== 'Terminated',
+        images: fdaRecall.display?.uploadedImages?.map(img => ({
+          filename: img.filename,
+          storageUrl: img.storageUrl,
+          type: 'image' as const
+        })) || [],
+        primaryImage: fdaRecall.display?.uploadedImages?.[fdaRecall.display?.primaryImageIndex || 0]?.storageUrl,
+        recallUrl: fdaRecall.display?.previewUrl
+      };
+      
+      return res.json({
+        success: true,
+        recall: formattedRecall
+      });
+    }
+    
+    // Recall not found
+    res.status(404).json({
+      success: false,
+      error: 'Recall not found'
+    });
+    
+  } catch (error) {
+    logger.error('Error fetching public recall:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch recall details'
+    });
   }
 });
 
