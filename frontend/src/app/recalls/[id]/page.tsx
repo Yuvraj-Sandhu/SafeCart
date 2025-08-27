@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
-import RecallDetailClient from './RecallDetailClient';
+import RecallDetailPageContent from './RecallDetailPageContent';
 import { api } from '@/services/api';
+import { Header } from '@/components/Header';
+import styles from '../../page.module.css';
+import { use } from 'react';
 
 interface RecallDetail {
   id: string;
@@ -74,6 +77,14 @@ export async function generateMetadata(
 export default async function RecallDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const recall = await getRecallData(id);
-  return <RecallDetailClient initialRecall={recall} recallId={id} />;
+  
+  return (
+    <main className={styles.main}>
+      <Header subtitle="Food Recall Details" />
+      <div className="container">
+        <RecallDetailPageContent initialRecall={recall} recallId={id} />
+      </div>
+    </main>
+  );
 }
 

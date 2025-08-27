@@ -1,0 +1,139 @@
+.pageContent {
+  max-width: 100%;
+  margin: 0 auto;
+  margin-top: 5rem;
+}
+
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.errorContent {
+  max-width: 500px;
+}
+
+.errorContent h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.errorContent p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.recallSection {
+  margin-bottom: 2rem;
+}
+
+.shareSection {
+  background: var(--color-cardBackground);
+  border: 1px solid var(--color-cardBorder);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px var(--color-shadowLight);
+}
+
+.shareSection h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.shareButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ctaSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 2rem;
+  background: var(--color-backgroundSecondary);
+  border-radius: 12px;
+  margin-top: 2rem;
+  gap: 2rem;
+}
+
+.ctaButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.ctaText {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pageContent {
+    margin-top: 2rem;
+  }
+
+  .shareSection {
+    padding: 1.5rem;
+  }
+  
+  .shareButtons {
+    gap: 0.5rem;
+  }
+  
+  .shareButton {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .ctaSection {
+    padding: 2rem 1rem;
+  }
+  
+  .ctaButton {
+    padding: 0.875rem 2rem;
+    font-size: 1.1rem;
+  }
+  
+  .errorContainer {
+    padding: 1rem;
+  }
+  
+  .errorContent h2 {
+    font-size: 1.5rem;
+  }
+  
+  .errorContent p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .shareButtons {
+    flex-direction: column;
+  }
+  
+  .shareButton {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .ctaButton {
+    width: 100%;
+    max-width: 280px;
+  }
+}

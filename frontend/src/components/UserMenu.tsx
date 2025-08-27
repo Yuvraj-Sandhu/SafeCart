@@ -60,10 +60,10 @@ export function UserMenu() {
   const pathname = usePathname();
   
   // Check if we're on an account/public page
-  const isAccountPage = pathname === '/' || pathname?.startsWith('/account');
+  const isAccountPage = pathname === '/' || pathname?.startsWith('/account') || pathname?.startsWith('/recalls');
   
-  // Don't render for internal pages without internal auth
-  if (!isAccountPage && !isInternalAuthenticated) return null;
+  // Don't render for internal pages without internal auth - but show content instead of early return
+  const shouldShowMenu = isAccountPage || isInternalAuthenticated;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -169,6 +169,9 @@ export function UserMenu() {
   };
 
   const accountMenuOptions = getMenuOptions();
+
+  // Don't render anything if menu shouldn't be shown
+  if (!shouldShowMenu) return null;
 
   return (
     <div className={styles.userMenu} ref={menuRef}>

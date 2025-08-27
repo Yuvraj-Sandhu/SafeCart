@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './page.module.css';
+import { useTheme } from '@/contexts/ThemeContext';
 import { api } from '@/services/api';
 import { RecallList } from '@/components/RecallList';
 import { UnifiedRecall } from '@/types/recall.types';
+import { Button } from '@/components/ui/Button';
+import styles from './RecallDetailPageContent.module.css';
 
 interface ProcessedImage {
   filename: string;
@@ -30,12 +32,13 @@ interface RecallDetail {
   recallUrl?: string;
 }
 
-interface RecallDetailClientProps {
+interface RecallDetailPageContentProps {
   initialRecall: RecallDetail | null;
   recallId: string;
 }
 
-export default function RecallDetailClient({ initialRecall, recallId }: RecallDetailClientProps) {
+export default function RecallDetailPageContent({ initialRecall, recallId }: RecallDetailPageContentProps) {
+  const { currentTheme } = useTheme();
   const router = useRouter();
   const [recall, setRecall] = useState<RecallDetail | null>(initialRecall);
   const [loading, setLoading] = useState(!initialRecall);
@@ -108,30 +111,29 @@ export default function RecallDetailClient({ initialRecall, recallId }: RecallDe
 
   if (error && !loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>
-          <h2>Recall Not Found</h2>
-          <p>{error || 'The requested recall could not be found.'}</p>
-          <button onClick={() => router.push('/')} className={styles.primaryButton}>
+      <div className={styles.errorContainer}>
+        <div className={styles.errorContent}>
+          <h2 style={{ color: currentTheme.text }}>Recall Not Found</h2>
+          <p style={{ color: currentTheme.textSecondary }}>
+            {error || 'The requested recall could not be found.'}
+          </p>
+          <Button 
+            variant="primary"
+            size='large'
+            onClick={() => router.push('/')}
+            className={styles.primaryButton}
+          >
             View All Recalls
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.logo}>
-          <h1>SafeCart</h1>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className={styles.main}>
-        {/* Use RecallList to display the single recall */}
+    <div className={styles.pageContent}>
+      {/* Main Recall Display */}
+      <div className={styles.recallSection}>
         <RecallList 
           recalls={unifiedRecall}
           loading={loading}
@@ -141,38 +143,67 @@ export default function RecallDetailClient({ initialRecall, recallId }: RecallDe
           hideEndIndicator={true}
           hideBottomSpacer={true}
         />
+      </div>
 
-        {/* Share Section */}
-        {recall && (
-          <div className={styles.shareSection}>
-            <h3>Share This Recall</h3>
-            <div className={styles.shareButtons}>
-              <button onClick={copyLink} className={styles.shareButton}>
-                {showCopiedMessage ? 'Copied!' : 'Copy Link'}
-              </button>
-              <button onClick={shareOnFacebook} className={styles.shareButton}>
-                Facebook
-              </button>
-              <button onClick={shareOnTwitter} className={styles.shareButton}>
-                Twitter
-              </button>
-              <button onClick={shareOnLinkedIn} className={styles.shareButton}>
-                LinkedIn
-              </button>
-            </div>
+      {/* Share Section */}
+      {recall && (
+        <div 
+          className={styles.shareSection}
+          style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder
+          }}
+        >
+          <h3 style={{ color: currentTheme.text }}>Share This Recall</h3>
+          <div className={styles.shareButtons}>
+            <Button 
+              variant="secondary"
+              size='medium'
+              onClick={copyLink}
+            >
+              {showCopiedMessage ? 'Copied!' : 'Copy Link'}
+            </Button>
+            <Button 
+              variant="secondary"
+              size='medium'
+              onClick={shareOnFacebook}
+            >
+              Facebook
+            </Button>
+            <Button 
+              variant="secondary"
+              size='medium'
+              onClick={shareOnTwitter}
+            >
+              Twitter
+            </Button>
+            <Button 
+              variant="secondary"
+              size='medium'
+              onClick={shareOnLinkedIn}
+            >
+              LinkedIn
+            </Button>
           </div>
-        )}
-
-        {/* View More CTA */}
-        <div className={styles.viewMoreSection}>
-          <button onClick={() => router.push('/')} className={styles.viewMoreButton}>
-            View More Recalls
-          </button>
-          <p className={styles.viewMoreText}>
-            Stay informed about the latest food recalls in your area
-          </p>
         </div>
-      </main>
+      )}
+
+      {/* View More CTA */}
+      <div className={styles.ctaSection}>
+        <Button 
+          variant="primary"
+          size='large'
+          onClick={() => router.push('/')}
+        >
+          View More Recalls
+        </Button>
+        <p 
+          className={styles.ctaText}
+          style={{ color: currentTheme.textSecondary }}
+        >
+          Stay informed about the latest food recalls in your area
+        </p>
+      </div>
     </div>
   );
 }
