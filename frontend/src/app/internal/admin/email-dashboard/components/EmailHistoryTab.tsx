@@ -50,6 +50,10 @@ export function EmailHistoryTab() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortField, setSortField] = useState<SortField>('sentAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [pageJumpValue, setPageJumpValue] = useState<string>('');
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [isLimitDropdownOpen, setIsLimitDropdownOpen] = useState<boolean>(false);
+  const limitDropdownRef = useRef<HTMLDivElement>(null);
   
   // Ref to prevent double API calls in development (React StrictMode)
   const hasFetched = useRef(false);
@@ -63,7 +67,6 @@ export function EmailHistoryTab() {
     isOpen: boolean;
     digest: EmailDigest | null;
   }>({ isOpen: false, digest: null });
-  const itemsPerPage = 10;
 
   useEffect(() => {
     // Prevent double API calls in React StrictMode (development)
@@ -75,6 +78,31 @@ export function EmailHistoryTab() {
     
     loadHistory();
   }, [currentPage]);
+
+  // Reset to page 1 when itemsPerPage changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      loadHistory();
+    }
+  }, [itemsPerPage]);
+
+  // Close limit dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (limitDropdownRef.current && !limitDropdownRef.current.contains(event.target as Node)) {
+        setIsLimitDropdownOpen(false);
+      }
+    }
+
+    if (isLimitDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isLimitDropdownOpen]);
 
   const loadHistory = async () => {
     setIsLoading(true);
@@ -126,6 +154,73 @@ export function EmailHistoryTab() {
     }
   };
 
+  const exportToCsv = async () => {
+    try {
+      // Fetch all email history data for export
+      const allData = await api.getAllEmailHistoryForExport();
+      
+      // CSV headers
+      const headers = [
+        'Date',
+        'Type', 
+        'Sender',
+        'Recalls',
+        'Recipients',
+        'Delivery Rate',
+        'Open Rate',
+        'Click Rate',
+        'Bounce Rate',
+        'Total Sent',
+        'Delivered',
+        'Opened',
+        'Clicked'
+      ];
+
+      // Convert data to CSV format
+      const csvData = allData.map((digest: EmailDigest) => {
+        const analytics = digest.analytics;
+        const sentDate = formatDate(new Date(digest.sentAt));
+        
+        return [
+          sentDate,
+          getTypeLabel(digest.type),
+          digest.sentBy,
+          digest.recallCount.toString(),
+          digest.totalRecipients.toString(),
+          analytics ? `${analytics.deliveryRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.openRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.clickRate.toFixed(1)}%` : 'N/A',
+          analytics ? `${analytics.bounceRate.toFixed(1)}%` : 'N/A',
+          analytics ? analytics.totalSent.toString() : 'N/A',
+          analytics ? analytics.delivered.toString() : 'N/A',
+          analytics ? analytics.opened.toString() : 'N/A',
+          analytics ? analytics.clicked.toString() : 'N/A'
+        ];
+      });
+
+      // Create CSV content
+      const csvContent = [headers, ...csvData]
+        .map(row => row.map((field: string) => `"${field}"`).join(','))
+        .join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `email-history-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV. Please try again.');
+    }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -167,6 +262,78 @@ export function EmailHistoryTab() {
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  const handlePageJumpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers
+    if (value === '' || /^\d+$/.test(value)) {
+      setPageJumpValue(value);
+    }
+  };
+
+  const handlePageJumpSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const pageNumber = parseInt(pageJumpValue);
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+        setCurrentPage(pageNumber);
+        setPageJumpValue(''); // Clear input after jumping
+      }
+    }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setItemsPerPage(newLimit);
+    setIsLimitDropdownOpen(false); // Close dropdown after selection
+  };
+
+  const handleLimitDropdownToggle = () => {
+    setIsLimitDropdownOpen(!isLimitDropdownOpen);
+  };
+
+  const limitOptions = [
+    { value: 10, label: '10' },
+    { value: 20, label: '20' },
+    { value: 30, label: '30' },
+    { value: 50, label: '50' }
+  ];
+
+  const renderPaginationControls = () => (
+    <>
+      <Button
+        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        variant="secondary"
+        size="small"
+      >
+        Previous
+      </Button>
+      <div className={styles.pageInfo} style={{ color: currentTheme.text }}>
+        <span>Page </span>
+        <input
+          type="text"
+          value={pageJumpValue}
+          onChange={handlePageJumpChange}
+          onKeyDown={handlePageJumpSubmit}
+          placeholder={currentPage.toString()}
+          className={styles.pageJumpInput}
+          style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
+            color: currentTheme.text
+          }}
+        />
+        <span> of {totalPages}</span>
+      </div>
+      <Button
+        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        variant="secondary"
+        size="small"
+      >
+        Next
+      </Button>
+    </>
+  );
+
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -181,11 +348,48 @@ export function EmailHistoryTab() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title} style={{ color: currentTheme.text }}>
-          Email Send History
+          Email History
         </h2>
-        <Button onClick={loadHistory} variant="secondary" size="small">
-          Refresh
-        </Button>
+        
+        {/* Top Pagination - Always render container for layout */}
+        <div className={styles.topPagination}>
+          {totalPages > 1 ? renderPaginationControls() : <div></div>}
+        </div>
+
+        <div className={styles.iconsContainer}>
+          <svg 
+            onClick={exportToCsv}
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className={styles.exportIcon}
+            style={{ 
+              width: '32px', 
+              height: '32px',
+              cursor: 'pointer'
+            }}
+          >
+            <title>Export to CSV</title>
+            <g>
+              <path d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H12M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke={currentTheme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+              <path d="M17.5 15V21M17.5 21L15 18.5M17.5 21L20 18.5" stroke={currentTheme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+            </g>
+          </svg>
+
+          <svg 
+            onClick={loadHistory}
+            fill={currentTheme.text} 
+            viewBox="0 0 24 24" 
+            xmlns="http://www.w3.org/2000/svg"
+            className={styles.refreshIcon}
+            style={{ 
+              width: '32px', 
+              height: '32px'
+            }}
+          >
+            <path d="M19.146 4.854l-1.489 1.489A8 8 0 1 0 12 20a8.094 8.094 0 0 0 7.371-4.886 1 1 0 1 0-1.842-.779A6.071 6.071 0 0 1 12 18a6 6 0 1 1 4.243-10.243l-1.39 1.39a.5.5 0 0 0 .354.854H19.5A.5.5 0 0 0 20 9.5V5.207a.5.5 0 0 0-.854-.353z" />
+          </svg>
+        </div>
       </div>
 
       {/* History Table */}
@@ -305,30 +509,89 @@ export function EmailHistoryTab() {
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className={styles.pagination}>
-          <Button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            variant="secondary"
-            size="small"
-          >
-            Previous
-          </Button>
-          <span className={styles.pageInfo} style={{ color: currentTheme.text }}>
-            Page {currentPage} of {totalPages}
+      {/* Bottom Pagination and Limit Controls */}
+      <div className={styles.paginationWrapper}>
+        {/* Limit selector on the left */}
+        <div className={styles.limitContainer}>
+          <span style={{ color: currentTheme.textSecondary }}>
+            Limit of{' '}
+            <div className={styles.limitSelectWrapper} ref={limitDropdownRef}>
+              <div
+                className={styles.limitDropdown}
+                onClick={handleLimitDropdownToggle}
+                style={{
+                  backgroundColor: currentTheme.cardBackground,
+                  borderColor: isLimitDropdownOpen ? currentTheme.primary : currentTheme.cardBorder,
+                  color: currentTheme.text
+                }}
+              >
+                {itemsPerPage}
+              </div>
+              <div 
+                className={styles.limitDropdownArrow}
+                style={{ color: currentTheme.textSecondary }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{
+                    transform: isLimitDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease'
+                  }}
+                >
+                  <polyline
+                    points="6,9 12,15 18,9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              {/* Custom Dropdown Menu */}
+              {isLimitDropdownOpen && (
+                <div 
+                  className={styles.limitDropdownMenu}
+                  style={{
+                    backgroundColor: currentTheme.cardBackground,
+                    borderColor: currentTheme.cardBorder,
+                    boxShadow: `0 4px 12px ${currentTheme.shadowLight}`,
+                  }}
+                >
+                  {limitOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      className={`${styles.limitOption} ${
+                        itemsPerPage === option.value ? styles.selected : ''
+                      }`}
+                      onClick={() => handleLimitChange(option.value)}
+                      style={{
+                        backgroundColor: itemsPerPage === option.value ? currentTheme.primaryLight : 'transparent',
+                        color: currentTheme.text
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {' '}per page
           </span>
-          <Button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            variant="secondary"
-            size="small"
-          >
-            Next
-          </Button>
         </div>
-      )}
+
+        {/* Pagination controls in the center - Always render container for layout */}
+        <div className={styles.pagination}>
+          {totalPages > 1 ? renderPaginationControls() : <div></div>}
+        </div>
+
+        {/* Empty space on the right for balance */}
+        <div className={styles.rightSpace}></div>
+      </div>
 
       {/* Email Preview Modal */}
       {previewModal.isOpen && previewModal.digest && (

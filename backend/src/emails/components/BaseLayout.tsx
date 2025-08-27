@@ -28,7 +28,27 @@ interface BaseLayoutProps {
 export function BaseLayout({ children, previewText }: BaseLayoutProps) {
   return (
     <Html>
-      <Head />
+      <Head>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @media only screen and (max-width: 600px) {
+              .recall-column {
+                width: 100% !important;
+                display: block !important;
+                padding: 0 !important;
+                margin-bottom: 16px !important;
+              }
+              .recall-row {
+                width: 100% !important;
+              }
+              .recall-row td {
+                display: block !important;
+                width: 100% !important;
+              }
+            }
+          `
+        }} />
+      </Head>
       <Body style={main}>
         {previewText && (
           <Text style={preview}>{previewText}</Text>
@@ -71,7 +91,7 @@ export function BaseLayout({ children, previewText }: BaseLayoutProps) {
               This email was sent because you subscribed to SafeCart recall alerts.
               <br />
               <Link 
-                href="{{unsubscribeUrl}}" 
+                href="https://safecart.vercel.app/account/alerts" 
                 style={unsubscribeLink}
               >
                 Unsubscribe instantly
@@ -104,7 +124,7 @@ const container = {
   margin: '0 auto',
   padding: '20px 0 48px',
   marginBottom: '64px',
-  maxWidth: '600px',
+  maxWidth: '800px',
   borderRadius: '8px',
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
 };

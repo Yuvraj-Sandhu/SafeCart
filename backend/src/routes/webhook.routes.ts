@@ -27,11 +27,11 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
     const signature = req.headers['x-mandrill-signature'] as string;
     
     // Log webhook received (but not the full payload for privacy)
-    logger.info('Mailchimp webhook received', {
-      hasSignature: !!signature,
-      headers: Object.keys(req.headers), // Log all headers to debug
-      bodyKeys: Object.keys(req.body || {})
-    });
+    // logger.info('Mailchimp webhook received', {
+    //   hasSignature: !!signature,
+    //   headers: Object.keys(req.headers), // Log all headers to debug
+    //   bodyKeys: Object.keys(req.body || {})
+    // });
 
     // Mandrill sends events in a 'mandrill_events' parameter as a JSON string
     const eventsParam = req.body?.mandrill_events;
@@ -39,6 +39,29 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
       logger.warn('No mandrill_events parameter in webhook payload');
       // This might be a validation request from Mailchimp
       return res.status(200).send('OK');
+    }
+
+    // Validate Mandrill signature if provided
+    if (signature) {
+      // Construct the full webhook URL
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers.host || 'safecart-backend-984543935964.europe-west1.run.app';
+      const webhookUrl = `${protocol}://${host}${req.originalUrl || req.url}`;
+      
+      // Validate signature using the raw POST parameters
+      const isValid = emailWebhookService.validateMandrillSignature(
+        webhookUrl,
+        req.body,
+        signature
+      );
+
+      if (!isValid) {
+        logger.warn('Invalid Mandrill webhook signature');
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid signature'
+        });
+      }
     }
 
     // Parse the events JSON string
@@ -53,32 +76,43 @@ router.post('/mailchimp', async (req: Request, res: Response) => {
       });
     }
 
+    // logger.info(`Processing ${events.length} Mandrill events`);
+
     // Process each event
     let processedCount = 0;
     let failedCount = 0;
 
     for (const event of events) {
+      // Log event structure for debugging
+      // logger.info('Processing Mandrill event:', {
+      //   event: event.event,
+      //   email: event.msg?.email || event.email,
+      //   ts: event.ts,
+      //   _id: event._id
+      // });
+
       const payload = {
         type: event.event,
         fired_at: new Date(event.ts * 1000).toISOString(), // Convert Unix timestamp
         data: {
           id: event._id,
           email: event.msg?.email || event.email,
-          email_address: event.msg?.email || event.email,
           ...event.msg
         }
       } as MailchimpWebhookPayload;
 
-      const result = await emailWebhookService.processWebhook(payload, signature);
+      // Don't pass signature to processWebhook since we already validated
+      const result = await emailWebhookService.processWebhook(payload);
       
       if (result.success && result.processed) {
         processedCount++;
       } else {
         failedCount++;
+        logger.warn('Failed to process event:', { event: event.event, error: result.error });
       }
     }
 
-    logger.info(`Processed ${processedCount} events, ${failedCount} failed`);
+    // logger.info(`Processed ${processedCount} events, ${failedCount} failed`);
 
     // Send success response
     res.json({

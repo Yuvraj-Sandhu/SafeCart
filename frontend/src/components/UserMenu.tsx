@@ -38,6 +38,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { PendingBadge } from './ui/PendingBadge';
+import { api } from '@/services/api';
 import styles from './UserMenu.module.css';
 
 export function UserMenu() {
@@ -52,15 +53,17 @@ export function UserMenu() {
   } = useAuth();
   const { pendingChanges } = usePendingChanges();
   const [isOpen, setIsOpen] = useState(false);
+  const [syncingUsda, setSyncingUsda] = useState(false);
+  const [syncingFda, setSyncingFda] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
   
   // Check if we're on an account/public page
-  const isAccountPage = pathname === '/' || pathname?.startsWith('/account');
+  const isAccountPage = pathname === '/' || pathname?.startsWith('/account') || pathname?.startsWith('/recalls');
   
-  // Don't render for internal pages without internal auth
-  if (!isAccountPage && !isInternalAuthenticated) return null;
+  // Don't render for internal pages without internal auth - but show content instead of early return
+  const shouldShowMenu = isAccountPage || isInternalAuthenticated;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -102,6 +105,30 @@ export function UserMenu() {
     setIsOpen(false);
   };
 
+  const handleUsdaSync = async () => {
+    setSyncingUsda(true);
+    try {
+      await api.triggerUsdaSync();
+      alert('USDA sync started successfully! Check the backend logs for progress.');
+    } catch (error) {
+      alert(`Failed to start USDA sync: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncingUsda(false);
+    }
+  };
+
+  const handleFdaSync = async () => {
+    setSyncingFda(true);
+    try {
+      await api.triggerFdaSync();
+      alert('FDA sync started successfully! Check the backend logs for progress.');
+    } catch (error) {
+      alert(`Failed to start FDA sync: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSyncingFda(false);
+    }
+  };
+
   // Get menu options based on page and auth status
   const getMenuOptions = () => {
     if (isAccountPage) {
@@ -134,6 +161,21 @@ export function UserMenu() {
           { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
           { label: 'Logout', onClick: handleLogout }
         ];
+      } else if (pathname?.startsWith('/recalls')) {
+        // Recall pages - treat like home page
+        if (isAccountAuthenticated) {
+          return [
+            { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+            { label: 'Manage Alerts', onClick: () => { router.push('/account/alerts'); setIsOpen(false); } },
+            { label: 'Logout', onClick: handleLogout }
+          ];
+        } else {
+          return [
+            { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+            { label: 'Login', onClick: () => { router.push('/account/login'); setIsOpen(false); } },
+            { label: 'Sign Up', onClick: () => { router.push('/account/signup'); setIsOpen(false); } }
+          ];
+        }
       }
     }
     
@@ -142,6 +184,9 @@ export function UserMenu() {
   };
 
   const accountMenuOptions = getMenuOptions();
+
+  // Don't render anything if menu shouldn't be shown
+  if (!shouldShowMenu) return null;
 
   return (
     <div className={styles.userMenu} ref={menuRef}>
@@ -280,6 +325,35 @@ export function UserMenu() {
                 >
                   <span>Email Dashboard</span>
                 </button>
+              )}
+              
+              {/* Sync buttons - admin only */}
+              {internal_user?.role === 'admin' && (
+                <>
+                  <button 
+                    className={styles.menuItem}
+                    onClick={handleUsdaSync}
+                    disabled={syncingUsda}
+                    style={{ 
+                      color: syncingUsda ? currentTheme.textSecondary : currentTheme.text,
+                      cursor: syncingUsda ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <span>{syncingUsda ? 'Syncing USDA...' : 'Sync USDA Recalls'}</span>
+                  </button>
+                  
+                  <button 
+                    className={styles.menuItem}
+                    onClick={handleFdaSync}
+                    disabled={syncingFda}
+                    style={{ 
+                      color: syncingFda ? currentTheme.textSecondary : currentTheme.text,
+                      cursor: syncingFda ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <span>{syncingFda ? 'Syncing FDA...' : 'Sync FDA Recalls'}</span>
+                  </button>
+                </>
               )}
               
               {/* Logout button */}

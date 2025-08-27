@@ -6,9 +6,25 @@ import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
 import { EditModal } from '@/components/EditModal';
+import { EmailPreviewModal } from '@/components/ui/EmailPreviewModal';
 import { UnifiedRecall } from '@/types/recall.types';
 import { api } from '@/services/api';
 import styles from './ManualDigestTab.module.css';
+
+interface EmailDigest {
+  id: string;
+  type: 'manual' | 'usda_daily' | 'fda_weekly' | 'test';
+  sentAt: Date;
+  sentBy: string;
+  recallCount: number;
+  totalRecipients: number;
+  recalls: Array<{
+    id: string;
+    title: string;
+    source: 'USDA' | 'FDA';
+  }>;
+  emailHtml?: string;
+}
 
 export function ManualDigestTab() {
   const { currentTheme } = useTheme();
@@ -32,6 +48,17 @@ export function ManualDigestTab() {
   }>({
     isOpen: false,
     recall: null
+  });
+
+  // Email preview modal state
+  const [emailPreviewModal, setEmailPreviewModal] = useState<{
+    isOpen: boolean;
+    digest: EmailDigest | null;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    digest: null,
+    loading: false
   });
 
   // Check server health on mount
@@ -123,6 +150,33 @@ export function ManualDigestTab() {
     setEditModal({ isOpen: false, recall: null });
     
     console.log('Recall updated successfully in email dashboard');
+  };
+
+  const handleEmailPreview = async () => {
+    if (selectedRecalls.size === 0) return;
+    
+    setEmailPreviewModal(prev => ({ ...prev, loading: true, isOpen: true }));
+    
+    try {
+      const recallIds = Array.from(selectedRecalls);
+      const response = await api.getManualDigestEmailPreview(recallIds);
+      const digestData = response.data;
+      
+      // Convert sentAt to Date object if it's a string
+      if (typeof digestData.sentAt === 'string') {
+        digestData.sentAt = new Date(digestData.sentAt);
+      }
+      
+      setEmailPreviewModal({
+        isOpen: true,
+        digest: digestData,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Failed to generate email preview:', error);
+      alert('Failed to generate email preview. Please try again.');
+      setEmailPreviewModal({ isOpen: false, digest: null, loading: false });
+    }
   };
 
   const handleSendTest = async () => {
@@ -266,6 +320,13 @@ export function ManualDigestTab() {
               {isSending ? 'Sending...' : 'Send Test Email'}
             </Button>
             <Button
+              onClick={handleEmailPreview}
+              disabled={selectedRecalls.size === 0 || emailPreviewModal.loading}
+              variant="secondary"
+            >
+              {emailPreviewModal.loading ? 'Loading...' : 'Preview Email'}
+            </Button>
+            <Button
               onClick={handleSendToAll}
               disabled={selectedRecalls.size === 0 || isSending}
               variant="primary"
@@ -282,6 +343,14 @@ export function ManualDigestTab() {
           recall={editModal.recall}
           onClose={() => setEditModal({ isOpen: false, recall: null })}
           onSave={handleSaveEdit}
+        />
+      )}
+
+      {/* Email Preview Modal */}
+      {emailPreviewModal.isOpen && emailPreviewModal.digest && (
+        <EmailPreviewModal
+          digest={emailPreviewModal.digest}
+          onClose={() => setEmailPreviewModal({ isOpen: false, digest: null, loading: false })}
         />
       )}
 

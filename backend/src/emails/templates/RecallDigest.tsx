@@ -13,6 +13,8 @@ import {
   Text,
   Link,
   Button,
+  Row,
+  Column,
 } from '@react-email/components';
 import { BaseLayout } from '../components/BaseLayout';
 import { RecallCard } from '../components/RecallCard';
@@ -24,17 +26,20 @@ interface RecallDigestProps {
     unsubscribeToken: string;
   };
   state: string;
+  states?: string[];
   recalls: Array<{
     id: string;
     title: string;
     company: string;
     recallDate: string;
+    recallInitiationDate?: string; // For relative time display
     classification: string;
     description: string;
     reason: string;
     primaryImage?: string;
     recallUrl?: string;
     source: 'USDA' | 'FDA';
+    affectedStates?: string[];
   }>;
   digestDate: string;
   isTest?: boolean;
@@ -43,6 +48,7 @@ interface RecallDigestProps {
 export function RecallDigest({ 
   user, 
   state, 
+  states,
   recalls, 
   digestDate,
   isTest = false 
@@ -73,7 +79,7 @@ export function RecallDigest({
     ? `Good news! No food recalls reported ${formatStateName(state)} today.`
     : `${recalls.length} food recall${recalls.length > 1 ? 's' : ''} reported ${formatStateName(state)}. Stay informed and stay safe.`;
 
-  const unsubscribeUrl = `https://api.safecart.app/api/user/unsubscribe/${user.unsubscribeToken}`;
+  const unsubscribeUrl = "https://safecart.vercel.app/account/alerts";
 
   return (
     <BaseLayout previewText={previewText}>
@@ -124,11 +130,32 @@ export function RecallDigest({
             </Text>
           </Section>
 
-          {/* Recall Cards */}
+          {/* Recall Cards Grid */}
           <Section style={recallsSection}>
-            {recalls.map((recall) => (
-              <RecallCard key={recall.id} recall={recall} />
-            ))}
+            {/* Group recalls into rows of 2 for desktop */}
+            {recalls.reduce<React.ReactElement[]>((rows, recall, index) => {
+              if (index % 2 === 0) {
+                // Start a new row
+                const nextRecall = recalls[index + 1];
+                rows.push(
+                  <Row key={`row-${index}`} style={recallRow} className="recall-row">
+                    <Column style={recallColumn} className="recall-column">
+                      <RecallCard recall={recall} />
+                    </Column>
+                    {nextRecall ? (
+                      <Column style={recallColumn} className="recall-column">
+                        <RecallCard recall={nextRecall} />
+                      </Column>
+                    ) : (
+                      <Column style={recallColumn} className="recall-column">
+                        {/* Empty column for odd number of recalls */}
+                      </Column>
+                    )}
+                  </Row>
+                );
+              }
+              return rows;
+            }, [])}
           </Section>
 
           {/* Call to Action */}
@@ -150,7 +177,7 @@ export function RecallDigest({
       <Section style={preferencesSection}>
         <Text style={preferencesText}>
           You're receiving this digest for recalls <strong>{formatStateName(state)}</strong>.{' '}
-          <Link href="https://safecart.app/preferences" style={preferencesLink}>
+          <Link href="https://safecart.vercel.app/account/alerts" style={preferencesLink}>
             Update your preferences
           </Link>{' '}
           or{' '}
@@ -257,6 +284,17 @@ const summaryText = {
 
 const recallsSection = {
   marginBottom: '32px',
+};
+
+const recallRow = {
+  marginBottom: '0',
+};
+
+const recallColumn = {
+  width: '50%',
+  verticalAlign: 'top',
+  paddingRight: '8px',
+  paddingLeft: '8px',
 };
 
 const ctaSection = {

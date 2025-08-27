@@ -32,7 +32,7 @@ export class FDASyncService {
    * @param days - Number of days to fetch (default: 60)
    * @returns Promise that resolves when sync is complete
    */
-  async performSync(days: number = 60): Promise<void> {
+  async performSync(days: number = 60): Promise<string[]> {
     try {
       // Fetch recent recalls from FDA API
       const recentRecalls = await this.fdaApiService.fetchRecentRecalls(days);
@@ -40,11 +40,12 @@ export class FDASyncService {
 
       if (recentRecalls.length === 0) {
         logger.info('No FDA recalls found for the specified period');
-        return;
+        return [];
       }
 
       // Save to Firebase with custom field preservation
-      await this.saveRecallsWithMerge(recentRecalls);
+      const newRecallIds = await this.saveRecallsWithMerge(recentRecalls);
+      return newRecallIds;
     } catch (error) {
       logger.error('FDA sync failed:', error);
       throw error;
@@ -60,14 +61,16 @@ export class FDASyncService {
    * - Updates only API fields, keeping display and other custom data intact
    * 
    * @param recalls - Array of FDA recalls from API
+   * @returns Array of new recall IDs
    */
-  private async saveRecallsWithMerge(recalls: Omit<FDARecall, 'id'>[]): Promise<void> {
+  private async saveRecallsWithMerge(recalls: Omit<FDARecall, 'id'>[]): Promise<string[]> {
     const db = admin.firestore();
     const batches: admin.firestore.WriteBatch[] = [];
     let currentBatch = db.batch();
     let operationCount = 0;
     let newRecords = 0;
     let updatedRecords = 0;
+    const newRecallIds: string[] = [];
     const newRecallsForLLM: Array<{ id: string, title: string }> = [];
 
     logger.info(`Processing ${recalls.length} FDA recalls for save/update...`);
@@ -175,6 +178,9 @@ export class FDASyncService {
           });
           newRecords++;
           
+          // Track new recall ID for queue integration
+          newRecallIds.push(docId);
+          
           // New recall - add to LLM processing queue
           newRecallsForLLM.push({ 
             id: docId, 
@@ -224,6 +230,8 @@ export class FDASyncService {
         logger.error('Error processing LLM titles for FDA recalls:', error);
       });
     }
+    
+    return newRecallIds;
   }
 
   /**

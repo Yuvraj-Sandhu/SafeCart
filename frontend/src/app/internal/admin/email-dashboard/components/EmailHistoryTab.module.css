@@ -6,9 +6,70 @@
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: 1rem;
+}
+
+.topPagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+
+.pageJumpInput {
+  width: 40px;
+  padding: 0.25rem 0.375rem;
+  margin: 0 0.25rem;
+  border: 1px solid;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  transition: border-color 0.2s ease;
+  min-width: 30px;
+}
+
+.pageJumpInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primaryLight);
+}
+
+.header .title {
+  justify-self: start;
+}
+
+.header > button:last-child,
+.header > .iconsContainer {
+  justify-self: end;
+}
+
+.iconsContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.exportIcon {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.exportIcon:hover {
+  opacity: 0.75;
+}
+
+.refreshIcon {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.refreshIcon:hover {
+  opacity: 0.75;
 }
 
 .title {
@@ -89,17 +150,155 @@
   font-weight: 600;
 }
 
-/* Pagination */
+
+.pageInfo {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.refreshIcon {
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.refreshIcon:hover {
+  opacity: 0.7;
+}
+
+.refreshIcon:active {
+  transform: scale(0.95);
+}
+
+/* Pagination Wrapper */
+.paginationWrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+  gap: 1rem;
+}
+
+/* Limit Container */
+.limitContainer {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.limitSelectWrapper {
+  position: relative;
+  display: inline-block;
+  margin: 0 0.25rem;
+}
+
+.limitDropdown {
+  border: 2px solid;
+  border-radius: 0.5rem;
+  padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  min-width: 4rem;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.limitDropdown:hover {
+  border-color: var(--color-borderFocus);
+}
+
+/* Custom Dropdown Menu */
+.limitDropdownMenu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  border: 1px solid;
+  border-radius: 0.5rem;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 1px;
+}
+
+.limitOption {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.limitOption:first-child {
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.limitOption:last-child {
+  border-bottom: none;
+}
+
+.limitOption:hover {
+  background-color: var(--color-primaryLight) !important;
+  color: var(--color-textBlack) !important;
+}
+
+.limitOption.selected {
+  background-color: var(--color-primaryLight) !important;
+  color: var(--color-textBlack) !important;
+}
+
+/* Scrollbar styling for dropdown */
+.limitDropdownMenu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.limitDropdownMenu::-webkit-scrollbar-track {
+  background: var(--color-backgroundSecondary);
+  border-radius: 3px;
+}
+
+.limitDropdownMenu::-webkit-scrollbar-thumb {
+  background: var(--color-textTertiary);
+  border-radius: 3px;
+}
+
+.limitDropdownMenu::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textSecondary);
+}
+
+.limitDropdownArrow {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+
+/* Center the pagination when it exists */
 .pagination {
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
 }
 
-.pageInfo {
-  font-weight: 500;
+/* Right space for balance */
+.rightSpace {
+  flex: 0 0 auto;
+  width: 200px; /* Same approximate width as limit container */
 }
 
 /* Action Buttons */
@@ -349,6 +548,8 @@
     gap: 0.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    min-height: 260px;
   }
 
   .table tbody tr:hover {
@@ -398,57 +599,142 @@
   }
 
   /* Recall count */
-  .table td:nth-child(4) {
-    order: 4;
-  }
 
   .table td:nth-child(4)::before {
     content: "Recalls: ";
     font-weight: 500;
     margin-right: 0.5rem;
+    color: var(--color-textSecondary);
+    font-size: 0.8rem;
   }
 
   /* Recipients */
-  .table td:nth-child(5) {
-    order: 5;
-  }
-
   .table td:nth-child(5)::before {
     content: "Recipients: ";
     font-weight: 500;
     margin-right: 0.5rem;
+    color: var(--color-textSecondary);
+    font-size: 0.8rem;
   }
 
   /* Delivery Rate */
-  .table td:nth-child(6) {
-    order: 6;
-  }
-
   .table td:nth-child(6)::before {
     content: "Delivery: ";
     font-weight: 500;
     margin-right: 0.5rem;
+    color: var(--color-textSecondary);
+    font-size: 0.8rem;
   }
 
   /* Open Rate */
-  .table td:nth-child(7) {
-    order: 7;
-  }
-
   .table td:nth-child(7)::before {
     content: "Open Rate: ";
     font-weight: 500;
     margin-right: 0.5rem;
+    color: var(--color-textSecondary);
+    font-size: 0.8rem;
   }
 
-  /* Actions - Last row */
+  /* Enhanced metric values */
+  .table td:nth-child(4) .metric,
+  .table td:nth-child(5) .metric,
+  .table td:nth-child(6) .metric,
+  .table td:nth-child(7) .metric {
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  /* Use CSS Grid for the entire card */
+  .table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto auto;
+    gap: 0.75rem;
+    position: relative;
+  }
+
+  /* Full width items */
+  .table td:nth-child(1) { /* Date */
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .table td:nth-child(2) { /* Type */
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .table td:nth-child(3) { /* Sent by */
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  /* Metrics in 2x2 grid */
+  .table td:nth-child(4),
+  .table td:nth-child(5),
+  .table td:nth-child(6),
+  .table td:nth-child(7) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    font-size: 0.875rem;
+  }
+
+  .table td:nth-child(4) { /* Recalls - Top left */
+    grid-column: 1;
+    grid-row: 4;
+    padding-right: 1rem;
+  }
+
+  .table td:nth-child(6) { /* Delivery - Top right */
+    grid-column: 2;
+    grid-row: 4;
+    padding-left: 1rem;
+  }
+
+  .table td:nth-child(5) { /* Recipients - Bottom left */
+    grid-column: 1;
+    grid-row: 5;
+    padding-right: 1rem;
+  }
+
+  .table td:nth-child(7) { /* Open Rate - Bottom right */
+    grid-column: 2;
+    grid-row: 5;
+    padding-left: 1rem;
+  }
+
+  /* Actions - Full width at bottom */
   .table td:nth-child(8) {
-    order: 8;
+    grid-column: 1 / -1;
+    grid-row: 6;
     justify-content: center;
     margin-top: 0.5rem;
     padding-top: 0.75rem;
     border-top: 1px solid var(--color-cardBorder);
+    position: relative;
+    z-index: 0;
   }
+
+  /* Vertical divider between metric columns */
+  .table tbody tr::before {
+    content: '';
+    grid-column: 1 / -1;
+    grid-row: 4 / 6;
+    position: relative;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, 
+      transparent 0%, 
+      var(--color-cardBorder) 15%, 
+      var(--color-cardBorder) 85%, 
+      transparent 100%);
+    justify-self: center;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
 
   .actionButtons {
     flex-direction: row;
@@ -469,6 +755,14 @@
 
   .metric {
     font-size: 0.875rem;
+  }
+
+  /* Page Jump Input - Large screens */
+  .pageJumpInput {
+    width: 40px;
+    margin: 0 0.25rem;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.3rem;
   }
 
   /* Analytics Modal */
@@ -524,6 +818,53 @@
     font-size: 0.875rem;
   }
 
+  /* Page Jump Input - Medium screens */
+  .pageJumpInput {
+    width: 35px;
+    margin: 0 0.25rem;
+    font-size: 0.875rem;
+    padding: 0.15rem 0.25rem;
+  }
+
+  /* Limit dropdown - Medium screens */
+  .limitDropdown {
+    font-size: 0.875rem;
+    padding: 0.4rem 2rem 0.4rem 0.6rem;
+  }
+
+  .limitOption {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .limitDropdownArrow {
+    right: 0.6rem;
+  }
+
+  .limitDropdownArrow svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Pagination wrapper - Medium screens - Switch to vertical */
+  .paginationWrapper {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .limitContainer {
+    order: 2;
+  }
+
+  .pagination {
+    order: 1;
+  }
+
+  .rightSpace {
+    display: none;
+  }
+
   /* Analytics Modal */
   .analyticsModal {
     max-width: 95vw;
@@ -554,11 +895,86 @@
 
 /* Small screens - Single column card layout */
 @media (max-width: 600px) {
+  /* Header layout - 2 columns with pagination below */
+  .header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .header .title {
+    justify-self: start;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .header > button:last-child,
+  .header > .refreshIcon {
+    justify-self: end;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* Top pagination spans both columns on second row */
+  .topPagination {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
   /* Override grid to single column on mobile */
   .table tbody {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  /* Page Jump Input - Small screens */
+  .pageJumpInput {
+    width: 30px;
+    font-size: 0.7rem;
+    padding: 0.125rem 0.2rem;
+  }
+
+
+  /* Keep vertical layout on small screens */
+  .paginationWrapper {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .limitContainer {
+    order: 2;
+  }
+
+  .pagination {
+    order: 1;
+  }
+
+  .rightSpace {
+    display: none;
+  }
+
+  .limitDropdown {
+    font-size: 0.8rem;
+    padding: 0.35rem 1.75rem 0.35rem 0.5rem;
+  }
+
+  .limitOption {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .limitDropdownArrow {
+    right: 0.5rem;
+  }
+
+  .limitDropdownArrow svg {
+    width: 12px;
+    height: 12px;
   }
 }
 
@@ -585,5 +1001,41 @@
   .actionButtons button {
     width: 100%;
     max-width: none;
+  }
+
+  /* Page Jump Input - Extra small devices */
+  .pageJumpInput {
+    width: 28px;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.15rem;
+  }
+
+  /* Pagination wrapper - Extra small devices */
+  .paginationWrapper {
+    margin: 0.75rem 0;
+  }
+
+  .limitDropdown {
+    font-size: 0.75rem;
+    padding: 0.3rem 1.5rem 0.3rem 0.45rem;
+    min-width: 3.5rem;
+  }
+
+  .limitOption {
+    padding: 0.45rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .limitSelectWrapper {
+    margin: 0 0.125rem;
+  }
+
+  .limitDropdownArrow {
+    right: 0.45rem;
+  }
+
+  .limitDropdownArrow svg {
+    width: 12px;
+    height: 12px;
   }
 }

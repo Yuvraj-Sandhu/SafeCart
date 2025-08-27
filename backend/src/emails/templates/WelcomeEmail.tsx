@@ -30,7 +30,7 @@ interface WelcomeEmailProps {
 export function WelcomeEmail({ user, state }: WelcomeEmailProps) {
 
   const previewText = `Welcome to SafeCart! You're now subscribed to food recall alerts for ${state}.`;
-  const unsubscribeUrl = `https://api.safecart.app/api/user/unsubscribe/${user.unsubscribeToken}`;
+  const unsubscribeUrl = "https://safecart.vercel.app/account/alerts" ;
 
   return (
     <BaseLayout previewText={previewText}>
@@ -168,7 +168,7 @@ export function WelcomeEmail({ user, state }: WelcomeEmailProps) {
         <Text style={preferencesText}>
           You can change your state or notification preferences anytime:
         </Text>
-        <Link href="https://safecart.app/preferences" style={preferencesButton}>
+        <Link href="https://safecart.vercel.app/account/alerts" style={preferencesButton}>
           Update Preferences
         </Link>
       </Section>

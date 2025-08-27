@@ -3,6 +3,7 @@ import { USDAApiService } from './usda-api.service';
 import { FirebaseService } from './firebase.service';
 import { ImageProcessingService } from './image-processing.service';
 import { FDASyncService } from './fda/sync.service';
+import { EmailQueueService } from './email/queue.service';
 import logger from '../utils/logger';
 import dotenv from 'dotenv';
 
@@ -36,8 +37,10 @@ export class SyncService {
   private firebaseService: FirebaseService;
   private imageProcessingService: ImageProcessingService;
   private fdaSyncService: FDASyncService;
+  private emailQueueService: EmailQueueService;
   private syncTask: cron.ScheduledTask | null = null;
   private fdaSyncTask: cron.ScheduledTask | null = null;
+  private usdaEmailTask: cron.ScheduledTask | null = null;
 
   /**
    * Initializes the sync service with USDA/FDA API and Firebase services
@@ -47,6 +50,7 @@ export class SyncService {
     this.firebaseService = new FirebaseService();
     this.imageProcessingService = new ImageProcessingService();
     this.fdaSyncService = new FDASyncService();
+    this.emailQueueService = new EmailQueueService();
   }
 
   /**
@@ -67,8 +71,14 @@ export class SyncService {
       const recentRecalls = await this.usdaService.fetchRecentRecalls(60);
       logger.info(`Fetched ${recentRecalls.length} recent USDA recalls`);
 
-      // Save to Firebase
-      await this.firebaseService.saveRecalls(recentRecalls);
+      // Save to Firebase and get new recall IDs
+      const newRecallIds = await this.firebaseService.saveRecalls(recentRecalls);
+      
+      // Queue new recalls if any were created
+      if (newRecallIds.length > 0) {
+        logger.info(`Queueing ${newRecallIds.length} new USDA recalls for email digest`);
+        await this.queueUsdaRecalls(newRecallIds);
+      }
 
       // Process images for recent recalls
       logger.info('Processing images for USDA recalls...');
@@ -109,7 +119,13 @@ export class SyncService {
     const startTime = Date.now();
 
     try {
-      await this.fdaSyncService.performSync(days);
+      const newRecallIds = await this.fdaSyncService.performSync(days);
+      
+      // Queue new recalls if any were created
+      if (newRecallIds.length > 0) {
+        logger.info(`Queueing ${newRecallIds.length} new FDA recalls for email digest`);
+        await this.queueFdaRecalls(newRecallIds);
+      }
       
       const duration = Date.now() - startTime;
       logger.info(`FDA sync completed in ${duration}ms`);
@@ -326,6 +342,98 @@ export class SyncService {
   }
 
   /**
+   * Starts automatic USDA email sending at 5 PM ET daily
+   * 
+   * This task runs daily at 5:00 PM Eastern Time to automatically
+   * send the USDA daily queue if it exists and is in pending status.
+   */
+  startUsdaEmailAutoSend(): void {
+    const timezone = process.env.SYNC_TIMEZONE || 'America/New_York';
+    // Cron expression for 5:00 PM every day
+    const cronExpression = '0 17 * * *'; // minute=0, hour=17 (5 PM), every day
+
+    this.usdaEmailTask = cron.schedule(cronExpression, async () => {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', { 
+        timeZone: timezone,
+        dateStyle: 'short',
+        timeStyle: 'medium'
+      });
+      logger.info(`Running scheduled USDA email send at ${timeString} (${timezone})`);
+      
+      try {
+        await this.sendUsdaDailyQueue();
+      } catch (error) {
+        logger.error('Scheduled USDA email send failed:', error);
+      }
+    }, {
+      timezone: timezone
+    });
+
+    logger.info(`USDA email auto-send scheduled for 5:00 PM daily in ${timezone} timezone`);
+    
+    // Log the next scheduled run
+    const tomorrow = new Date();
+    tomorrow.setHours(17, 0, 0, 0); // 5 PM
+    if (tomorrow <= new Date()) {
+      tomorrow.setDate(tomorrow.getDate() + 1);
+    }
+    const nextRunString = tomorrow.toLocaleString('en-US', {
+      timeZone: timezone,
+      dateStyle: 'short',
+      timeStyle: 'medium'
+    });
+    logger.info(`Next USDA email send scheduled for: ${nextRunString} (${timezone})`);
+  }
+
+  /**
+   * Send USDA daily queue if it exists and is pending
+   * 
+   * This method checks for today's USDA queue and sends it if:
+   * - The queue exists
+   * - The queue status is 'pending'
+   * - The queue has recalls
+   */
+  private async sendUsdaDailyQueue(): Promise<void> {
+    try {
+      // Get today's USDA queue
+      const today = new Date();
+      const queueDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const queueId = `USDA_DAILY_${queueDate}`;
+      
+      // Check if queue exists
+      const queue = await this.emailQueueService.getQueueById(queueId);
+      
+      if (!queue) {
+        logger.info(`No USDA queue found for ${queueDate}, skipping auto-send`);
+        return;
+      }
+
+      // Check if queue is pending
+      if (queue.status !== 'pending') {
+        logger.info(`USDA queue ${queueId} status is '${queue.status}', skipping auto-send`);
+        return;
+      }
+
+      // Check if queue has recalls
+      if (!queue.recallIds || queue.recallIds.length === 0) {
+        logger.info(`USDA queue ${queueId} has no recalls, skipping auto-send`);
+        return;
+      }
+
+      logger.info(`Sending USDA queue ${queueId} with ${queue.recallIds.length} recalls`);
+      
+      // Send the queue
+      const result = await this.emailQueueService.sendQueue('USDA_DAILY', 'system');
+      
+      logger.info(`USDA queue ${queueId} sent successfully to ${result.totalRecipients} recipients`);
+    } catch (error) {
+      logger.error('Error in sendUsdaDailyQueue:', error);
+      // Don't throw - let the scheduler continue running
+    }
+  }
+
+  /**
    * Stops the automatic synchronization task
    * 
    * Useful for graceful shutdown or when disabling auto-sync
@@ -338,6 +446,165 @@ export class SyncService {
     if (this.fdaSyncTask) {
       this.fdaSyncTask.stop();
       logger.info('FDA auto-sync stopped');
+    }
+    if (this.usdaEmailTask) {
+      this.usdaEmailTask.stop();
+      logger.info('USDA email auto-send stopped');
+    }
+  }
+
+  /**
+   * Retry a function with exponential backoff
+   * 
+   * @param fn - Function to retry
+   * @param retries - Number of retries (default: 3)
+   * @param delay - Initial delay in ms (default: 1000)
+   */
+  private async withRetry<T>(
+    fn: () => Promise<T>,
+    retries: number = 3,
+    delay: number = 1000
+  ): Promise<T> {
+    let lastError: Error | unknown;
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        logger.warn(`Retry attempt ${i + 1}/${retries} failed:`, error);
+        
+        if (i < retries - 1) {
+          // Exponential backoff: 1s, 2s, 4s
+          const waitTime = delay * Math.pow(2, i);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  /**
+   * Queue USDA recalls for daily email digest
+   * Creates or updates today's USDA daily queue
+   * Email will be sent automatically at 5 PM ET
+   * 
+   * @param newRecallIds - Array of new recall IDs to add to queue
+   */
+  private async queueUsdaRecalls(newRecallIds: string[]): Promise<void> {
+    try {
+      // Get or create today's USDA daily queue
+      const today = new Date();
+      const queueDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const queueId = `USDA_DAILY_${queueDate}`;
+      
+      // Get existing queue or create new one with retry
+      let queue = await this.withRetry(() => 
+        this.emailQueueService.getQueueById(queueId)
+      );
+      
+      if (queue) {
+        // Update existing queue with new recalls (deduplication handled by Set)
+        const existingRecallIds = new Set(queue.recallIds);
+        newRecallIds.forEach(id => existingRecallIds.add(id));
+        
+        await this.withRetry(() => 
+          this.emailQueueService.updateQueueById(queueId, {
+            recallIds: Array.from(existingRecallIds),
+            lastUpdated: new Date().toISOString()
+          })
+        );
+        
+        logger.info(`Updated USDA daily queue ${queueId} with ${newRecallIds.length} new recalls`);
+      } else {
+        // Create new daily queue scheduled for 5 PM ET
+        const scheduledTime = new Date(today);
+        scheduledTime.setHours(17, 0, 0, 0); // 5 PM in local time
+        
+        // If it's already past 5 PM, schedule for tomorrow
+        if (scheduledTime <= new Date()) {
+          scheduledTime.setDate(scheduledTime.getDate() + 1);
+        }
+        
+        await this.withRetry(() => 
+          this.emailQueueService.createQueue({
+            id: queueId,
+            type: 'USDA_DAILY',
+            status: 'pending',
+            recallIds: newRecallIds,
+            scheduledFor: scheduledTime.toISOString(),
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          })
+        );
+        
+        logger.info(`Created new USDA daily queue ${queueId} with ${newRecallIds.length} recalls, scheduled for ${scheduledTime.toISOString()}`);
+      }
+    } catch (error) {
+      logger.error('Failed to queue USDA recalls:', error);
+      // Don't throw - allow sync to complete even if queueing fails
+    }
+  }
+
+  /**
+   * Queue FDA recalls for weekly email digest
+   * Creates or updates current week's FDA queue (Monday start)
+   * Email requires manual trigger to send
+   * 
+   * @param newRecallIds - Array of new recall IDs to add to queue
+   */
+  private async queueFdaRecalls(newRecallIds: string[]): Promise<void> {
+    try {
+      // Get current week's Monday
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const monday = new Date(today);
+      // If today is Sunday (0), go back 6 days, otherwise go back (dayOfWeek - 1) days
+      const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      monday.setDate(monday.getDate() - daysToSubtract);
+      monday.setHours(0, 0, 0, 0);
+      
+      const weekStart = monday.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const queueId = `FDA_WEEKLY_${weekStart}`;
+      
+      // Get existing queue or create new one with retry
+      let queue = await this.withRetry(() => 
+        this.emailQueueService.getQueueById(queueId)
+      );
+      
+      if (queue) {
+        // Update existing queue with new recalls (deduplication handled by Set)
+        const existingRecallIds = new Set(queue.recallIds);
+        newRecallIds.forEach(id => existingRecallIds.add(id));
+        
+        await this.withRetry(() => 
+          this.emailQueueService.updateQueueById(queueId, {
+            recallIds: Array.from(existingRecallIds),
+            lastUpdated: new Date().toISOString()
+          })
+        );
+        
+        logger.info(`Updated FDA weekly queue ${queueId} with ${newRecallIds.length} new recalls`);
+      } else {
+        // Create new weekly queue (no scheduled time - manual send)
+        await this.withRetry(() => 
+          this.emailQueueService.createQueue({
+            id: queueId,
+            type: 'FDA_WEEKLY',
+            status: 'pending',
+            recallIds: newRecallIds,
+            scheduledFor: null, // Manual trigger required
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+          })
+        );
+        
+        logger.info(`Created new FDA weekly queue ${queueId} with ${newRecallIds.length} recalls (manual send required)`);
+      }
+    } catch (error) {
+      logger.error('Failed to queue FDA recalls:', error);
+      // Don't throw - allow sync to complete even if queueing fails
     }
   }
 }

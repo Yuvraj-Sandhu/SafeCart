@@ -7,6 +7,7 @@ export interface EmailOptions {
   replyTo?: string;
   tags?: Record<string, string>;
   trackingId?: string;
+  digestId?: string; // For linking emails to digest records for analytics
 }
 
 export interface EmailResult {

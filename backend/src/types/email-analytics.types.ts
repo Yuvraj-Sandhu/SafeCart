@@ -43,7 +43,7 @@ export interface MailchimpWebhookPayload {
   data: {
     id?: string;                 // Message ID
     email?: string;              // Recipient email
-    email_address?: string;      // Alternative email field
+    metadata?: Record<string, string>; // Custom metadata including digest_id
     timestamp?: string;          // Event timestamp
     reason?: string;             // Bounce/rejection reason
     url?: string;                // Clicked URL (for click events)
@@ -52,7 +52,7 @@ export interface MailchimpWebhookPayload {
 }
 
 /**
- * Email analytics summary for a digest
+ * Email analytics summary for a digest (direct approach)
  */
 export interface EmailAnalyticsSummary {
   totalSent: number;
@@ -68,6 +68,18 @@ export interface EmailAnalyticsSummary {
   clickRate: number;       // clicked / delivered * 100
   bounceRate: number;      // bounced / totalSent * 100
   lastUpdated: string;     // ISO timestamp
+}
+
+/**
+ * Processed event record for duplicate prevention
+ * Stored in processed_events collection
+ */
+export interface ProcessedEventRecord {
+  digestId: string;        // Reference to email_digests document
+  messageId: string;       // Mailchimp message ID
+  eventType: string;       // Event type (sent, opened, etc.)
+  recipientEmail: string;  // Email address of recipient (for debugging/auditing)
+  processedAt: string;     // ISO timestamp when processed
 }
 
 /**

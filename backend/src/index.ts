@@ -123,6 +123,7 @@ app.listen(PORT, () => {
   const syncService = new SyncService();
   syncService.startAutoSync();
   syncService.startFDAAutoSync();
+  syncService.startUsdaEmailAutoSend();
   
   // Initial sync disabled to avoid startup delays in production
   logger.info('Initial sync disabled - use manual sync endpoints if needed');

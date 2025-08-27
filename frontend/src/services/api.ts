@@ -361,6 +361,22 @@ export const api = {
     return response.json();
   },
 
+  // Get email preview for manual digest
+  async getManualDigestEmailPreview(recallIds: string[]): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/digest/email-preview`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ recallIds })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to generate email preview');
+    }
+    return response.json();
+  },
+
   // Update queue (remove recalls)
   async updateQueue(queueType: 'USDA_DAILY' | 'FDA_WEEKLY', recallIds: string[]): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/admin/queues/${queueType}`, {
@@ -448,6 +464,66 @@ export const api = {
     const result = await response.json();
     // Backend wraps response in { success: true, data: { digests, totalPages } }
     return result.data;
+  },
+
+  // Get all email history for CSV export (no pagination)
+  async getAllEmailHistoryForExport(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/admin/email-history/export`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch email history for export');
+    }
+    const result = await response.json();
+    return result.data;
+  },
+
+  // Get public recall by ID (no authentication required)
+  async getRecallById(id: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/public/recall/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Recall not found');
+      }
+      throw new Error('Failed to fetch recall details');
+    }
+    return response.json();
+  },
+
+  // Trigger USDA sync (admin only)
+  async triggerUsdaSync(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger USDA sync');
+    }
+    return response.json();
+  },
+
+  // Trigger FDA sync (admin only)
+  async triggerFdaSync(days = 60): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/fda/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ days })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger FDA sync');
+    }
+    return response.json();
   }
 };
 

@@ -2,6 +2,8 @@
  * FDA Recall TypeScript Types
  */
 
+import { DisplayData } from './display.types';
+
 export interface FDARecall {
   // Document ID (sanitized recall_number_event_id)
   id?: string;
@@ -61,13 +63,7 @@ export interface FDARecall {
   openfda?: any;
   
   // Display customizations (similar to USDA)
-  display?: {
-    primaryImageIndex?: number;
-    previewTitle?: string;
-    uploadedImages?: any[];
-    lastEditedAt?: string;
-    lastEditedBy?: string;
-  };
+  display?: DisplayData;
 }
 
 // Response format for API endpoints

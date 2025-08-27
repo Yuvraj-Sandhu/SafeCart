@@ -31,18 +31,21 @@ export interface RecallDigestData {
     email: string;
     unsubscribeToken: string;
   };
-  state: string;
+  state: string; // Can be "Multiple States", state names, or single state
+  states?: string[]; // Array of all user's subscribed states (for consolidated emails)
   recalls: Array<{
     id: string;
     title: string;
     company: string;
     recallDate: string;
+    recallInitiationDate?: string; // For relative time display
     classification: string;
     description: string;
     reason: string;
     primaryImage?: string;
     recallUrl?: string;
     source: 'USDA' | 'FDA';
+    affectedStates?: string[];
   }>;
   digestDate: string;
   isTest?: boolean;

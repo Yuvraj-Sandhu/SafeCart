@@ -120,12 +120,13 @@ export class FirebaseService {
    * Failed saves are logged but don't stop the batch process.
    * 
    * @param recalls - Array of raw recall data from USDA API
-   * @returns Promise that resolves when all save attempts complete
+   * @returns Promise that resolves with array of new recall IDs
    */
-  async saveRecalls(recalls: Recall[]): Promise<void> {
+  async saveRecalls(recalls: Recall[]): Promise<string[]> {
     const FIRESTORE_BATCH_LIMIT = 500;
     let savedCount = 0;
     let failedCount = 0;
+    const newRecallIds: string[] = [];
     const newRecallsForLLM: Array<{ id: string, title: string }> = [];
 
     // Process in chunks of 500 (Firestore batch limit)
@@ -177,6 +178,9 @@ export class FirebaseService {
               lastUpdated: admin.firestore.FieldValue.serverTimestamp()
             });
             
+            // Track new recall ID for queue integration
+            newRecallIds.push(docRef.id);
+            
             // New recall - add to LLM processing queue
             newRecallsForLLM.push({ 
               id: docRef.id, 
@@ -203,6 +207,7 @@ export class FirebaseService {
     }
 
     logger.info(`Batch save complete: ${savedCount} saved, ${failedCount} failed out of ${recalls.length} total`);
+    logger.info(`New recalls created: ${newRecallIds.length}`);
     
     // Process LLM titles asynchronously (non-blocking) for recalls that need it
     if (newRecallsForLLM.length > 0) {
@@ -210,6 +215,8 @@ export class FirebaseService {
         logger.error('Error processing LLM titles:', error);
       });
     }
+    
+    return newRecallIds;
   }
 
   /**
@@ -401,8 +408,9 @@ export class FirebaseService {
       'field_establishment', 'field_labels', 'field_media_contact', 'field_year',
       'field_risk_level', 'field_processing', 'field_product_items',
       'field_recall_classification', 'field_recall_date', 'field_recall_number',
-      'field_recall_reason', 'field_recall_type', 'field_related_to_outbreak',
-      'field_summary', 'field_translation_language', 'field_has_spanish', 'langcode'
+      'field_recall_reason', 'field_recall_type', 'field_recall_url',
+      'field_related_to_outbreak', 'field_summary', 'field_translation_language', 
+      'field_has_spanish', 'langcode'
     ];
     
     usdaFields.forEach(field => {
