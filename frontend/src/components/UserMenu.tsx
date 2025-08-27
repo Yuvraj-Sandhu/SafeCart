@@ -161,6 +161,21 @@ export function UserMenu() {
           { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
           { label: 'Logout', onClick: handleLogout }
         ];
+      } else if (pathname?.startsWith('/recalls')) {
+        // Recall pages - treat like home page
+        if (isAccountAuthenticated) {
+          return [
+            { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+            { label: 'Manage Alerts', onClick: () => { router.push('/account/alerts'); setIsOpen(false); } },
+            { label: 'Logout', onClick: handleLogout }
+          ];
+        } else {
+          return [
+            { label: 'Home', onClick: () => { router.push('/'); setIsOpen(false); } },
+            { label: 'Login', onClick: () => { router.push('/account/login'); setIsOpen(false); } },
+            { label: 'Sign Up', onClick: () => { router.push('/account/signup'); setIsOpen(false); } }
+          ];
+        }
       }
     }
     
