@@ -111,51 +111,114 @@ export function RecallCard({ recall }: RecallCardProps) {
 
   return (
     <Section style={cardContainer}>
-      {/* Primary Image or Placeholder - matching website design */}
+      {/* Primary Image or Placeholder - using table layout for Gmail compatibility */}
       {recall.primaryImage ? (
-        <Link
-          href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
-          style={{ textDecoration: 'none', display: 'block' }}
-        >
-          <Section style={imageContainerWrapper}>
-            <Img
-              src={recall.primaryImage}
-              alt={`${recall.title} - Recall Image`}
-              style={recallImage}
-            />
-            {/* Relative time badge - exactly matching frontend */}
-            {recall.recallInitiationDate && (
-              <Text style={timeBadge}>
-                {getRelativeTime(recall.recallInitiationDate)}
-              </Text>
-            )}
-          </Section>
-        </Link>
+        <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse', position: 'relative' }}>
+          <tr>
+            <td style={imageContainerWrapper}>
+                {/* Image fills the container */}
+                <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tr>
+                    <td align="center" style={{ textAlign: 'center', padding: '0', position: 'relative' }}>
+                      <Link
+                        href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
+                        style={{ textDecoration: 'none', display: 'block' }}
+                      >
+                        <Img
+                          src={recall.primaryImage}
+                          alt={`${recall.title} - Recall Image`}
+                          style={recallImageFullHeight}
+                        />
+                      </Link>
+                    </td>
+                  </tr>
+                </table>
+                {/* Time badge overlaid using table positioning */}
+                {recall.recallInitiationDate && (
+                  <table cellPadding="0" cellSpacing="0" style={{ 
+                    width: '100%', 
+                    borderCollapse: 'collapse',
+                    marginTop: '-200px', // Negative margin to overlay on image
+                    position: 'relative',
+                    zIndex: 2
+                  }}>
+                    <tr>
+                      <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', width: '100%' }}>
+                        <span style={timeBadgeOverlay}>
+                          {getRelativeTime(recall.recallInitiationDate)}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                )}
+              </td>
+            </tr>
+          </table>
       ) : (
-        <Section style={imagePlaceholderWrapper}>
-          <Section style={imagePlaceholder}>
-            {/* Simple placeholder for emails without SVG */}
-            <Text style={placeholderText}>No Image Available</Text>
-          </Section>
-          {/* Relative time badge for recalls without images */}
-          {recall.recallInitiationDate && (
-            <Text style={timeBadge}>
-              {getRelativeTime(recall.recallInitiationDate)}
-            </Text>
-          )}
-        </Section>
+        <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tr>
+            <td style={imagePlaceholderWrapper}>
+              {/* Placeholder fills the container */}
+              <table cellPadding="0" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tr>
+                  <td align="center" style={imagePlaceholderFullHeight}>
+                    <Link
+                      href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
+                      style={{ textDecoration: 'none', display: 'block' }}
+                    >
+                      <Text style={placeholderText}>No Image Available</Text>
+                    </Link>
+                  </td>
+                </tr>
+              </table>
+              {/* Time badge overlaid on placeholder */}
+              {recall.recallInitiationDate && (
+                <table cellPadding="0" cellSpacing="0" style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  marginTop: '-200px', // Negative margin to overlay on placeholder
+                  position: 'relative',
+                  zIndex: 2
+                }}>
+                  <tr>
+                    <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', width: '100%' }}>
+                      <span style={timeBadgeOverlay}>
+                        {getRelativeTime(recall.recallInitiationDate)}
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              )}
+            </td>
+          </tr>
+        </table>
       )}
 
       {/* Recall Content - matching website structure */}
       <Section style={cardContent}>
-        {/* Title - main focus */}
+        {/* Title - main focus with link */}
         <Text style={recallTitle}>
-          {recall.title}
+          <Link
+            href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
+            style={{ color: '#111827', textDecoration: 'none' }}
+          >
+            {recall.title}
+          </Link>
         </Text>
         
         {/* Affected states instead of date */}
         <Text style={recallMeta}>
           {formatStates(recall.affectedStates)}
+        </Text>
+
+        {/* View Details Link */}
+        <Text style={{ margin: '0' }}>
+          <Link
+            href={`${process.env.FRONTEND_URL}/recalls/${recall.id}`}
+            style={{ color: '#374151', textDecoration: 'underline', fontSize: '14px' }}
+          >
+            View Details
+          </Link>
         </Text>
 
       </Section>
@@ -174,41 +237,58 @@ const cardContainer = {
 };
 
 const imageContainerWrapper = {
-  position: 'relative' as const,
   backgroundColor: '#faf6ed', // backgroundSecondary from light theme
   textAlign: 'center' as const,
   width: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '200px', // Ensure consistent height for centering
+  minHeight: '200px', // Ensure consistent height
+  verticalAlign: 'top' as const,
 };
 
 const recallImage = {
   maxWidth: '100%',
   height: 'auto',
   maxHeight: '200px', // Reduced for narrower cards in grid
-  objectFit: 'contain' as const, // Match website's object-fit
   borderRadius: '16px', // 1rem matching website
   display: 'block',
   margin: '0 auto', // Center the image horizontally
 };
 
+// Full height image that fills the container from top
+const recallImageFullHeight = {
+  width: '100%',
+  height: '200px', // Fixed height to fill container
+  maxHeight: '200px',
+  objectFit: 'cover' as const, // Cover to fill the space nicely
+  borderRadius: '16px 16px 0 0', // Only round top corners
+  display: 'block',
+};
+
 const imagePlaceholderWrapper = {
-  position: 'relative' as const,
   width: '100%',
   minHeight: '200px', // Match the image container height
+  backgroundColor: '#faf6ed', // backgroundSecondary from light theme
+  verticalAlign: 'top' as const,
 };
 
 const imagePlaceholder = {
   backgroundColor: '#eceae4', // backgroundSecondary from light theme  
-  padding: '32px 24px', // Reduced padding for narrower cards
+  padding: '24px 24px 48px 24px', // Reduced top padding, more bottom padding
   textAlign: 'center' as const,
-  borderRadius: '16px 16px 0 0',
-  height: '100%', // Take full height of wrapper
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+  borderRadius: '16px',
+  minHeight: '120px', // Ensure minimum height
+  verticalAlign: 'middle' as const,
+  margin: '0 8px 8px 8px', // Remove top margin, keep other margins
+};
+
+// Full height placeholder that fills the container from top
+const imagePlaceholderFullHeight = {
+  backgroundColor: '#eceae4', // backgroundSecondary from light theme  
+  padding: '80px 24px', // Vertical centering padding
+  textAlign: 'center' as const,
+  borderRadius: '16px 16px 0 0', // Only round top corners
+  height: '200px', // Fixed height to match image container
+  verticalAlign: 'middle' as const,
+  display: 'table-cell' as const, // For vertical centering
 };
 
 const placeholderText = {
@@ -218,11 +298,9 @@ const placeholderText = {
   opacity: 0.6,
 };
 
-// Timestamp badge - exactly matching frontend RecallList.module.css
-const timeBadge = {
-  position: 'absolute' as const,
-  top: '8px', // 0.5rem
-  left: '8px', // 0.5rem
+// Timestamp badge - Gmail-compatible inline version
+const timeBadgeInline = {
+  display: 'inline-block',
   fontSize: '14px', // 0.875rem
   fontWeight: '600',
   padding: '4px 8px', // 0.25rem 0.5rem
@@ -230,10 +308,25 @@ const timeBadge = {
   color: '#374151', // textSecondary from light theme
   border: '1px solid #e5e7eb', // cardBorder from light theme
   borderRadius: '8px', // 0.5rem
-  backdropFilter: 'blur(8px)',
-  zIndex: 1,
   whiteSpace: 'nowrap' as const,
-  margin: '0'
+  margin: '0',
+  textAlign: 'left' as const,
+};
+
+// Timestamp badge that appears overlaid on image
+const timeBadgeOverlay = {
+  display: 'inline-block',
+  fontSize: '14px', // 0.875rem
+  fontWeight: '600',
+  padding: '4px 8px', // 0.25rem 0.5rem
+  backgroundColor: 'rgba(250, 246, 237, 0.95)', // Semi-transparent cardBackground
+  color: '#374151', // textSecondary from light theme
+  border: '1px solid #e5e7eb', // cardBorder from light theme
+  borderRadius: '8px', // 0.5rem
+  whiteSpace: 'nowrap' as const,
+  margin: '0',
+  textAlign: 'left' as const,
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // Slight shadow for visibility on image
 };
 
 const cardContent = {
@@ -251,7 +344,8 @@ const recallTitle = {
 const recallMeta = {
   fontSize: '14px',
   color: '#374151', // textSecondary from light theme
-  margin: '0 0 16px',
+  margin: '0 0 4px',
 };
+
 
 
