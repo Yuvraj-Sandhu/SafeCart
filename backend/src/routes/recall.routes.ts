@@ -397,6 +397,38 @@ router.post('/sync/fda/trigger', authenticate, requireAdmin, async (req: Request
 });
 
 /**
+ * POST /api/sync/fda/ires/trigger
+ * 
+ * Manually triggers FDA IRES website scraping
+ * 
+ * This endpoint triggers the FDA IRES scraper to fetch the latest
+ * enforcement reports from the FDA website. This provides faster
+ * updates than the FDA API.
+ * 
+ * @returns JSON response with sync status
+ * 
+ * @example
+ * POST /api/sync/fda/ires/trigger
+ */
+router.post('/sync/fda/ires/trigger', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Import the IRES sync service
+    const { fdaIRESSyncService } = require('../services/fda/ires-sync.service');
+    
+    // Start the sync and wait for result
+    const result = await fdaIRESSyncService.triggerManualSync();
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('Error triggering FDA IRES sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA IRES sync'
+    });
+  }
+});
+
+/**
  * POST /api/sync/fda/historical
  * 
  * Triggers FDA historical data sync
