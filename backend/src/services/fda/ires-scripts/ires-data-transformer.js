@@ -186,12 +186,16 @@ function transformIRESToFDA(iresRecall) {
     }
     
     // Add Press Release URL as recall_url (for FDA frontend display)
-    // Note: scraper converts "Press Release URL" to "pressReleaseUrl" (lowercase 'rl')
-    if (iresRecall.pressReleaseUrl || iresRecall.pressReleaseURL) {
-      const url = iresRecall.pressReleaseUrl || iresRecall.pressReleaseURL;
-      transformedRecall.recall_url = url;
+    // Note: scraper may add "(S)" suffix if there are multiple similar fields
+    const pressReleaseUrl = iresRecall.pressReleaseUrl || 
+                           iresRecall.pressReleaseURL || 
+                           iresRecall['pressReleaseUrl(S)'] ||
+                           iresRecall['pressReleaseURL(S)'];
+    
+    if (pressReleaseUrl) {
+      transformedRecall.recall_url = pressReleaseUrl;
       // Also keep as press_release_url for compatibility
-      transformedRecall.press_release_url = url;
+      transformedRecall.press_release_url = pressReleaseUrl;
     }
     
     // Generate document ID
