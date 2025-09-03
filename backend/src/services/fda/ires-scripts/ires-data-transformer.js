@@ -185,8 +185,13 @@ function transformIRESToFDA(iresRecall) {
       transformedRecall.center_city = iresRecall.centerCity;
     }
     
-    if (iresRecall.pressReleaseURL) {
-      transformedRecall.press_release_url = iresRecall.pressReleaseURL;
+    // Add Press Release URL as recall_url (for FDA frontend display)
+    // Note: scraper converts "Press Release URL" to "pressReleaseUrl" (lowercase 'rl')
+    if (iresRecall.pressReleaseUrl || iresRecall.pressReleaseURL) {
+      const url = iresRecall.pressReleaseUrl || iresRecall.pressReleaseURL;
+      transformedRecall.recall_url = url;
+      // Also keep as press_release_url for compatibility
+      transformedRecall.press_release_url = url;
     }
     
     // Generate document ID

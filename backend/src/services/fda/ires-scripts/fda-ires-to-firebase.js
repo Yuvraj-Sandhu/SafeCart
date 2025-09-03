@@ -92,6 +92,7 @@ async function saveIRESRecallsToFirebase(recalls) {
         // Only add fields that have actual values (not undefined)
         if (existingData.display !== undefined) {
           mergedData.display = existingData.display;
+          // Note: previewUrl inside display takes priority over recall_url in frontend
         }
         if (existingData.manualStatesOverride !== undefined) {
           mergedData.manualStatesOverride = existingData.manualStatesOverride;

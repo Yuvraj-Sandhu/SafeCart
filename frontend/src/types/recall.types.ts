@@ -103,7 +103,7 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     reasonForRecall: fdaRecall.reason_for_recall || 'Not specified',
     recallDate: formatFDADate(fdaRecall.report_date),
     recallInitiationDate: fdaRecall.recall_initiation_date ? formatFDADate(fdaRecall.recall_initiation_date) : formatFDADate(fdaRecall.report_date), // Use recall_initiation_date if available, else report_date
-    recallUrl: undefined, // FDA doesn't have recall URLs by default
+    recallUrl: fdaRecall.display?.previewUrl || fdaRecall.recall_url || undefined, // Priority: manual preview > IRES URL > none
     terminationDate: fdaRecall.termination_date ? formatFDADate(fdaRecall.termination_date) : undefined,
     affectedStates: fdaRecall.affectedStatesArray || [],
     distributionPattern: fdaRecall.distribution_pattern,
