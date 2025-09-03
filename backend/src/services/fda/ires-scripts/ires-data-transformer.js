@@ -192,10 +192,29 @@ function transformIRESToFDA(iresRecall) {
                            iresRecall['pressReleaseUrl(S)'] ||
                            iresRecall['pressReleaseURL(S)'];
     
+    // Validate that it's actually a URL and not an address or other text
     if (pressReleaseUrl) {
-      transformedRecall.recall_url = pressReleaseUrl;
-      // Also keep as press_release_url for compatibility
-      transformedRecall.press_release_url = pressReleaseUrl;
+      // Check if it's a valid URL (starts with http/https or contains www.)
+      const isValidUrl = (
+        pressReleaseUrl.startsWith('http://') || 
+        pressReleaseUrl.startsWith('https://') ||
+        pressReleaseUrl.includes('www.') ||
+        pressReleaseUrl.includes('.gov/') ||
+        pressReleaseUrl.includes('.com/') ||
+        pressReleaseUrl.includes('.org/')
+      );
+      
+      if (isValidUrl) {
+        // Ensure it has proper protocol
+        let finalUrl = pressReleaseUrl;
+        if (!pressReleaseUrl.startsWith('http://') && !pressReleaseUrl.startsWith('https://')) {
+          finalUrl = 'https://' + pressReleaseUrl;
+        }
+        
+        transformedRecall.recall_url = finalUrl;
+        // Also keep as press_release_url for compatibility
+        transformedRecall.press_release_url = finalUrl;
+      }
     }
     
     // Generate document ID
