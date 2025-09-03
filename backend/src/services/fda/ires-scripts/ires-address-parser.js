@@ -96,47 +96,120 @@ function parseRecallingFirm(recallingFirmStr) {
       if (stateMatch && STATE_ABBREV_TO_FULL[stateMatch[1]]) {
         result.state = stateMatch[1];
         
-        // Extract city - it should be before the state, after a comma
+        // Extract city - it should be before the state
         const beforeState = beforePostal.substring(0, stateMatch.index).trim();
+        
+        // Check if there's a comma separating city from state (format: "...Jacksonville, FL")
         const lastCommaIndex = beforeState.lastIndexOf(',');
         
         if (lastCommaIndex !== -1) {
-          result.city = beforeState.substring(lastCommaIndex + 1).trim();
+          // City is likely just before the comma (format: "city, state")
+          // But we need to separate it from the address that comes before it
+          const beforeComma = beforeState.substring(0, lastCommaIndex).trim();
           
-          // Everything before the city is the address and firm name
-          const beforeCity = beforeState.substring(0, lastCommaIndex).trim();
+          // Look for where the city name starts (after the street address)
+          // Strategy: Find the street suffix, city comes after it
+          const streetPatterns = /\b(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Place|Pl|Circle|Cir|Highway|Hwy|Parkway|Pkwy)\b/i;
+          const streetMatch = beforeComma.match(streetPatterns);
           
-          // Try to split firm name from address
-          // Strategy: Look for the first number (usually start of street address)
-          const firstNumberMatch = beforeCity.match(/\d/);
-          
-          if (firstNumberMatch) {
-            const numberIndex = beforeCity.indexOf(firstNumberMatch[0]);
-            result.recalling_firm = beforeCity.substring(0, numberIndex).trim();
-            result.address_1 = beforeCity.substring(numberIndex).trim();
+          if (streetMatch) {
+            const streetEndIndex = streetMatch.index + streetMatch[0].length;
+            result.city = beforeComma.substring(streetEndIndex).trim();
+            const beforeCity = beforeComma.substring(0, streetEndIndex).trim();
+            
+            // Try to split firm name from address
+            // Strategy: Look for the first number (usually start of street address)
+            const firstNumberMatch = beforeCity.match(/\d/);
+            
+            if (firstNumberMatch) {
+              const numberIndex = beforeCity.indexOf(firstNumberMatch[0]);
+              result.recalling_firm = beforeCity.substring(0, numberIndex).trim();
+              result.address_1 = beforeCity.substring(numberIndex).trim();
+            } else {
+              // No clear address pattern, treat it all as firm name
+              result.recalling_firm = beforeCity;
+            }
           } else {
-            // No clear address pattern, treat it all as firm name
-            result.recalling_firm = beforeCity;
+            // No street pattern found, use simpler heuristic
+            // Assume last word before comma is city
+            const words = beforeComma.split(/\s+/);
+            if (words.length > 0) {
+              result.city = words[words.length - 1];
+              const withoutCity = words.slice(0, -1).join(' ');
+              
+              // Find firm name and address in remaining text
+              const firstNumberMatch = withoutCity.match(/\d/);
+              if (firstNumberMatch) {
+                const numberIndex = withoutCity.indexOf(firstNumberMatch[0]);
+                result.recalling_firm = withoutCity.substring(0, numberIndex).trim();
+                result.address_1 = withoutCity.substring(numberIndex).trim();
+              } else {
+                result.recalling_firm = withoutCity;
+              }
+            }
           }
         } else {
-          // No clear city delimiter, try alternative parsing
-          // Look for pattern: [Firm Name] [Address] [City], [State] [Zip]
-          const parts = workingStr.split(/\s{2,}/); // Split by multiple spaces
+          // No comma found - city and street address might be space-separated
+          // Try to identify city by looking for common street suffixes
+          const streetPatterns = /\b(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Way|Court|Ct|Place|Pl|Circle|Cir|Highway|Hwy|Parkway|Pkwy)\b/i;
+          const streetMatch = beforeState.match(streetPatterns);
           
-          if (parts.length >= 2) {
-            // First part is likely firm name
-            result.recalling_firm = parts[0];
+          if (streetMatch) {
+            // Find where the street suffix ends
+            const streetEndIndex = streetMatch.index + streetMatch[0].length;
+            const afterStreet = beforeState.substring(streetEndIndex).trim();
             
-            // Try to find address in remaining parts
-            for (let i = 1; i < parts.length; i++) {
-              const part = parts[i];
-              // Check if this part looks like an address (contains numbers)
-              if (/\d/.test(part) && !result.address_1) {
-                // Check if it's not the postal code we already found
-                if (!part.includes(result.postal_code)) {
-                  result.address_1 = part;
-                }
+            // The next word(s) after the street suffix is likely the city
+            // Extract everything up to the next comma or the end
+            if (afterStreet) {
+              result.city = afterStreet;
+              // Everything before the city is address and firm
+              const beforeCityStr = beforeState.substring(0, streetEndIndex).trim();
+              
+              // Find firm name and address
+              const firstNumberMatch = beforeCityStr.match(/\d/);
+              if (firstNumberMatch) {
+                const numberIndex = beforeCityStr.indexOf(firstNumberMatch[0]);
+                result.recalling_firm = beforeCityStr.substring(0, numberIndex).trim();
+                result.address_1 = beforeCityStr.substring(numberIndex).trim();
+              } else {
+                result.recalling_firm = beforeCityStr;
               }
+            }
+          } else {
+            // Fallback: try to identify by looking for capitalized words after numbers
+            const parts = beforeState.split(/\s+/);
+            let foundAddress = false;
+            let addressParts = [];
+            let cityParts = [];
+            
+            for (let i = 0; i < parts.length; i++) {
+              if (!foundAddress && /\d/.test(parts[i])) {
+                foundAddress = true;
+              }
+              
+              if (foundAddress) {
+                // Check if we've reached the city (usually after street suffix)
+                if (i > 0 && streetPatterns.test(parts[i-1])) {
+                  cityParts = parts.slice(i);
+                  break;
+                } else {
+                  addressParts.push(parts[i]);
+                }
+              } else {
+                // Part of firm name
+                if (!result.recalling_firm) result.recalling_firm = '';
+                result.recalling_firm += (result.recalling_firm ? ' ' : '') + parts[i];
+              }
+            }
+            
+            if (addressParts.length > 0) {
+              // Last part might be city if no street suffix found
+              if (cityParts.length === 0 && addressParts.length > 2) {
+                cityParts = [addressParts.pop()];
+              }
+              result.address_1 = addressParts.join(' ');
+              result.city = cityParts.join(' ');
             }
           }
         }
