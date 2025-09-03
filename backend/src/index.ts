@@ -123,6 +123,7 @@ app.listen(PORT, () => {
   const syncService = new SyncService();
   syncService.startAutoSync();
   syncService.startFDAAutoSync();
+  // syncService.startFDAIRESAutoSync(); // Start FDA IRES scraper at 3 AM ET
   syncService.startUsdaEmailAutoSend();
   
   // Initial sync disabled to avoid startup delays in production

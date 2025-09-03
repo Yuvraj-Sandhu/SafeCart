@@ -71,7 +71,7 @@ export class FDAApiService {
    * Parse distribution pattern to extract affected states
    * Similar to the parseAffectedStates function in fetch-fda-recalls.js
    */
-  private parseAffectedStates(distributionPattern: string): string[] {
+  public parseAffectedStates(distributionPattern: string): string[] {
     const stateMapping: { [key: string]: string } = {
       'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
       'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',

@@ -16,31 +16,15 @@ interface ProcessedImage {
   pageNumber?: number;
 }
 
-interface RecallDetail {
-  id: string;
-  recallNumber: string;
-  source: 'USDA' | 'FDA';
-  title: string;
-  company: string;
-  summary: string;
-  recallDate: string;
-  riskLevel: string;
-  affectedStates: string[];
-  isActive: boolean;
-  images: ProcessedImage[];
-  primaryImage?: string;
-  recallUrl?: string;
-}
-
 interface RecallDetailPageContentProps {
-  initialRecall: RecallDetail | null;
+  initialRecall: UnifiedRecall | null;
   recallId: string;
 }
 
 export default function RecallDetailPageContent({ initialRecall, recallId }: RecallDetailPageContentProps) {
   const { currentTheme } = useTheme();
   const router = useRouter();
-  const [recall, setRecall] = useState<RecallDetail | null>(initialRecall);
+  const [recall, setRecall] = useState<UnifiedRecall | null>(initialRecall);
   const [loading, setLoading] = useState(!initialRecall);
   const [error, setError] = useState<string | null>(null);
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
@@ -62,26 +46,6 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
     }
   };
 
-  // Convert RecallDetail to UnifiedRecall format for RecallList
-  const convertToUnifiedRecall = (detail: RecallDetail): UnifiedRecall => {
-    return {
-      id: detail.id,
-      recallNumber: detail.recallNumber,
-      source: detail.source,
-      isActive: detail.isActive,
-      classification: detail.riskLevel,
-      recallingFirm: detail.company,
-      productTitle: detail.title,
-      productDescription: detail.summary,
-      reasonForRecall: detail.summary,
-      recallDate: detail.recallDate,
-      recallInitiationDate: detail.recallDate,
-      recallUrl: detail.recallUrl,
-      affectedStates: detail.affectedStates,
-      images: detail.images,
-      originalData: detail
-    };
-  };
 
   const copyLink = () => {
     const url = window.location.href;
@@ -98,7 +62,7 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
 
   const shareOnTwitter = () => {
     const url = encodeURIComponent(window.location.href);
-    const text = encodeURIComponent(`Check out this food recall: ${recall?.title || ''}`);
+    const text = encodeURIComponent(`Check out this food recall: ${recall?.productTitle || ''}`);
     window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
   };
 
@@ -107,7 +71,7 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
   };
 
-  const unifiedRecall = recall ? [convertToUnifiedRecall(recall)] : [];
+  const unifiedRecall = recall ? [recall] : [];
 
   if (error && !loading) {
     return (

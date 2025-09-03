@@ -3,6 +3,7 @@ import { USDAApiService } from './usda-api.service';
 import { FirebaseService } from './firebase.service';
 import { ImageProcessingService } from './image-processing.service';
 import { FDASyncService } from './fda/sync.service';
+import { fdaIRESSyncService } from './fda/ires-sync.service';
 import { EmailQueueService } from './email/queue.service';
 import logger from '../utils/logger';
 import dotenv from 'dotenv';
@@ -342,6 +343,18 @@ export class SyncService {
   }
 
   /**
+   * Starts FDA IRES automatic synchronization
+   * 
+   * Runs daily at 3:00 AM Eastern Time to scrape FDA IRES website
+   * for the most recent enforcement reports
+   */
+  startFDAIRESAutoSync(): void {
+    // Initialize the IRES sync service
+    fdaIRESSyncService.initialize();
+    logger.info('FDA IRES sync service initialized');
+  }
+
+  /**
    * Starts automatic USDA email sending at 5 PM ET daily
    * 
    * This task runs daily at 5:00 PM Eastern Time to automatically
@@ -451,6 +464,8 @@ export class SyncService {
       this.usdaEmailTask.stop();
       logger.info('USDA email auto-send stopped');
     }
+    // Stop FDA IRES sync service
+    fdaIRESSyncService.stop();
   }
 
   /**
