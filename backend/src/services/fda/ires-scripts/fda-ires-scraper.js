@@ -688,8 +688,20 @@ class FDAIRESScraper {
                     // Strategy 1: Check if value paragraph is direct sibling of boldFont div
                     const directSiblingP = boldDiv.nextElementSibling;
                     if (directSiblingP && directSiblingP.tagName === 'P') {
-                      // Use textContent which won't be broken by quotes/apostrophes
-                      valueText = directSiblingP.textContent?.trim() || '';
+                      // Special handling for fields with addresses (preserve line breaks)
+                      if (labelText.includes('Recalling Firm')) {
+                        // Get innerHTML and replace <br> tags with double spaces
+                        const innerHTML = directSiblingP.innerHTML || '';
+                        // Replace <br> tags with double spaces to preserve line breaks
+                        const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                        // Create a temporary element to extract text
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = textWithBreaks;
+                        valueText = tempDiv.textContent?.trim() || '';
+                      } else {
+                        // Use textContent which won't be broken by quotes/apostrophes
+                        valueText = directSiblingP.textContent?.trim() || '';
+                      }
                       // If textContent is empty, try aria-label as fallback
                       if (!valueText && directSiblingP.hasAttribute('aria-label')) {
                         valueText = directSiblingP.getAttribute('aria-label') || '';
@@ -702,8 +714,17 @@ class FDAIRESScraper {
                       if (valueDiv && valueDiv.tagName === 'DIV') {
                         const valueP = valueDiv.querySelector('p');
                         if (valueP) {
-                          // Use textContent first
-                          valueText = valueP.textContent?.trim() || '';
+                          // Special handling for fields with addresses (preserve line breaks)
+                          if (labelText.includes('Recalling Firm')) {
+                            const innerHTML = valueP.innerHTML || '';
+                            const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = textWithBreaks;
+                            valueText = tempDiv.textContent?.trim() || '';
+                          } else {
+                            // Use textContent first
+                            valueText = valueP.textContent?.trim() || '';
+                          }
                           // Fallback to aria-label if textContent is empty
                           if (!valueText && valueP.hasAttribute('aria-label')) {
                             valueText = valueP.getAttribute('aria-label') || '';
@@ -716,8 +737,18 @@ class FDAIRESScraper {
                     if (!valueText) {
                       const allParagraphs = column.querySelectorAll('p');
                       for (const p of allParagraphs) {
-                        // Use textContent first
-                        const pText = p.textContent?.trim() || '';
+                        let pText = '';
+                        // Special handling for fields with addresses (preserve line breaks)
+                        if (labelText.includes('Recalling Firm')) {
+                          const innerHTML = p.innerHTML || '';
+                          const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = textWithBreaks;
+                          pText = tempDiv.textContent?.trim() || '';
+                        } else {
+                          // Use textContent first
+                          pText = p.textContent?.trim() || '';
+                        }
                         // If this paragraph doesn't contain a colon (not a label), it's likely a value
                         if (pText && !pText.includes(':') && pText !== labelText) {
                           valueText = pText;
@@ -740,8 +771,18 @@ class FDAIRESScraper {
                       if (parentRow) {
                         const allRowParagraphs = parentRow.querySelectorAll('p');
                         for (const p of allRowParagraphs) {
-                          // Use textContent instead of aria-label to avoid broken attributes
-                          const pText = p.textContent?.trim() || '';
+                          let pText = '';
+                          // Special handling for fields with addresses (preserve line breaks)
+                          if (labelText.includes('Recalling Firm')) {
+                            const innerHTML = p.innerHTML || '';
+                            const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = textWithBreaks;
+                            pText = tempDiv.textContent?.trim() || '';
+                          } else {
+                            // Use textContent instead of aria-label to avoid broken attributes
+                            pText = p.textContent?.trim() || '';
+                          }
                           // Skip if this is a label (contains colon) or is empty
                           if (pText && !pText.includes(':') && pText !== labelText) {
                             valueText = pText;
