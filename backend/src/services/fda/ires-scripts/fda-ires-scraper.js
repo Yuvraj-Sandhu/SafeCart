@@ -29,14 +29,14 @@ try {
   
   chromium = playwrightChromium;
   useStealthMode = true;
-  console.log('🛡️ Stealth mode available - will use enhanced evasion techniques');
+  console.log('Stealth mode available - will use enhanced evasion techniques');
 } catch (error) {
   // Debug the error
-  console.log('⚠️ Could not load stealth mode:', error.message);
+  console.log('Could not load stealth mode:', error.message);
   
   // Fallback to regular playwright if stealth dependencies not installed
   chromium = require('playwright').chromium;
-  console.log('📦 Using standard Playwright (stealth mode not available)');
+  console.log('Using standard Playwright (stealth mode not available)');
 }
 
 const fs = require('fs').promises;
@@ -170,7 +170,7 @@ class FDAIRESScraper {
    * Apply additional stealth evasions beyond the stealth plugin
    */
   async applyStealthEvasions() {
-    console.log('🔒 Applying additional stealth evasions...');
+    console.log('Applying additional stealth evasions...');
     
     // Apply to context so it affects all pages created from this context
     await this.context.addInitScript(() => {
@@ -289,7 +289,7 @@ class FDAIRESScraper {
           
           // Check for bot detection
           if (response.status() === 403 || response.status() === 429) {
-            console.warn(`⚠️ Possible bot detection (HTTP ${response.status()})`);
+            console.warn(`Possible bot detection (HTTP ${response.status()})`);
             
             if (attempt < maxRetries - 1) {
               // Exponential backoff
@@ -316,7 +316,7 @@ class FDAIRESScraper {
         const hasDropdown = await this.page.locator('select[name="month_select"]').count() > 0;
         
         if (hasTable || hasDropdown) {
-          console.log('✅ IRES page loaded successfully');
+          console.log('IRES page loaded successfully');
           
           // Take a screenshot for debugging
           if (this.debug) {
@@ -326,7 +326,7 @@ class FDAIRESScraper {
           
           return true;
         } else {
-          console.warn('⚠️ Page loaded but expected elements not found');
+          console.warn('Page loaded but expected elements not found');
           if (attempt < maxRetries - 1) {
             attempt++;
             continue;
@@ -588,16 +588,16 @@ class FDAIRESScraper {
    * Filter the results to show only Food products
    */
   async filterByFoodProducts() {
-    console.log('🍔 Filtering by Food products...');
+    console.log('Filtering by Food products...');
     
     try {
       // Wait 10 seconds for form elements to fully load
-      console.log('⏳ Waiting 10 seconds for form elements to load...');
+      console.log('Waiting 10 seconds for form elements to load...');
       await this.page.waitForTimeout(10000);
       
       // Get all select elements and check what we have
       const selects = await this.page.locator('select').all();
-      console.log(`🔍 Found ${selects.length} select elements on page`);
+      console.log(`Found ${selects.length} select elements on page`);
       
       // Look for the select that contains 'Food' option
       let productTypeSelect = null;
@@ -630,7 +630,7 @@ class FDAIRESScraper {
         if (hasFoodOption) {
           productTypeSelect = select;
           selectIndex = i;
-          console.log(`✅ Found Product Type dropdown at position ${i + 1}`);
+          console.log(`Found Product Type dropdown at position ${i + 1}`);
           break;
         }
       }
@@ -641,10 +641,10 @@ class FDAIRESScraper {
         if (isVisible) {
           // Select the Food option for visible dropdown
           await productTypeSelect.selectOption({ label: 'Food' });
-          console.log('✅ Selected Food from Product Type dropdown');
+          console.log('Selected Food from Product Type dropdown');
         } else {
           // For invisible multi-select dropdown, try scrolling into view first
-          console.log('🔄 Product Type dropdown not visible, trying to scroll into view...');
+          console.log('Product Type dropdown not visible, trying to scroll into view...');
           await productTypeSelect.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
           await this.page.waitForTimeout(1000);
           
@@ -653,7 +653,7 @@ class FDAIRESScraper {
           
           if (isVisibleAfterScroll) {
             await productTypeSelect.selectOption({ label: 'Food' });
-            console.log('✅ Selected Food from Product Type dropdown after scrolling');
+            console.log('Selected Food from Product Type dropdown after scrolling');
           } else {
             // Try using JavaScript to select the option directly
             console.log('🔧 Trying JavaScript selection for hidden dropdown...');
@@ -672,7 +672,7 @@ class FDAIRESScraper {
               }
               return false;
             });
-            console.log('✅ Attempted JavaScript selection for Food option');
+            console.log('Attempted JavaScript selection for Food option');
           }
         }
         
@@ -683,15 +683,15 @@ class FDAIRESScraper {
         // Take a screenshot to see the filtered results
         if (this.debug) {
           await this.page.screenshot({ path: 'debug-food-filtered.png' });
-          console.log('📸 Screenshot saved: debug-food-filtered.png');
+          console.log('Screenshot saved: debug-food-filtered.png');
         }
       } else {
         throw new Error('Could not find Product Type dropdown with Food option');
       }
 
     } catch (error) {
-      console.error('❌ Error filtering by Food products:', error);
-      console.log('⚠️  Proceeding with all results');
+      console.error('Error filtering by Food products:', error);
+      console.log('Proceeding with all results');
     }
   }
 
@@ -699,7 +699,7 @@ class FDAIRESScraper {
    * Extract recall data from the current page
    */
   async extractRecallData() {
-    console.log('📊 Extracting recall data...');
+    console.log('Extracting recall data...');
     
     try {
       // Wait for the data table to be present
@@ -732,12 +732,12 @@ class FDAIRESScraper {
         return data;
       });
 
-      console.log(`✅ Found ${recalls.length} recalls with View Details links`);
+      console.log(`Found ${recalls.length} recalls with View Details links`);
       
       return recalls;
 
     } catch (error) {
-      console.error('❌ Error extracting recall data:', error);
+      console.error('Error extracting recall data:', error);
       return [];
     }
   }
@@ -748,7 +748,7 @@ class FDAIRESScraper {
    * @param {number} recallIndex - Index of the recall (for finding the correct button)
    */
   async extractDetailedInfo(recall, recallIndex) {
-    console.log(`🔍 Getting details for recall ${recallIndex + 1} (row ${recall.rowIndex})`);
+    console.log(`Getting details for recall ${recallIndex + 1} (row ${recall.rowIndex})`);
     
     try {
       // The view details are links in the fda_table specifically
@@ -756,7 +756,7 @@ class FDAIRESScraper {
       const fdaTable = this.page.locator('#fda_table');
       const tableRows = await fdaTable.locator('tbody tr').all();
       
-      console.log(`📊 Found ${tableRows.length} data rows in #fda_table tbody`);
+      console.log(`Found ${tableRows.length} data rows in #fda_table tbody`);
       
       if (recall.rowIndex < tableRows.length) {
         const targetRow = tableRows[recall.rowIndex];
@@ -768,7 +768,7 @@ class FDAIRESScraper {
           if (await targetLink.isVisible({ timeout: 2000 })) {
             // Click the link
             await targetLink.click();
-            console.log('✅ Clicked View Details link');
+            console.log('Clicked View Details link');
             
             // Wait for modal to appear and load content
             await this.page.waitForTimeout(2000);
@@ -782,23 +782,23 @@ class FDAIRESScraper {
             // Return ONLY modal data in exact order
             return detailedInfo;
           } else {
-            console.log('⚠️  View Details link not visible');
+            console.log('View Details link not visible');
           }
         } catch (e) {
-          console.log('⚠️  Error clicking View Details link:', e.message);
+          console.log('Error clicking View Details link:', e.message);
         }
       }
 
       // Fallback if no link found
-      console.log('⚠️  Could not find View Details link for this recall');
+      console.log('Could not find View Details link for this recall');
       return {};
 
     } catch (error) {
-      console.error('❌ Error extracting detailed info:', error);
+      console.error('Error extracting detailed info:', error);
       
       if (this.debug) {
         await this.page.screenshot({ path: `debug-detail-error-${recallIndex}.png` });
-        console.log(`📸 Error screenshot saved: debug-detail-error-${recallIndex}.png`);
+        console.log(`Error screenshot saved: debug-detail-error-${recallIndex}.png`);
       }
       
       return {};
@@ -1089,11 +1089,11 @@ class FDAIRESScraper {
         }
       });
 
-      console.log(`📋 Extracted ${extractedCount} additional data fields from modal`);
+      console.log(`Extracted ${extractedCount} additional data fields from modal`);
       return cleanedData;
 
     } catch (error) {
-      console.log('⚠️  Error extracting modal content:', error.message);
+      console.log('Error extracting modal content:', error.message);
       return {};
     }
   }
@@ -1119,7 +1119,7 @@ class FDAIRESScraper {
           // Check if modal is closed by looking for the modal element
           const modalExists = await this.page.locator('.ui-dialog-content, [role="dialog"], .modal').isVisible().catch(() => false);
           if (!modalExists) {
-            console.log('✅ Modal closed');
+            console.log('Modal closed');
             return;
           }
         } catch (e) {
@@ -1127,9 +1127,9 @@ class FDAIRESScraper {
         }
       }
 
-      console.log('⚠️  Could not close modal, continuing anyway');
+      console.log('Could not close modal, continuing anyway');
     } catch (error) {
-      console.log('⚠️  Error closing modal:', error.message);
+      console.log('Error closing modal:', error.message);
     }
   }
 
@@ -1154,7 +1154,7 @@ class FDAIRESScraper {
       return isFoodType || isFoodDesc;
     });
     
-    console.log(`🍔 Filtered ${foodRecalls.length} food recalls from ${recalls.length} total recalls`);
+    console.log(`Filtered ${foodRecalls.length} food recalls from ${recalls.length} total recalls`);
     
     if (foodRecalls.length > 0) {
       const foodTypes = {};
@@ -1162,7 +1162,7 @@ class FDAIRESScraper {
         const type = recall.productType || recall.product_type || 'Unknown';
         foodTypes[type] = (foodTypes[type] || 0) + 1;
       });
-      console.log('📊 Food product types:', foodTypes);
+      console.log('Food product types:', foodTypes);
     }
     
     return foodRecalls;
@@ -1327,7 +1327,7 @@ class FDAIRESScraper {
         }
       }
       
-      console.log(`\n✅ Total recalls extracted: ${allDetailedRecalls.length}`);
+      console.log(`\nTotal recalls extracted: ${allDetailedRecalls.length}`);
       return allDetailedRecalls;
 
     } catch (error) {

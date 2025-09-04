@@ -254,7 +254,7 @@ async function scrapeAndImport(options = {}) {
   } = options;
   
   console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║     FDA IRES to Firebase Import                   ║');
+  console.log('║     FDA IRES to Firebase Import                  ║');
   console.log('╚══════════════════════════════════════════════════╝\n');
   
   const scraper = new FDAIRESScraper({
@@ -299,7 +299,7 @@ async function scrapeAndImport(options = {}) {
     
     // Summary
     console.log('\n╔══════════════════════════════════════════════════╗');
-    console.log('║                   Import Summary                   ║');
+    console.log('║                   Import Summary                 ║');
     console.log('╚══════════════════════════════════════════════════╝');
     console.log(`  New records:        ${stats.newRecords}`);
     console.log(`  Updated records:    ${stats.updatedRecords}`);
