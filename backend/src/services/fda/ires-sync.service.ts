@@ -190,30 +190,42 @@ export class FDAIRESSyncService {
     message: string;
     stats?: any;
   }> {
-    try {
-      logger.info(`[IRES Sync] Manual sync triggered with weeks=${weeks}`);
-      await this.performSync(weeks);
-      
-      return {
-        success: true,
-        message: `IRES sync completed successfully (${weeks} weeks)`,
-        stats: {
-          weeks: weeks,
-          lastSyncTime: this.lastSyncTime,
-          consecutiveFailures: this.consecutiveFailures
-        }
-      };
-    } catch (error) {
+    // Check if sync is already running
+    if (this.isRunning) {
       return {
         success: false,
-        message: `IRES sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: 'IRES sync is already in progress',
         stats: {
           weeks: weeks,
           lastSyncTime: this.lastSyncTime,
-          consecutiveFailures: this.consecutiveFailures
+          consecutiveFailures: this.consecutiveFailures,
+          isRunning: this.isRunning
         }
       };
     }
+    
+    logger.info(`[IRES Sync] Manual sync triggered with weeks=${weeks}`);
+    
+    // Start sync in the background without awaiting
+    this.performSync(weeks)
+      .then(() => {
+        logger.info(`[IRES Sync] Background sync completed successfully (${weeks} weeks)`);
+      })
+      .catch((error) => {
+        logger.error(`[IRES Sync] Background sync failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    
+    // Return immediately with success status
+    return {
+      success: true,
+      message: `IRES sync started in background (${weeks} weeks)`,
+      stats: {
+        weeks: weeks,
+        lastSyncTime: this.lastSyncTime,
+        consecutiveFailures: this.consecutiveFailures,
+        isRunning: this.isRunning
+      }
+    };
   }
   
   /**

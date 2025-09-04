@@ -48,6 +48,10 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
+# Copy JS files from ires-scripts to dist directory (they're not compiled by TypeScript)
+RUN mkdir -p dist/services/fda/ires-scripts && \
+    cp src/services/fda/ires-scripts/*.js dist/services/fda/ires-scripts/
+
 # Create temp directory for image processing
 RUN mkdir -p temp-images
 
