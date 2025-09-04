@@ -38,6 +38,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { PendingBadge } from './ui/PendingBadge';
+import { FDASyncModal } from './FDASyncModal';
 import { api } from '@/services/api';
 import styles from './UserMenu.module.css';
 
@@ -54,7 +55,7 @@ export function UserMenu() {
   const { pendingChanges } = usePendingChanges();
   const [isOpen, setIsOpen] = useState(false);
   const [syncingUsda, setSyncingUsda] = useState(false);
-  const [syncingFda, setSyncingFda] = useState(false);
+  const [showFdaSyncModal, setShowFdaSyncModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -117,16 +118,9 @@ export function UserMenu() {
     }
   };
 
-  const handleFdaSync = async () => {
-    setSyncingFda(true);
-    try {
-      await api.triggerFdaSync();
-      alert('FDA sync started successfully! Check the backend logs for progress.');
-    } catch (error) {
-      alert(`Failed to start FDA sync: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setSyncingFda(false);
-    }
+  const handleFdaSync = () => {
+    setIsOpen(false); // Close the user menu
+    setShowFdaSyncModal(true); // Open the sync modal
   };
 
   // Get menu options based on page and auth status
@@ -345,13 +339,12 @@ export function UserMenu() {
                   <button 
                     className={styles.menuItem}
                     onClick={handleFdaSync}
-                    disabled={syncingFda}
                     style={{ 
-                      color: syncingFda ? currentTheme.textSecondary : currentTheme.text,
-                      cursor: syncingFda ? 'not-allowed' : 'pointer'
+                      color: currentTheme.text,
+                      cursor: 'pointer'
                     }}
                   >
-                    <span>{syncingFda ? 'Syncing FDA...' : 'Sync FDA Recalls'}</span>
+                    <span>Sync FDA Recalls</span>
                   </button>
                 </>
               )}
@@ -366,6 +359,17 @@ export function UserMenu() {
             </>
           )}
         </div>
+      )}
+      
+      {/* FDA Sync Modal */}
+      {showFdaSyncModal && (
+        <FDASyncModal
+          onClose={() => setShowFdaSyncModal(false)}
+          onSyncStarted={() => {
+            // Optional: Show a success message or refresh data
+            console.log('FDA sync started');
+          }}
+        />
       )}
     </div>
   );

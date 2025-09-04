@@ -539,6 +539,22 @@ export const api = {
       throw new Error('Failed to trigger FDA sync');
     }
     return response.json();
+  },
+  
+  // Trigger FDA IRES sync (admin only)
+  async triggerFdaIresSync(weeks = 4): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/fda/ires/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ weeks })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger FDA IRES sync');
+    }
+    return response.json();
   }
 };
 

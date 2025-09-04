@@ -2,7 +2,7 @@
  * FDA IRES Sync Service
  * 
  * Automated service to scrape FDA IRES website daily for new recalls
- * Runs at 3 AM ET and scans last 4 weeks of enforcement reports
+ * Runs at 9 AM ET and scans last 4 weeks of enforcement reports by default
  */
 
 import * as cron from 'node-cron';
@@ -22,31 +22,32 @@ export class FDAIRESSyncService {
   
   /**
    * Initialize the IRES sync service
-   * Schedules daily sync at 3 AM ET
+   * Schedules daily sync at 9 AM ET
    */
   public initialize(): void {
-    // Schedule for 3:00 AM ET every day
+    // Schedule for 9:00 AM ET every day
     // Note: Server might be in UTC, so adjust accordingly
-    // 3 AM ET = 8 AM UTC (during standard time) or 7 AM UTC (during daylight saving)
-    const cronSchedule = '0 3 * * *'; // 3 AM in server timezone
+    // 9 AM ET = 2 PM UTC (during standard time) or 1 PM UTC (during daylight saving)
+    const cronSchedule = '0 9 * * *'; // 9 AM in server timezone
     
     logger.info('[IRES Sync] Initializing FDA IRES sync service');
     
     this.cronJob = cron.schedule(cronSchedule, async () => {
-      await this.performSync();
+      await this.performSync(4); // Default to 4 weeks for scheduled sync
     }, {
       scheduled: true,
       timezone: "America/New_York" // Run in ET timezone
     });
     
-    logger.info('[IRES Sync] Scheduled daily sync at 3:00 AM ET');
+    logger.info('[IRES Sync] Scheduled daily sync at 9:00 AM ET');
   }
   
   /**
    * Perform IRES sync
    * Scrapes FDA IRES website and imports new recalls
+   * @param weeks Number of past weeks to fetch (default 4, 0 for new recalls only)
    */
-  public async performSync(): Promise<void> {
+  public async performSync(weeks: number = 4): Promise<void> {
     if (this.isRunning) {
       logger.warn('[IRES Sync] Sync already in progress, skipping...');
       return;
@@ -62,12 +63,12 @@ export class FDAIRESSyncService {
       const scriptPath = path.join(__dirname, 'ires-scripts/fda-ires-to-firebase.js');
       
       // Run the scraper with appropriate options
-      // --weeks=4: Scan last 4 weeks of enforcement reports
+      // --weeks: Number of past weeks to scan (0 for new recalls only)
       // --headless=true: Run browser in headless mode
       // Using tsx to handle TypeScript imports in the script
-      const command = `npx tsx "${scriptPath}" --weeks=4 --headless=true`;
+      const command = `npx tsx "${scriptPath}" --weeks=${weeks} --headless=true`;
       
-      logger.info('[IRES Sync] Executing scraper command...');
+      logger.info(`[IRES Sync] Executing scraper command with weeks=${weeks}...`);
       
       // Execute the script with a timeout of 30 minutes
       const { stdout, stderr } = await execAsync(command, {
@@ -81,6 +82,7 @@ export class FDAIRESSyncService {
       // Log results
       const duration = Math.round((Date.now() - startTime) / 1000);
       logger.info(`[IRES Sync] Sync completed in ${duration}s`, {
+        weeks: weeks,
         newRecords: stats.newRecords,
         updatedRecords: stats.updatedRecords,
         totalProcessed: stats.totalProcessed,
@@ -181,20 +183,22 @@ export class FDAIRESSyncService {
   
   /**
    * Manually trigger IRES sync (for testing or manual runs)
+   * @param weeks Number of past weeks to fetch (default 4, 0 for new recalls only)
    */
-  public async triggerManualSync(): Promise<{
+  public async triggerManualSync(weeks: number = 4): Promise<{
     success: boolean;
     message: string;
     stats?: any;
   }> {
     try {
-      logger.info('[IRES Sync] Manual sync triggered');
-      await this.performSync();
+      logger.info(`[IRES Sync] Manual sync triggered with weeks=${weeks}`);
+      await this.performSync(weeks);
       
       return {
         success: true,
-        message: 'IRES sync completed successfully',
+        message: `IRES sync completed successfully (${weeks} weeks)`,
         stats: {
+          weeks: weeks,
           lastSyncTime: this.lastSyncTime,
           consecutiveFailures: this.consecutiveFailures
         }
@@ -204,6 +208,7 @@ export class FDAIRESSyncService {
         success: false,
         message: `IRES sync failed: ${error instanceof Error ? error.message : String(error)}`,
         stats: {
+          weeks: weeks,
           lastSyncTime: this.lastSyncTime,
           consecutiveFailures: this.consecutiveFailures
         }
@@ -220,10 +225,10 @@ export class FDAIRESSyncService {
     consecutiveFailures: number;
     nextScheduledRun: string;
   } {
-    // Calculate next scheduled run (3 AM ET tomorrow)
+    // Calculate next scheduled run (9 AM ET tomorrow)
     const now = new Date();
     const nextRun = new Date();
-    nextRun.setHours(3, 0, 0, 0);
+    nextRun.setHours(9, 0, 0, 0);
     if (nextRun <= now) {
       nextRun.setDate(nextRun.getDate() + 1);
     }
