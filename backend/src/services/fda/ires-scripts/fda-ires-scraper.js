@@ -7,11 +7,38 @@
  * The IRES system provides weekly enforcement reports that are more up-to-date than the OpenFDA API.
  * 
  * Installation:
- *   npm install playwright
+ *   npm install playwright playwright-extra puppeteer-extra-plugin-stealth
  *   npx playwright install chromium
+ * 
+ * Stealth Mode:
+ *   When running in headless mode (for Cloud Run), uses playwright-extra with stealth plugin
+ *   to evade bot detection mechanisms.
  */
 
-const { chromium } = require('playwright');
+// Dynamically load playwright or playwright-extra based on requirements
+let chromium;
+let useStealthMode = false;
+
+try {
+  // Try to load playwright-extra with stealth plugin
+  const { chromium: playwrightChromium } = require('playwright-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  
+  // Add stealth plugin with all evasions
+  playwrightChromium.use(StealthPlugin());
+  
+  chromium = playwrightChromium;
+  useStealthMode = true;
+  console.log('🛡️ Stealth mode available - will use enhanced evasion techniques');
+} catch (error) {
+  // Debug the error
+  console.log('⚠️ Could not load stealth mode:', error.message);
+  
+  // Fallback to regular playwright if stealth dependencies not installed
+  chromium = require('playwright').chromium;
+  console.log('📦 Using standard Playwright (stealth mode not available)');
+}
+
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -30,23 +57,96 @@ class FDAIRESScraper {
    */
   async init() {
     console.log('Initializing browser...');
+    console.log(`Mode: ${this.headless ? 'Headless' : 'Headed'}, Stealth: ${useStealthMode && this.headless ? 'Enabled' : 'Disabled'}`);
     
-    this.browser = await chromium.launch({
-      headless: this.headless,
-      args: [
+    // Enhanced args for stealth mode
+    const browserArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor'
+    ];
+    
+    // Add stealth-specific args when in headless mode with stealth
+    if (this.headless && useStealthMode) {
+      browserArgs.push(
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--window-size=1920,1080',
+        '--start-maximized',
+        '--disable-infobars',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      );
+    } else if (!this.headless) {
+      // Non-stealth args for headed mode
+      browserArgs.push(
         '--disable-blink-features=AutomationControlled',
         '--disable-features=IsolateOrigins,site-per-process'
-      ]
-    });
+      );
+    }
+    
+    const launchOptions = {
+      headless: this.headless,
+      args: browserArgs
+    };
+    
+    // Remove automation flag when using stealth
+    if (this.headless && useStealthMode) {
+      launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+    }
+    
+    this.browser = await chromium.launch(launchOptions);
 
-    this.context = await this.browser.newContext({
+    // Enhanced context options for stealth
+    const contextOptions = {
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      extraHTTPHeaders: {
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      permissions: ['geolocation']
+    };
+    
+    // Add more realistic headers when using stealth
+    if (this.headless && useStealthMode) {
+      contextOptions.screen = { width: 1920, height: 1080 };
+      contextOptions.deviceScaleFactor = 1;
+      contextOptions.hasTouch = false;
+      contextOptions.isMobile = false;
+      contextOptions.permissions = ['geolocation', 'notifications'];
+      contextOptions.extraHTTPHeaders = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="121", "Google Chrome";v="121"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-User': '?1',
+        'Sec-Fetch-Dest': 'document',
+        'Upgrade-Insecure-Requests': '1'
+      };
+    } else {
+      contextOptions.extraHTTPHeaders = {
         'Accept-Language': 'en-US,en;q=0.9'
-      }
-    });
-
+      };
+    }
+    
+    this.context = await this.browser.newContext(contextOptions);
+    
+    // Apply additional evasions to context BEFORE creating page when in stealth mode
+    if (this.headless && useStealthMode) {
+      await this.applyStealthEvasions();
+    }
+    
     this.page = await this.context.newPage();
 
     // Log console messages for debugging (filter out font/resource errors)
@@ -67,26 +167,187 @@ class FDAIRESScraper {
   }
 
   /**
+   * Apply additional stealth evasions beyond the stealth plugin
+   */
+  async applyStealthEvasions() {
+    console.log('🔒 Applying additional stealth evasions...');
+    
+    // Apply to context so it affects all pages created from this context
+    await this.context.addInitScript(() => {
+      // Override navigator.webdriver
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
+      
+      // Mock chrome runtime
+      if (!window.chrome) {
+        window.chrome = {};
+      }
+      if (!window.chrome.runtime) {
+        window.chrome.runtime = {
+          connect: () => {},
+          sendMessage: () => {},
+          onMessage: { addListener: () => {} }
+        };
+      }
+      
+      // Override plugins to look realistic
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+          {
+            0: { type: 'application/x-google-chrome-pdf', suffixes: 'pdf', description: 'Portable Document Format' },
+            length: 1,
+            name: 'Chrome PDF Plugin'
+          },
+          {
+            0: { type: 'application/x-nacl', suffixes: '', description: 'Native Client Executable' },
+            length: 1,
+            name: 'Native Client'
+          }
+        ]
+      });
+      
+      // Override permissions API
+      if (window.navigator.permissions && window.navigator.permissions.query) {
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => {
+          if (parameters.name === 'notifications') {
+            return Promise.resolve({ state: 'granted' });
+          }
+          return originalQuery(parameters);
+        };
+      }
+      
+      // Add chrome.loadTimes
+      if (window.chrome) {
+        window.chrome.loadTimes = () => ({
+          requestTime: Date.now() / 1000 - 100,
+          startLoadTime: Date.now() / 1000 - 99,
+          commitLoadTime: Date.now() / 1000 - 98,
+          finishDocumentLoadTime: Date.now() / 1000 - 97,
+          finishLoadTime: Date.now() / 1000 - 96,
+          navigationStart: Date.now() / 1000 - 100
+        });
+      }
+      
+      // Mock battery API
+      if (!navigator.getBattery) {
+        navigator.getBattery = () => Promise.resolve({
+          charging: true,
+          chargingTime: Infinity,
+          dischargingTime: Infinity,
+          level: 1.0,
+          addEventListener: () => {},
+          removeEventListener: () => {}
+        });
+      }
+      
+      // Override WebGL vendor and renderer
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter.apply(this, arguments);
+      };
+      
+      const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter2.apply(this, arguments);
+      };
+    });
+  }
+
+  /**
    * Navigate to IRES and wait for it to load
    */
   async navigateToIRES() {
-    console.log(`Navigating to ${this.baseUrl}...`);
+    const maxRetries = 3;
+    let attempt = 0;
     
-    await this.page.goto(this.baseUrl, {
-      waitUntil: 'load',
-      timeout: 60000
-    });
+    while (attempt < maxRetries) {
+      try {
+        console.log(`Navigating to ${this.baseUrl} (attempt ${attempt + 1}/${maxRetries})...`);
+        
+        const response = await this.page.goto(this.baseUrl, {
+          waitUntil: 'networkidle',
+          timeout: 60000
+        });
+        
+        // Check response status
+        if (response) {
+          console.log(`Response status: ${response.status()}`);
+          
+          // Check for bot detection
+          if (response.status() === 403 || response.status() === 429) {
+            console.warn(`⚠️ Possible bot detection (HTTP ${response.status()})`);
+            
+            if (attempt < maxRetries - 1) {
+              // Exponential backoff
+              const waitTime = Math.pow(2, attempt) * 5000;
+              console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
+              await this.page.waitForTimeout(waitTime);
+              
+              // Clear cookies and try again
+              await this.context.clearCookies();
+              attempt++;
+              continue;
+            }
+          }
+        }
 
-    // Wait for the main content to load
-    await this.page.waitForSelector('body', { timeout: 30000 });
-    
-    console.log('IRES page loaded');
-    
-    // Take a screenshot for debugging
-    if (this.debug) {
-      await this.page.screenshot({ path: 'debug-ires-home.png' });
-      console.log('Screenshot saved: debug-ires-home.png');
+        // Wait for the main content to load
+        await this.page.waitForSelector('body', { timeout: 30000 });
+        
+        // Additional wait for dynamic content
+        await this.page.waitForTimeout(2000);
+        
+        // Verify we're on the correct page by checking for specific elements
+        const hasTable = await this.page.locator('#fda_table').count() > 0;
+        const hasDropdown = await this.page.locator('select[name="month_select"]').count() > 0;
+        
+        if (hasTable || hasDropdown) {
+          console.log('✅ IRES page loaded successfully');
+          
+          // Take a screenshot for debugging
+          if (this.debug) {
+            await this.page.screenshot({ path: 'debug-ires-home.png' });
+            console.log('Screenshot saved: debug-ires-home.png');
+          }
+          
+          return true;
+        } else {
+          console.warn('⚠️ Page loaded but expected elements not found');
+          if (attempt < maxRetries - 1) {
+            attempt++;
+            continue;
+          }
+        }
+        
+      } catch (error) {
+        console.error(`Navigation attempt ${attempt + 1} failed:`, error.message);
+        
+        if (attempt < maxRetries - 1) {
+          attempt++;
+          const waitTime = Math.pow(2, attempt) * 3000;
+          console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
+          await this.page.waitForTimeout(waitTime);
+        } else {
+          throw new Error(`Failed to navigate to IRES after ${maxRetries} attempts: ${error.message}`);
+        }
+      }
     }
+    
+    throw new Error(`Failed to load IRES page after ${maxRetries} attempts`);
   }
 
   /**
