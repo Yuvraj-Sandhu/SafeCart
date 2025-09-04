@@ -7,11 +7,8 @@
 
 import * as cron from 'node-cron';
 import logger from '../../utils/logger';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import path from 'path';
-
-const execAsync = promisify(exec);
 
 export class FDAIRESSyncService {
   private cronJob: cron.ScheduledTask | null = null;
@@ -19,6 +16,9 @@ export class FDAIRESSyncService {
   private lastSyncTime: Date | null = null;
   private consecutiveFailures: number = 0;
   private readonly MAX_FAILURES = 3;
+  private currentSyncStartTime: Date | null = null;
+  private currentSyncWeeks: number | null = null;
+  private recentLogs: string[] = [];
   
   /**
    * Initialize the IRES sync service
@@ -54,26 +54,89 @@ export class FDAIRESSyncService {
     }
     
     this.isRunning = true;
+    this.currentSyncStartTime = new Date();
+    this.currentSyncWeeks = weeks;
+    this.recentLogs = []; // Clear previous logs
     const startTime = Date.now();
     
     try {
       logger.info('[IRES Sync] Starting FDA IRES sync...');
+      this.addLog(`Starting FDA IRES sync with weeks=${weeks}`);
       
       // Path to the IRES import script
       const scriptPath = path.join(__dirname, 'ires-scripts/fda-ires-to-firebase.js');
       
-      // Run the scraper with appropriate options
-      // --weeks: Number of past weeks to scan (0 for new recalls only)
-      // --headless=true: Run browser in headless mode
-      // Using tsx to handle TypeScript imports in the script
-      const command = `npx tsx "${scriptPath}" --weeks=${weeks} --headless=true`;
+      logger.info(`[IRES Sync] Executing scraper with weeks=${weeks}...`);
+      this.addLog(`Executing scraper script: ${scriptPath}`);
       
-      logger.info(`[IRES Sync] Executing scraper command with weeks=${weeks}...`);
+      // Use spawn for real-time output
+      const child = spawn('npx', ['tsx', scriptPath, `--weeks=${weeks}`, '--headless=true'], {
+        cwd: process.cwd(),
+        env: process.env,
+        shell: true
+      });
       
-      // Execute the script with a timeout of 30 minutes
-      const { stdout, stderr } = await execAsync(command, {
-        timeout: 1800000, // 30 minutes timeout
-        maxBuffer: Infinity // No buffer limit for output
+      let stdout = '';
+      let stderr = '';
+      
+      // Handle stdout - log in real-time
+      child.stdout?.on('data', (data) => {
+        const output = data.toString();
+        stdout += output;
+        // Log each line in real-time with [IRES Scraper] prefix
+        output.split('\n').forEach((line: string) => {
+          if (line.trim()) {
+            logger.info(`[IRES Scraper] ${line.trim()}`);
+            this.addLog(line.trim());
+          }
+        });
+      });
+      
+      // Handle stderr - log warnings in real-time
+      child.stderr?.on('data', (data) => {
+        const output = data.toString();
+        stderr += output;
+        // Log stderr lines as warnings
+        output.split('\n').forEach((line: string) => {
+          if (line.trim() && !line.includes('ExperimentalWarning')) {
+            logger.warn(`[IRES Scraper Warning] ${line.trim()}`);
+          }
+        });
+      });
+      
+      // Wait for process to complete with promise
+      await new Promise<void>((resolve, reject) => {
+        let timedOut = false;
+        
+        // Set timeout of 45 minutes (increased from 30)
+        const timeout = setTimeout(() => {
+          timedOut = true;
+          logger.error('[IRES Sync] Scraper timeout after 45 minutes, killing process...');
+          child.kill('SIGTERM');
+          // Force kill after 10 seconds if it doesn't terminate
+          setTimeout(() => {
+            if (!child.killed) {
+              child.kill('SIGKILL');
+            }
+          }, 10000);
+        }, 2700000); // 45 minutes
+        
+        child.on('close', (code) => {
+          clearTimeout(timeout);
+          
+          if (timedOut) {
+            reject(new Error('Scraper timeout after 45 minutes'));
+          } else if (code !== 0) {
+            reject(new Error(`Scraper exited with code ${code}`));
+          } else {
+            resolve();
+          }
+        });
+        
+        child.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
       });
       
       // Parse the output to extract statistics
@@ -88,11 +151,6 @@ export class FDAIRESSyncService {
         totalProcessed: stats.totalProcessed,
         errors: stats.errors
       });
-      
-      // Log any stderr warnings
-      if (stderr) {
-        logger.warn('[IRES Sync] Scraper warnings:', stderr);
-      }
       
       // Update success metrics
       this.lastSyncTime = new Date();
@@ -138,6 +196,20 @@ export class FDAIRESSyncService {
       throw error;
     } finally {
       this.isRunning = false;
+      this.currentSyncStartTime = null;
+      this.currentSyncWeeks = null;
+    }
+  }
+  
+  /**
+   * Add a log entry to recent logs (keep last 100 entries)
+   */
+  private addLog(message: string): void {
+    const timestamp = new Date().toISOString();
+    this.recentLogs.push(`[${timestamp}] ${message}`);
+    // Keep only last 100 log entries
+    if (this.recentLogs.length > 100) {
+      this.recentLogs.shift();
     }
   }
   
@@ -229,13 +301,19 @@ export class FDAIRESSyncService {
   }
   
   /**
-   * Get sync status
+   * Get sync status with detailed information
    */
   public getStatus(): {
     isRunning: boolean;
     lastSyncTime: Date | null;
     consecutiveFailures: number;
     nextScheduledRun: string;
+    currentSync?: {
+      startTime: Date;
+      weeks: number;
+      runningTime: string;
+      recentLogs: string[];
+    };
   } {
     // Calculate next scheduled run (9 AM ET tomorrow)
     const now = new Date();
@@ -245,12 +323,28 @@ export class FDAIRESSyncService {
       nextRun.setDate(nextRun.getDate() + 1);
     }
     
-    return {
+    const status: any = {
       isRunning: this.isRunning,
       lastSyncTime: this.lastSyncTime,
       consecutiveFailures: this.consecutiveFailures,
       nextScheduledRun: nextRun.toISOString()
     };
+    
+    // Add current sync details if running
+    if (this.isRunning && this.currentSyncStartTime) {
+      const runningSeconds = Math.floor((Date.now() - this.currentSyncStartTime.getTime()) / 1000);
+      const minutes = Math.floor(runningSeconds / 60);
+      const seconds = runningSeconds % 60;
+      
+      status.currentSync = {
+        startTime: this.currentSyncStartTime,
+        weeks: this.currentSyncWeeks,
+        runningTime: `${minutes}m ${seconds}s`,
+        recentLogs: this.recentLogs.slice(-20) // Last 20 logs
+      };
+    }
+    
+    return status;
   }
   
   /**
