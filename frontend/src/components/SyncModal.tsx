@@ -1,7 +1,7 @@
 /**
- * FDASyncModal Component
+ * SyncModal Component
  * 
- * Modal for selecting FDA sync options - either OpenFDA API or IRES scraping
+ * Modal for selecting recall sync options - USDA, FDA API, or FDA IRES scraping
  * Allows admins to choose sync method and parameters
  */
 
@@ -9,18 +9,18 @@ import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from './ui/Button';
 import { api } from '@/services/api';
-import styles from './FDASyncModal.module.css';
+import styles from './SyncModal.module.css';
 
-interface FDASyncModalProps {
+interface SyncModalProps {
   onClose: () => void;
   onSyncStarted?: () => void;
 }
 
-export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
+export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
   const { currentTheme } = useTheme();
   
   // State for sync method selection
-  const [syncMethod, setSyncMethod] = useState<'api' | 'ires'>('api');
+  const [syncMethod, setSyncMethod] = useState<'usda' | 'fda-api' | 'fda-ires'>('usda');
   
   // State for API sync options
   const [apiDays, setApiDays] = useState(60);
@@ -78,7 +78,12 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
     setSyncMessage('');
     
     try {
-      if (syncMethod === 'api') {
+      if (syncMethod === 'usda') {
+        // Trigger USDA sync
+        setSyncMessage('Starting USDA sync...');
+        await api.triggerUsdaSync();
+        setSyncMessage(`USDA sync started successfully!`);
+      } else if (syncMethod === 'fda-api') {
         // Use the validated apiDays value
         const daysToSync = apiDays;
         // Trigger OpenFDA API sync
@@ -135,7 +140,7 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
           className={styles.header}
           style={{ borderColor: currentTheme.cardBorder }}
         >
-          <h2 style={{ color: currentTheme.text }}>Sync FDA Recalls</h2>
+          <h2 style={{ color: currentTheme.text }}>Sync Recalls</h2>
           <button
             className={styles.closeButton}
             onClick={onClose}
@@ -161,30 +166,75 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
             
             <div className={styles.radioGroup}>
               <label 
-                className={`${styles.radioOption} ${syncMethod === 'api' ? styles.selected : ''}`}
+                className={`${styles.radioOption} ${syncMethod === 'usda' ? styles.selected : ''}`}
                 style={{ 
-                  borderColor: syncMethod === 'api' ? currentTheme.primary : currentTheme.cardBorder,
-                  backgroundColor: syncMethod === 'api' ? `${currentTheme.primaryLight}10` : 'transparent'
+                  borderColor: syncMethod === 'usda' ? currentTheme.primary : currentTheme.cardBorder,
+                  backgroundColor: syncMethod === 'usda' ? `${currentTheme.primaryLight}10` : 'transparent'
                 }}
               >
                 <div className={styles.radioWrapper}>
                   <input
                     type="radio"
                     name="syncMethod"
-                    value="api"
-                    checked={syncMethod === 'api'}
-                    onChange={() => setSyncMethod('api')}
+                    value="usda"
+                    checked={syncMethod === 'usda'}
+                    onChange={() => setSyncMethod('usda')}
                     disabled={isSyncing}
                     className={styles.radioInput}
                   />
                   <div 
                     className={styles.radioIcon}
                     style={{ 
-                      borderColor: syncMethod === 'api' ? currentTheme.primary : currentTheme.inputBorder,
-                      backgroundColor: syncMethod === 'api' ? currentTheme.primary : 'transparent'
+                      borderColor: syncMethod === 'usda' ? currentTheme.primary : currentTheme.inputBorder,
+                      backgroundColor: syncMethod === 'usda' ? currentTheme.primary : 'transparent'
                     }}
                   >
-                    {syncMethod === 'api' && (
+                    {syncMethod === 'usda' && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path 
+                          d="M10 3L4.5 8.5L2 6" 
+                          stroke="white" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.radioLabel}>
+                  <span className={styles.radioTitle} style={{ color: currentTheme.text }}>USDA FSIS API</span>
+                  <span className={styles.radioDescription} style={{ color: currentTheme.textSecondary }}>
+                    Official USDA API - Syncs meat and poultry recalls
+                  </span>
+                </div>
+              </label>
+              
+              <label 
+                className={`${styles.radioOption} ${syncMethod === 'fda-api' ? styles.selected : ''}`}
+                style={{ 
+                  borderColor: syncMethod === 'fda-api' ? currentTheme.primary : currentTheme.cardBorder,
+                  backgroundColor: syncMethod === 'fda-api' ? `${currentTheme.primaryLight}10` : 'transparent'
+                }}
+              >
+                <div className={styles.radioWrapper}>
+                  <input
+                    type="radio"
+                    name="syncMethod"
+                    value="fda-api"
+                    checked={syncMethod === 'fda-api'}
+                    onChange={() => setSyncMethod('fda-api')}
+                    disabled={isSyncing}
+                    className={styles.radioInput}
+                  />
+                  <div 
+                    className={styles.radioIcon}
+                    style={{ 
+                      borderColor: syncMethod === 'fda-api' ? currentTheme.primary : currentTheme.inputBorder,
+                      backgroundColor: syncMethod === 'fda-api' ? currentTheme.primary : 'transparent'
+                    }}
+                  >
+                    {syncMethod === 'fda-api' && (
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path 
                           d="M10 3L4.5 8.5L2 6" 
@@ -206,30 +256,30 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
               </label>
               
               <label 
-                className={`${styles.radioOption} ${syncMethod === 'ires' ? styles.selected : ''}`}
+                className={`${styles.radioOption} ${syncMethod === 'fda-ires' ? styles.selected : ''}`}
                 style={{ 
-                  borderColor: syncMethod === 'ires' ? currentTheme.primary : currentTheme.cardBorder,
-                  backgroundColor: syncMethod === 'ires' ? `${currentTheme.primaryLight}10` : 'transparent'
+                  borderColor: syncMethod === 'fda-ires' ? currentTheme.primary : currentTheme.cardBorder,
+                  backgroundColor: syncMethod === 'fda-ires' ? `${currentTheme.primaryLight}10` : 'transparent'
                 }}
               >
                 <div className={styles.radioWrapper}>
                   <input
                     type="radio"
                     name="syncMethod"
-                    value="ires"
-                    checked={syncMethod === 'ires'}
-                    onChange={() => setSyncMethod('ires')}
+                    value="fda-ires"
+                    checked={syncMethod === 'fda-ires'}
+                    onChange={() => setSyncMethod('fda-ires')}
                     disabled={isSyncing}
                     className={styles.radioInput}
                   />
                   <div 
                     className={styles.radioIcon}
                     style={{ 
-                      borderColor: syncMethod === 'ires' ? currentTheme.primary : currentTheme.inputBorder,
-                      backgroundColor: syncMethod === 'ires' ? currentTheme.primary : 'transparent'
+                      borderColor: syncMethod === 'fda-ires' ? currentTheme.primary : currentTheme.inputBorder,
+                      backgroundColor: syncMethod === 'fda-ires' ? currentTheme.primary : 'transparent'
                     }}
                   >
-                    {syncMethod === 'ires' && (
+                    {syncMethod === 'fda-ires' && (
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path 
                           d="M10 3L4.5 8.5L2 6" 
@@ -253,8 +303,9 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
           </div>
           
           {/* Options based on selected method */}
-          <div className={styles.section}>
-            {syncMethod === 'api' ? (
+          {syncMethod !== 'usda' && (
+            <div className={styles.section}>
+              {syncMethod === 'fda-api' ? (
               <div className={styles.optionGroup}>
                 <label className={styles.label} style={{ color: currentTheme.text }}>
                   Days to sync:
@@ -406,7 +457,8 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
                 </span>
               </div>
             )}
-          </div>
+            </div>
+          )}
           
           {/* Sync message */}
           {syncMessage && (
@@ -469,7 +521,7 @@ export function FDASyncModal({ onClose, onSyncStarted }: FDASyncModalProps) {
             onClick={handleSync}
             disabled={
               isSyncing || 
-              (syncMethod === 'api' && (!apiDaysInput || parseInt(apiDaysInput) < 1 || parseInt(apiDaysInput) > 365 || isNaN(parseInt(apiDaysInput))))
+              (syncMethod === 'fda-api' && (!apiDaysInput || parseInt(apiDaysInput) < 1 || parseInt(apiDaysInput) > 365 || isNaN(parseInt(apiDaysInput))))
             }
           >
             {isSyncing ? 'Starting Sync...' : 'Start Sync'}

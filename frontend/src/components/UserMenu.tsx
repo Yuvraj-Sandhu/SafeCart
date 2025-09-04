@@ -38,7 +38,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePendingChanges } from '@/hooks/usePendingChanges';
 import { PendingBadge } from './ui/PendingBadge';
-import { FDASyncModal } from './FDASyncModal';
+import { SyncModal } from './SyncModal';
 import { api } from '@/services/api';
 import styles from './UserMenu.module.css';
 
@@ -54,8 +54,7 @@ export function UserMenu() {
   } = useAuth();
   const { pendingChanges } = usePendingChanges();
   const [isOpen, setIsOpen] = useState(false);
-  const [syncingUsda, setSyncingUsda] = useState(false);
-  const [showFdaSyncModal, setShowFdaSyncModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -106,21 +105,9 @@ export function UserMenu() {
     setIsOpen(false);
   };
 
-  const handleUsdaSync = async () => {
-    setSyncingUsda(true);
-    try {
-      await api.triggerUsdaSync();
-      alert('USDA sync started successfully! Check the backend logs for progress.');
-    } catch (error) {
-      alert(`Failed to start USDA sync: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setSyncingUsda(false);
-    }
-  };
-
-  const handleFdaSync = () => {
+  const handleSyncRecalls = () => {
     setIsOpen(false); // Close the user menu
-    setShowFdaSyncModal(true); // Open the sync modal
+    setShowSyncModal(true); // Open the sync modal
   };
 
   // Get menu options based on page and auth status
@@ -321,32 +308,18 @@ export function UserMenu() {
                 </button>
               )}
               
-              {/* Sync buttons - admin only */}
+              {/* Sync button - admin only */}
               {internal_user?.role === 'admin' && (
-                <>
-                  <button 
-                    className={styles.menuItem}
-                    onClick={handleUsdaSync}
-                    disabled={syncingUsda}
-                    style={{ 
-                      color: syncingUsda ? currentTheme.textSecondary : currentTheme.text,
-                      cursor: syncingUsda ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    <span>{syncingUsda ? 'Syncing USDA...' : 'Sync USDA Recalls'}</span>
-                  </button>
-                  
-                  <button 
-                    className={styles.menuItem}
-                    onClick={handleFdaSync}
-                    style={{ 
-                      color: currentTheme.text,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span>Sync FDA Recalls</span>
-                  </button>
-                </>
+                <button 
+                  className={styles.menuItem}
+                  onClick={handleSyncRecalls}
+                  style={{ 
+                    color: currentTheme.text,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>Sync Recalls</span>
+                </button>
               )}
               
               {/* Logout button */}
@@ -361,13 +334,13 @@ export function UserMenu() {
         </div>
       )}
       
-      {/* FDA Sync Modal */}
-      {showFdaSyncModal && (
-        <FDASyncModal
-          onClose={() => setShowFdaSyncModal(false)}
+      {/* Sync Modal */}
+      {showSyncModal && (
+        <SyncModal
+          onClose={() => setShowSyncModal(false)}
           onSyncStarted={() => {
             // Optional: Show a success message or refresh data
-            console.log('FDA sync started');
+            console.log('Sync started');
           }}
         />
       )}
