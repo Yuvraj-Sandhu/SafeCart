@@ -751,6 +751,18 @@ class FDAIRESScraper {
     console.log(`Getting details for recall ${recallIndex + 1} (row ${recall.rowIndex})`);
     
     try {
+      // Add a small delay between recalls to avoid overwhelming the server
+      if (recallIndex > 0) {
+        await this.page.waitForTimeout(1000);
+      }
+      
+      // Wait for any pending network requests to complete
+      try {
+        await this.page.waitForLoadState('networkidle', { timeout: 5000 });
+      } catch (e) {
+        console.log('Network not idle, continuing anyway');
+      }
+      
       // The view details are links in the fda_table specifically
       // Target the correct table using its ID
       const fdaTable = this.page.locator('#fda_table');
@@ -766,26 +778,93 @@ class FDAIRESScraper {
           const targetLink = await targetRow.locator('td.productType a').first();
           
           if (await targetLink.isVisible({ timeout: 2000 })) {
-            // Click the link
-            await targetLink.click();
-            console.log('Clicked View Details link');
+            // Scroll to the element and hover (more human-like interaction)
+            try {
+              await targetLink.scrollIntoViewIfNeeded();
+              await this.page.waitForTimeout(200);
+              await targetLink.hover();
+              await this.page.waitForTimeout(300);
+            } catch (e) {
+              console.log('Could not scroll/hover, continuing anyway');
+            }
             
-            // Wait for modal to appear and load content
-            await this.page.waitForTimeout(2000);
+            // Try multiple click strategies
+            let clicked = false;
+            let clickAttempt = 0;
+            const maxClickAttempts = 3;
             
-            // Extract detailed information from the modal ONLY
-            const detailedInfo = await this.extractModalContent();
+            while (!clicked && clickAttempt < maxClickAttempts) {
+              clickAttempt++;
+              console.log(`Click attempt ${clickAttempt}/${maxClickAttempts} for recall ${recallIndex + 1}`);
+              
+              try {
+                if (clickAttempt === 1) {
+                  // First attempt: Regular click with shorter timeout
+                  await targetLink.click({ timeout: 5000 });
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (regular click)');
+                } else if (clickAttempt === 2) {
+                  // Second attempt: Force click to bypass any overlays
+                  await targetLink.click({ force: true, timeout: 5000 });
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (force click)');
+                } else {
+                  // Third attempt: JavaScript click
+                  await this.page.evaluate((rowIdx) => {
+                    const rows = document.querySelectorAll('#fda_table tbody tr');
+                    const row = rows[rowIdx];
+                    if (row) {
+                      const link = row.querySelector('td.productType a');
+                      if (link) {
+                        link.click();
+                        return true;
+                      }
+                    }
+                    return false;
+                  }, recall.rowIndex);
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (JavaScript click)');
+                }
+                
+                // If click succeeded, wait for modal
+                if (clicked) {
+                  // Wait for modal to appear and load content
+                  await this.page.waitForTimeout(2000);
+                  
+                  // Check if modal actually opened
+                  const modalVisible = await this.page.locator('#detailModal').isVisible({ timeout: 1000 }).catch(() => false);
+                  if (!modalVisible) {
+                    console.log('Modal not visible after click, retrying...');
+                    clicked = false;
+                    await this.page.waitForTimeout(1000);
+                  }
+                }
+              } catch (clickError) {
+                console.log(`Click attempt ${clickAttempt} failed: ${clickError.message}`);
+                if (clickAttempt < maxClickAttempts) {
+                  // Wait before retry
+                  await this.page.waitForTimeout(2000);
+                }
+              }
+            }
             
-            // Close the modal
-            await this.closeModal();
-            
-            // Return ONLY modal data in exact order
-            return detailedInfo;
+            if (clicked) {
+              // Extract detailed information from the modal ONLY
+              const detailedInfo = await this.extractModalContent();
+              
+              // Close the modal
+              await this.closeModal();
+              
+              // Return ONLY modal data in exact order
+              return detailedInfo;
+            } else {
+              console.log('All click attempts failed for this recall');
+            }
           } else {
             console.log('View Details link not visible');
           }
         } catch (e) {
-          console.log('Error clicking View Details link:', e.message);
+          console.log('Error processing View Details link:', e.message);
         }
       }
 
