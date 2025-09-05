@@ -150,7 +150,7 @@ async function saveIRESRecallsToFirebase(recalls) {
         
         // Log if this is one of the first few for detailed debugging
         if (operationCount < 3) {
-          console.log(`    Fields being updated: ${Object.keys(mergedData).join(', ')}`);
+          // console.log(`    Fields being updated: ${Object.keys(mergedData).join(', ')}`);
         }
       } else {
         // New document - queue for LLM title generation

@@ -714,7 +714,7 @@ class FDAIRESScraper {
         const fdaTable = document.querySelector('#fda_table');
         if (fdaTable) {
           const rows = fdaTable.querySelectorAll('tbody tr');
-          console.log(`Found ${rows.length} data rows in #fda_table tbody`);
+          // console.log(`Found ${rows.length} data rows in #fda_table tbody`);
           
           // For each row, just check if it has a View Details link
           rows.forEach((row, index) => {
@@ -768,7 +768,7 @@ class FDAIRESScraper {
       const fdaTable = this.page.locator('#fda_table');
       const tableRows = await fdaTable.locator('tbody tr').all();
       
-      console.log(`Found ${tableRows.length} data rows in #fda_table tbody`);
+      // console.log(`Found ${tableRows.length} data rows in #fda_table tbody`);
       
       if (recall.rowIndex < tableRows.length) {
         const targetRow = tableRows[recall.rowIndex];
@@ -828,17 +828,21 @@ class FDAIRESScraper {
                 
                 // If click succeeded, wait for modal
                 if (clicked) {
-                  // Wait for modal to appear and load content
-                  await this.page.waitForTimeout(2000);
+                  // Wait a bit for modal to start appearing
+                  await this.page.waitForTimeout(1500);
                   
-                  // Check if modal actually opened
-                  const modalVisible = await this.page.locator('#detailModal').isVisible({ timeout: 1000 }).catch(() => false);
-                  if (!modalVisible) {
+                  // Check directly if modal content is visible (more reliable)
+                  const hasProductData = await this.page.locator('#productData').isVisible({ timeout: 500 }).catch(() => false);
+                  const hasDialog = await this.page.locator('.ui-dialog-content, [role="dialog"]').first().isVisible({ timeout: 500 }).catch(() => false);
+                  
+                  if (hasProductData || hasDialog) {
+                    console.log('Modal detected and ready for extraction');
+                  } else {
                     console.log('Modal not visible after click, retrying...');
                     clicked = false;
                     await this.page.waitForTimeout(1000);
                   }
-                }
+                } 
               } catch (clickError) {
                 console.log(`Click attempt ${clickAttempt} failed: ${clickError.message}`);
                 if (clickAttempt < maxClickAttempts) {
@@ -859,6 +863,15 @@ class FDAIRESScraper {
               return detailedInfo;
             } else {
               console.log('All click attempts failed for this recall');
+              
+              // Last resort: Try to extract anyway in case modal is there but detection failed
+              console.log('Attempting extraction despite click failure...');
+              const detailedInfo = await this.extractModalContent();
+              if (detailedInfo && Object.keys(detailedInfo).length > 0) {
+                console.log('Successfully extracted data despite click issues');
+                await this.closeModal();
+                return detailedInfo;
+              }
             }
           } else {
             console.log('View Details link not visible');
@@ -895,6 +908,15 @@ class FDAIRESScraper {
       // Extract information from the modal using the specific HTML structure
       const modalData = await this.page.evaluate(() => {
         const data = {};
+        
+        // Debug: Check what modal elements exist
+        const debugInfo = {
+          hasProductData: !!document.querySelector('#productData'),
+          hasUIDialog: !!document.querySelector('.ui-dialog-content'),
+          hasRoleDialog: !!document.querySelector('[role="dialog"]'),
+          hasModal: !!document.querySelector('.modal')
+        };
+        console.log('Modal elements present:', JSON.stringify(debugInfo));
         
         // Target the productData container specifically
         const productData = document.querySelector('#productData');
