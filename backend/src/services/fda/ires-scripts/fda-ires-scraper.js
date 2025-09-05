@@ -1204,31 +1204,35 @@ class FDAIRESScraper {
    */
   async closeModal() {
     try {
-      // Try different methods to close the modal
-      const closeActions = [
-        () => this.page.locator('.ui-dialog-titlebar-close').click(),
-        () => this.page.locator('[aria-label="close"]').click(),
-        () => this.page.locator('.close').click(),
-        () => this.page.keyboard.press('Escape')
-      ];
-
-      for (const closeAction of closeActions) {
-        try {
-          await closeAction();
-          await this.page.waitForTimeout(500);
-          
-          // Check if modal is closed by looking for the modal element
-          const modalExists = await this.page.locator('.ui-dialog-content, [role="dialog"], .modal').isVisible().catch(() => false);
-          if (!modalExists) {
-            console.log('Modal closed');
-            return;
-          }
-        } catch (e) {
-          // Try next close method
-        }
+      // First try the most reliable method - ESC key
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(200); // Small wait to let modal close
+      
+      // Quick check if modal is closed
+      const modalExists = await this.page.locator('.ui-dialog-content, [role="dialog"], .modal, #productData')
+        .first()
+        .isVisible({ timeout: 100 })
+        .catch(() => false);
+      
+      if (!modalExists) {
+        console.log('Modal closed');
+        return;
       }
-
-      console.log('Could not close modal, continuing anyway');
+      
+      // If ESC didn't work, try clicking the close button
+      try {
+        const closeButton = this.page.locator('.ui-dialog-titlebar-close').first();
+        if (await closeButton.isVisible({ timeout: 100 })) {
+          await closeButton.click();
+          console.log('Modal closed via button');
+          return;
+        }
+      } catch (e) {
+        // Button not found or clickable
+      }
+      
+      // If still not closed, just continue (modal might auto-close on next action)
+      console.log('Modal may still be open, continuing anyway');
     } catch (error) {
       console.log('Error closing modal:', error.message);
     }
@@ -1408,7 +1412,8 @@ class FDAIRESScraper {
         const processingCount = Math.min(recalls.length, maxRecalls);
         console.log(`Processing ${processingCount} recalls for detailed info...`);
         
-        // Get detailed information for each recall
+        
+        // Get detailed information for each recall sequentially
         for (let i = 0; i < processingCount; i++) {
           const detailedRecall = await this.extractDetailedInfo(recalls[i], i);
           
@@ -1418,9 +1423,11 @@ class FDAIRESScraper {
           
           allDetailedRecalls.push(detailedRecall);
           
-          // Small delay between requests
+          // Small delay between requests to avoid overwhelming the server
           await this.page.waitForTimeout(500);
         }
+        
+        console.log(`Completed processing ${allDetailedRecalls.length} recalls from this report`);
         
         // Navigate back to the main page for next report (if not last)
         if (reportIndex < reports.length - 1) {
