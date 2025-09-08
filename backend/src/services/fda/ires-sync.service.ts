@@ -33,7 +33,7 @@ export class FDAIRESSyncService {
     logger.info('[IRES Sync] Initializing FDA IRES sync service');
     
     this.cronJob = cron.schedule(cronSchedule, async () => {
-      await this.performSync(4); // Default to 4 weeks for scheduled sync
+      await this.performSync(2); // Default to 2 weeks for scheduled sync
     }, {
       scheduled: true,
       timezone: "America/New_York" // Run in ET timezone
