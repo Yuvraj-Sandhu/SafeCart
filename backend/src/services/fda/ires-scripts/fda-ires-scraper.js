@@ -585,53 +585,89 @@ class FDAIRESScraper {
   }
 
   /**
+   * Try to find and return the Product Type dropdown with Food option
+   */
+  async findProductTypeDropdown() {
+    // Get all select elements and check what we have
+    const selects = await this.page.locator('select').all();
+    console.log(`Found ${selects.length} select elements on page`);
+    
+    // Look for the select that contains 'Food' option
+    let productTypeSelect = null;
+    let selectIndex = -1;
+    
+    for (let i = 0; i < selects.length; i++) {
+      const select = selects[i];
+      
+      // Check if element is visible and enabled
+      const isVisible = await select.isVisible({ timeout: 1000 }).catch(() => false);
+      const isEnabled = await select.isEnabled({ timeout: 1000 }).catch(() => false);
+      
+      if (isVisible && isEnabled) {
+        // Click to load options for visible and enabled selects
+        await select.click({ timeout: 10000 }).catch(() => {});
+        await this.page.waitForTimeout(500);
+      }
+      
+      const options = await select.locator('option').all();
+      let hasFoodOption = false;
+      
+      for (const option of options) {
+        const text = await option.textContent().catch(() => '');
+        if (text && text.toLowerCase().includes('food')) {
+          hasFoodOption = true;
+          break;
+        }
+      }
+      
+      if (hasFoodOption) {
+        productTypeSelect = select;
+        selectIndex = i;
+        console.log(`Found Product Type dropdown at position ${i + 1}`);
+        break;
+      }
+    }
+    
+    return productTypeSelect;
+  }
+
+  /**
    * Filter the results to show only Food products
    */
   async filterByFoodProducts() {
     console.log('Filtering by Food products...');
     
     try {
-      // Wait 10 seconds for form elements to fully load
-      console.log('Waiting 10 seconds for form elements to load...');
-      await this.page.waitForTimeout(10000);
-      
-      // Get all select elements and check what we have
-      const selects = await this.page.locator('select').all();
-      console.log(`Found ${selects.length} select elements on page`);
-      
-      // Look for the select that contains 'Food' option
       let productTypeSelect = null;
-      let selectIndex = -1;
+      const waitTimes = [10000, 30000, 60000, 90000]; // 10s, 30s, 60s, 90s
+      let totalWaitTime = 0;
       
-      for (let i = 0; i < selects.length; i++) {
-        const select = selects[i];
+      // Try to find the dropdown with progressive wait times
+      for (let attempt = 0; attempt < waitTimes.length; attempt++) {
+        const waitTime = waitTimes[attempt];
         
-        // Check if element is visible and enabled
-        const isVisible = await select.isVisible({ timeout: 1000 }).catch(() => false);
-        const isEnabled = await select.isEnabled({ timeout: 1000 }).catch(() => false);
-        
-        if (isVisible && isEnabled) {
-          // Click to load options for visible and enabled selects
-          await select.click({ timeout: 10000 });
-          await this.page.waitForTimeout(500);
+        if (attempt === 0) {
+          console.log(`Waiting ${waitTime / 1000} seconds for form elements to load...`);
+        } else {
+          console.log(`Retry ${attempt}: Waiting additional ${waitTime / 1000} seconds for slow-loading page...`);
         }
         
-        const options = await select.locator('option').all();
-        let hasFoodOption = false;
+        await this.page.waitForTimeout(waitTime);
+        totalWaitTime += waitTime;
         
-        for (const option of options) {
-          const text = await option.textContent().catch(() => '');
-          if (text && text.toLowerCase().includes('food')) {
-            hasFoodOption = true;
-            break;
-          }
-        }
+        // Try to find the Product Type dropdown
+        productTypeSelect = await this.findProductTypeDropdown();
         
-        if (hasFoodOption) {
-          productTypeSelect = select;
-          selectIndex = i;
-          console.log(`Found Product Type dropdown at position ${i + 1}`);
+        if (productTypeSelect) {
+          console.log(`Successfully found Product Type dropdown after ${totalWaitTime / 1000} seconds total wait`);
           break;
+        } else {
+          console.log(`Product Type dropdown not found after ${totalWaitTime / 1000} seconds`);
+          
+          if (attempt < waitTimes.length - 1) {
+            // Try refreshing the page state before next attempt
+            await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+          }
         }
       }
       
@@ -686,7 +722,9 @@ class FDAIRESScraper {
           console.log('Screenshot saved: debug-food-filtered.png');
         }
       } else {
-        throw new Error('Could not find Product Type dropdown with Food option');
+        // After all retries failed
+        const maxWaitTime = waitTimes.reduce((a, b) => a + b, 0) / 1000;
+        throw new Error(`Could not find Product Type dropdown with Food option after ${maxWaitTime} seconds of waiting`);
       }
 
     } catch (error) {
