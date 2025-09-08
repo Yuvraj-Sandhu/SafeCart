@@ -791,15 +791,15 @@ class FDAIRESScraper {
     try {
       // Add a small delay between recalls to avoid overwhelming the server
       if (recallIndex > 0) {
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(500);
       }
       
       // Wait for any pending network requests to complete
-      try {
-        await this.page.waitForLoadState('networkidle', { timeout: 5000 });
-      } catch (e) {
-        console.log('Network not idle, continuing anyway');
-      }
+      // try {
+      //   await this.page.waitForLoadState('networkidle', { timeout: 5000 });
+      // } catch (e) {
+      //   console.log('Network not idle, continuing anyway');
+      // }
       
       // The view details are links in the fda_table specifically
       // Target the correct table using its ID
@@ -819,9 +819,9 @@ class FDAIRESScraper {
             // Scroll to the element and hover (more human-like interaction)
             try {
               await targetLink.scrollIntoViewIfNeeded();
-              await this.page.waitForTimeout(200);
+              await this.page.waitForTimeout(100);
               await targetLink.hover();
-              await this.page.waitForTimeout(300);
+              await this.page.waitForTimeout(100);
             } catch (e) {
               console.log('Could not scroll/hover, continuing anyway');
             }
@@ -866,19 +866,36 @@ class FDAIRESScraper {
                 
                 // If click succeeded, wait for modal
                 if (clicked) {
-                  // Wait a bit for modal to start appearing
-                  await this.page.waitForTimeout(1500);
+                  // Try to detect modal with retry logic
+                  let modalDetected = false;
+                  const modalWaitTimes = [100, 500, 1000, 2000]; // 100ms, then 500ms, then 1s, then 2s
+
+                  for (let modalAttempt = 0; modalAttempt < modalWaitTimes.length; modalAttempt++) {
+                    const waitTime = modalWaitTimes[modalAttempt];
+                    
+                    if (modalAttempt === 0) {
+                      // First attempt - wait initial time
+                      await this.page.waitForTimeout(waitTime);
+                    } else {
+                      // Retry attempts - wait additional time
+                      console.log(`Modal retry ${modalAttempt}: waiting additional ${waitTime}ms...`);
+                      await this.page.waitForTimeout(waitTime);
+                    }
+                    
+                    // Check directly if modal content is visible
+                    const hasProductData = await this.page.locator('#productData').isVisible({ timeout: 100 }).catch(() => false);
+                    const hasDialog = await this.page.locator('.ui-dialog-content, [role="dialog"]').first().isVisible({ timeout: 100 }).catch(() => false);
+                    
+                    if (hasProductData || hasDialog) {
+                      console.log(`Modal detected after ${modalAttempt === 0 ? waitTime : 'retry ' + modalAttempt}`);
+                      modalDetected = true;
+                      break;
+                    }
+                  }
                   
-                  // Check directly if modal content is visible (more reliable)
-                  const hasProductData = await this.page.locator('#productData').isVisible({ timeout: 500 }).catch(() => false);
-                  const hasDialog = await this.page.locator('.ui-dialog-content, [role="dialog"]').first().isVisible({ timeout: 500 }).catch(() => false);
-                  
-                  if (hasProductData || hasDialog) {
-                    console.log('Modal detected and ready for extraction');
-                  } else {
-                    console.log('Modal not visible after click, retrying...');
+                  if (!modalDetected) {
+                    console.log('Modal not visible after all retries, trying next click method...');
                     clicked = false;
-                    await this.page.waitForTimeout(1000);
                   }
                 } 
               } catch (clickError) {
@@ -940,8 +957,42 @@ class FDAIRESScraper {
    */
   async extractModalContent() {
     try {
-      // Wait for modal content to load
-      await this.page.waitForTimeout(1000);
+      // Progressive wait for modal content to load
+      const contentWaitTimes = [100, 300, 1000]; // 100ms, then 300ms, then 1000ms
+      let contentReady = false;
+      
+      for (let contentAttempt = 0; contentAttempt < contentWaitTimes.length; contentAttempt++) {
+        const waitTime = contentWaitTimes[contentAttempt];
+        
+        if (contentAttempt === 0) {
+          // First attempt - wait initial time
+          await this.page.waitForTimeout(waitTime);
+        } else {
+          // Retry attempts - wait additional time
+          console.log(`Modal content retry ${contentAttempt}: waiting additional ${waitTime}ms...`);
+          await this.page.waitForTimeout(waitTime);
+        }
+        
+        // Check if modal content has loaded by looking for data rows
+        const hasContent = await this.page.evaluate(() => {
+          const productData = document.querySelector('#productData');
+          if (productData) {
+            const rows = productData.querySelectorAll('.row.displayDetailsColumn');
+            return rows.length > 0;
+          }
+          return false;
+        });
+        
+        if (hasContent) {
+          console.log(`Modal content ready after ${contentAttempt === 0 ? waitTime + 'ms' : 'retry ' + contentAttempt}`);
+          contentReady = true;
+          break;
+        }
+      }
+      
+      if (!contentReady) {
+        console.log('Modal content not fully loaded after all retries, extracting anyway...');
+      }
 
       // Extract information from the modal using the specific HTML structure
       const modalData = await this.page.evaluate(() => {
