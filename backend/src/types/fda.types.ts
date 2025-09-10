@@ -82,3 +82,42 @@ export interface FDAQueryOptions {
   endDate?: Date;
   stateCode?: string;
 }
+
+// Temporary FDA Recall for unclassified alerts
+export interface TempFDARecall {
+  // Document ID (YYYYMMDD_randomtext)
+  id?: string;
+  
+  // Alert identification
+  alert_url: string;  // The press release URL
+  alert_date: string;  // Date of the alert (YYYY-MM-DD format)
+  date: string;       // Date field for consistency with FDA recalls (YYYY-MM-DD format)
+  
+  // Status (always pending for unclassified)
+  status: 'pending';
+  classification: 'Unclassified';
+  product_type: 'Food';
+  
+  // Company information
+  recalling_firm: string;
+  brand_name?: string;
+  
+  // Product information
+  product_description: string;
+  product_title: string;  // Enhanced title from press release
+  
+  // Recall details
+  reason_for_recall: string;
+  distribution_pattern: string;
+  
+  // AI-enhanced title
+  llmTitle?: string;
+  
+  // Source metadata
+  source: 'FDA';
+  api_version: 'FDA_ALERTS';
+  imported_at: any; // Firestore timestamp
+  
+  // Location data
+  affectedStatesArray: string[];
+}
