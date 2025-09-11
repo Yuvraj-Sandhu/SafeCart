@@ -1,4 +1,4 @@
-import { UnifiedRecall, usdaToUnified, fdaToUnified, RecallResponse } from '@/types/recall.types';
+import { UnifiedRecall, usdaToUnified, fdaToUnified, tempFdaToUnified, RecallResponse } from '@/types/recall.types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://safecart-backend-984543935964.europe-west1.run.app/api';
 
@@ -554,6 +554,141 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to trigger FDA IRES sync');
     }
+    return response.json();
+  },
+
+  // TEMP RECALLS METHODS
+  // Methods for managing temporary FDA recalls from alerts scraper
+
+  // Get temp recalls by state
+  async getTempRecallsByState(state: string, limit = 500, startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
+    let url = `${API_BASE_URL}/fda/temp-recalls/state/${state}?limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch temp recalls');
+    }
+    const data = await response.json();
+    
+    // Convert FDA temp recalls to unified format
+    const unifiedRecalls = data.data.map((recall: any) => tempFdaToUnified(recall));
+    
+    return {
+      success: data.success,
+      data: unifiedRecalls,
+      total: data.total,
+      source: 'FDA',
+      error: data.error
+    };
+  },
+
+  // Get all temp recalls
+  async getAllTempRecalls(limit = 500, startDate?: string, endDate?: string, excludePending = false): Promise<RecallResponse<UnifiedRecall>> {
+    let url = `${API_BASE_URL}/fda/temp-recalls/all?limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    if (excludePending) url += `&excludePending=true`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch temp recalls');
+    }
+    const data = await response.json();
+    
+    // Convert FDA temp recalls to unified format
+    const unifiedRecalls = data.data.map((recall: any) => tempFdaToUnified(recall));
+    
+    return {
+      success: data.success,
+      data: unifiedRecalls,
+      total: data.total,
+      source: 'FDA',
+      error: data.error
+    };
+  },
+
+  // Get single temp recall by ID
+  async getTempRecallById(id: string): Promise<UnifiedRecall | null> {
+    const response = await fetch(`${API_BASE_URL}/fda/temp-recalls/${id}`);
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error('Failed to fetch temp recall');
+    }
+    const data = await response.json();
+    
+    if (!data.success || !data.data || data.data.length === 0) {
+      return null;
+    }
+    
+    return tempFdaToUnified(data.data[0]);
+  },
+
+  // Update temp recall display data
+  async updateTempRecallDisplay(recallId: string, displayData: any): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/fda/temp-recalls/${recallId}/display`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ display: displayData })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to update temp recall display' }));
+      throw new Error(error.message || 'Failed to update temp recall display');
+    }
+    
+    return response.json();
+  },
+
+  // Update temp recall manual states
+  async updateTempRecallManualStates(recallId: string, states: string[], useManualStates: boolean): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/fda/temp-recalls/${recallId}/manual-states`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ states, useManualStates })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to update manual states' }));
+      throw new Error(error.message || 'Failed to update manual states');
+    }
+    
+    return response.json();
+  },
+
+  // Upload images for temp recall
+  async uploadTempRecallImages(recallId: string, files: File[], displayData?: any): Promise<any> {
+    const formData = new FormData();
+    
+    // Append each file
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    // Append display data if provided
+    if (displayData) {
+      formData.append('displayData', JSON.stringify(displayData));
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/fda/temp-recalls/${recallId}/upload-images`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to upload temp recall images' }));
+      throw new Error(error.message || 'Failed to upload temp recall images');
+    }
+    
     return response.json();
   }
 };

@@ -114,6 +114,35 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
 }
 
 /**
+ * Converts temp FDA recall to unified format
+ */
+export function tempFdaToUnified(tempRecall: any): UnifiedRecall {
+  return {
+    id: tempRecall.id,
+    recallNumber: tempRecall.id, // Use ID as recall number for temp recalls
+    source: 'FDA',
+    isActive: true, // All temp recalls are considered active
+    classification: 'Recent Alert', // Special classification for temp recalls
+    recallingFirm: tempRecall.recalling_firm || 'Unknown',
+    establishment: tempRecall.recalling_firm,
+    productTitle: tempRecall.display?.previewTitle || tempRecall.llmTitle || tempRecall.product_title || 'Unknown Product',
+    productDescription: tempRecall.product_description || '',
+    productQuantity: undefined,
+    llmTitle: tempRecall.llmTitle,
+    reasonForRecall: tempRecall.reason_for_recall || 'Not specified',
+    recallDate: tempRecall.alert_date || tempRecall.date,
+    recallInitiationDate: tempRecall.alert_date || tempRecall.date,
+    recallUrl: tempRecall.alert_url,
+    terminationDate: undefined, // Temp recalls don't have termination dates
+    affectedStates: tempRecall.affectedStatesArray || [],
+    distributionPattern: tempRecall.distribution_pattern,
+    images: tempRecall.processedImages || [],
+    display: tempRecall.display,
+    originalData: tempRecall
+  };
+}
+
+/**
  * Response format for API calls
  */
 export interface RecallResponse<T = UnifiedRecall> {

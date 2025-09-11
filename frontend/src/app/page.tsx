@@ -7,6 +7,7 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { RecallList } from '@/components/RecallList';
+import { TempRecallList } from '@/components/TempRecallList';
 import { US_STATES } from '@/data/states';
 import { api } from '@/services/api';
 import { UnifiedRecall } from '@/types/recall.types';
@@ -28,8 +29,11 @@ export default function Home() {
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
+  const [tempRecalls, setTempRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tempLoading, setTempLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tempError, setTempError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
   // Check server health on mount
@@ -88,7 +92,9 @@ export default function Home() {
     }
 
     setLoading(true);
+    setTempLoading(true);
     setError(null);
+    setTempError(null);
     setHasSearched(true);
 
     try {
@@ -96,22 +102,43 @@ export default function Home() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      let response;
+      // Fetch regular recalls and temp recalls in parallel
+      const promises = [];
       
       if (selectedState === 'ALL') {
         // Get all recalls from all states
-        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr);
+        promises.push(api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr));
+        promises.push(api.getAllTempRecalls(500, startDateStr, endDateStr));
       } else {
         // Get recalls for specific state
-        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+        promises.push(api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr));
+        promises.push(api.getTempRecallsByState(selectedState, 500, startDateStr, endDateStr)); // Limit temp recalls to 500
       }
       
-      setRecalls(response.data);
+      const [recallsResponse, tempRecallsResponse] = await Promise.allSettled(promises);
+      
+      // Handle regular recalls
+      if (recallsResponse.status === 'fulfilled') {
+        setRecalls(recallsResponse.value.data);
+      } else {
+        setError('Failed to fetch recalls');
+        setRecalls([]);
+      }
+      
+      // Handle temp recalls
+      if (tempRecallsResponse.status === 'fulfilled') {
+        setTempRecalls(tempRecallsResponse.value.data);
+      } else {
+        setTempError('Failed to fetch recent alerts');
+        setTempRecalls([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
+      setTempRecalls([]);
     } finally {
       setLoading(false);
+      setTempLoading(false);
     }
   };
 
@@ -186,6 +213,18 @@ export default function Home() {
 
         {hasSearched && (
           <div className={styles.results}>
+            {/* Show temp recalls (recent alerts) if available */}
+            {(tempRecalls.length > 0 || tempLoading || tempError) && (
+              <TempRecallList
+                recalls={tempRecalls}
+                loading={tempLoading}
+                error={tempError}
+                isEditMode={false}
+                showTitle={true}
+              />
+            )}
+            
+            {/* Show regular recalls */}
             <RecallList
               recalls={recalls}
               loading={loading}

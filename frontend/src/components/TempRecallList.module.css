@@ -1,0 +1,151 @@
+.tempRecallsSection {
+  margin-bottom: 3rem;
+  padding: 0 1rem;
+}
+
+.sectionHeader {
+  margin-bottom: 2rem;
+  text-align: center;
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+.sectionHeader::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 3px;
+  background: linear-gradient(90deg, #ff6b6b, #ff8787);
+  border-radius: 2px;
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #ff6b6b, #ff8787);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.sectionSubtitle {
+  color: #666;
+  font-size: 1rem;
+  margin: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.tempRecallCard {
+  position: relative;
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #ff6b6b, #ff8787) border-box;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
+  transition: all 0.3s ease;
+}
+
+.tempRecallCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.25);
+}
+
+.recentBadge {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  background: linear-gradient(135deg, #ff4444, #ff6666);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  z-index: 10;
+  animation: badge-pulse 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(255, 68, 68, 0.4);
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.tempTimeBadge {
+  background: linear-gradient(135deg, #ff6b6b, #ff8787);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.tempProductTitle {
+  color: #333;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.tempClassification {
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff4444;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .tempRecallsSection {
+    padding: 0 0.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 0.9rem;
+  }
+
+  .recentBadge {
+    font-size: 0.7rem;
+    padding: 3px 10px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tempRecallCard {
+    background: linear-gradient(#1a1a1a, #1a1a1a) padding-box,
+                linear-gradient(135deg, #ff6b6b, #ff8787) border-box;
+  }
+
+  .sectionSubtitle {
+    color: #999;
+  }
+
+  .tempProductTitle {
+    color: #f0f0f0;
+  }
+
+  .tempClassification {
+    background: rgba(255, 107, 107, 0.2);
+  }
+}
