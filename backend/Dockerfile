@@ -33,6 +33,15 @@ RUN apt-get update && apt-get install -y \
 # Debian uses 'convert' but the code expects 'magick'
 RUN ln -s /usr/bin/convert /usr/bin/magick
 
+# Fix ImageMagick security policy to allow PDF processing
+# Remove the restrictive PDF policy that blocks PDF operations
+RUN sed -i '/policy domain="coder" rights="none" pattern="PDF"/d' /etc/ImageMagick-6/policy.xml || \
+    echo "Policy file not found or already modified"
+
+# Add a less restrictive PDF policy (read|write allowed)
+RUN sed -i '/<policymap>/a \  <policy domain="coder" rights="read|write" pattern="PDF" />' /etc/ImageMagick-6/policy.xml || \
+    echo "Could not add PDF policy"
+
 # Set working directory
 WORKDIR /app
 
