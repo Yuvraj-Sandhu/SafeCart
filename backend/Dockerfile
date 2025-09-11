@@ -29,6 +29,10 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Create symbolic link for ImageMagick compatibility
+# Debian uses 'convert' but the code expects 'magick'
+RUN ln -s /usr/bin/convert /usr/bin/magick
+
 # Set working directory
 WORKDIR /app
 
