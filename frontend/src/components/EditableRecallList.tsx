@@ -112,7 +112,7 @@ export function EditableRecallList({
     return columns;
   };
 
-  const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
+  const handleVisitPage = (recall: UnifiedRecall) => {
     // Check if there's a custom URL in display data
     const display = (recall as any).display;
     const previewUrl = display?.previewUrl;
@@ -121,19 +121,21 @@ export function EditableRecallList({
     if (effectiveUrl) {
       // Open website in new tab
       window.open(effectiveUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // Toggle card expansion
-      const targetId = cardId || recall.id;
-      setExpandedCards(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(targetId)) {
-          newSet.delete(targetId);
-        } else {
-          newSet.add(targetId);
-        }
-        return newSet;
-      });
     }
+  };
+
+  const handleToggleDetails = (recall: UnifiedRecall, cardId?: string) => {
+    // Toggle card expansion
+    const targetId = cardId || recall.id;
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(targetId)) {
+        newSet.delete(targetId);
+      } else {
+        newSet.add(targetId);
+      }
+      return newSet;
+    });
   };
 
   const handleImageClick = (images: ProcessedImage[], title: string, imageIndex: number = 0) => {
@@ -745,13 +747,32 @@ export function EditableRecallList({
                       </div>
                     )}
                     
-                    <div className={styles.recallActions}>
+                    <div 
+                      className={styles.recallActions}
+                      style={{
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      {/* Visit Page Button - only show if URL exists */}
+                      {(display?.previewUrl || recall.recallUrl) && (
+                        <Button 
+                          size="small" 
+                          variant="secondary"
+                          onClick={() => handleVisitPage(recall)}
+                        >
+                          Visit {recall.source} Page
+                        </Button>
+                      )}
+                      
+                      {/* View Details / Show Less Button - always show */}
                       <Button 
                         size="small" 
                         variant="secondary"
-                        onClick={() => handleViewDetails(recall, cardId)}
+                        onClick={() => handleToggleDetails(recall, cardId)}
                       >
-                        {(display?.previewUrl || recall.recallUrl) ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
+                        {isExpanded ? 'Show Less' : 'View Details'}
                       </Button>
                     </div>
                   </div>
