@@ -238,27 +238,17 @@ export function RecallList({
   };
 
   const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
-    // Check if there's a custom URL in display data
-    const display = (recall as any).display;
-    const previewUrl = display?.previewUrl;
-    const effectiveUrl = previewUrl || recall.recallUrl;
-    
-    if (effectiveUrl) {
-      // Open website in new tab
-      window.open(effectiveUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // Toggle card expansion
-      const targetId = cardId || recall.id;
-      setExpandedCards(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(targetId)) {
-          newSet.delete(targetId);
-        } else {
-          newSet.add(targetId);
-        }
-        return newSet;
-      });
-    }
+    // Toggle card expansion
+    const targetId = cardId || recall.id;
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(targetId)) {
+        newSet.delete(targetId);
+      } else {
+        newSet.add(targetId);
+      }
+      return newSet;
+    });
   };
 
 
@@ -687,6 +677,25 @@ export function RecallList({
                       </p>
                     </div>
                     
+                    {/* Link to USDA/FDA page */}
+                    {(display?.previewUrl || recall.recallUrl) && (
+                      <div className={styles.detailSection}>
+                        <a
+                          href={display?.previewUrl || recall.recallUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: currentTheme.text,
+                            textDecoration: 'underline',
+                            fontSize: '0.9rem'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Visit {recall.source} Page →
+                        </a>
+                      </div>
+                    )}
+                    
                     {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                       <div className={styles.detailSection}>
                         <h4 style={{ color: currentTheme.text }}>Summary</h4>
@@ -707,7 +716,7 @@ export function RecallList({
                     variant="secondary"
                     onClick={() => handleViewDetails(recall, cardId)}
                   >
-                    {(display?.previewUrl || recall.recallUrl) ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
+                    {isExpanded ? 'Show Less' : 'View Details'}
                   </Button>
                 </div>
               </div>

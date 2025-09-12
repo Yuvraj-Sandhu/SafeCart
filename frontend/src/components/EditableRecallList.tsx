@@ -733,6 +733,25 @@ export function EditableRecallList({
                           </p>
                         </div>
                         
+                        {/* Link to USDA/FDA page */}
+                        {(display?.previewUrl || recall.recallUrl) && (
+                          <div className={styles.detailSection}>
+                            <a
+                              href={display?.previewUrl || recall.recallUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: currentTheme.text,
+                                textDecoration: 'underline',
+                                fontSize: '0.9rem'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Visit {recall.source} Page →
+                            </a>
+                          </div>
+                        )}
+                        
                         {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Summary</h4>
@@ -747,25 +766,7 @@ export function EditableRecallList({
                       </div>
                     )}
                     
-                    <div 
-                      className={styles.recallActions}
-                      style={{
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}
-                    >
-                      {/* Visit Page Button - only show if URL exists */}
-                      {(display?.previewUrl || recall.recallUrl) && (
-                        <Button 
-                          size="small" 
-                          variant="secondary"
-                          onClick={() => handleVisitPage(recall)}
-                        >
-                          Visit {recall.source} Page
-                        </Button>
-                      )}
-                      
+                    <div className={styles.recallActions}>
                       {/* View Details / Show Less Button - always show */}
                       <Button 
                         size="small" 
