@@ -23,6 +23,7 @@ interface EditableRecallListProps {
   onEdit: (recall: UnifiedRecall) => void;
   onReview?: (recall: UnifiedRecall) => void; // New prop for approve/reject action
   hidePendingBadges?: boolean;
+  hideSearch?: boolean;
   // Selection props (optional)
   enableSelection?: boolean;
   selectedRecalls?: Set<string>;
@@ -39,6 +40,7 @@ export function EditableRecallList({
   onEdit, 
   onReview, 
   hidePendingBadges = false,
+  hideSearch = false,
   enableSelection = false,
   selectedRecalls = new Set(),
   onRecallSelect,
@@ -73,8 +75,8 @@ export function EditableRecallList({
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
-  // Filter recalls by search term
-  const filteredRecalls = recalls.filter(recall =>
+  // Filter recalls by search term (only if search is not hidden)
+  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
     recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -198,7 +200,7 @@ export function EditableRecallList({
     );
   }
 
-  if (filteredRecalls.length === 0 && searchTerm) {
+  if (filteredRecalls.length === 0 && searchTerm && !hideSearch) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
@@ -265,12 +267,14 @@ export function EditableRecallList({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2 style={{ color: currentTheme.text }}>
-          Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
-          {searchTerm && ` (filtered from ${recalls.length})`}
-        </h2>
-      </div>
+      {!hideSearch && (
+        <div className={styles.header}>
+          <h2 style={{ color: currentTheme.text }}>
+            Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
+            {searchTerm && ` (filtered from ${recalls.length})`}
+          </h2>
+        </div>
+      )}
 
       {/* Select All Section with Image Stats - only show when enableSelection is true */}
       {enableSelection && filteredRecalls.length > 0 && (
@@ -355,32 +359,34 @@ export function EditableRecallList({
         </div>
       )}
       
-      <div className={styles.searchSection}>
-        <div className={styles.searchContainer}>
-          <svg 
-            className={styles.searchIcon}
-            xmlns="http://www.w3.org/2000/svg" 
-            x="0px" y="0px" 
-            width="20" height="20" 
-            viewBox="0 0 50 50"
-            fill={currentTheme.textSecondary}
-          >
-            <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search recalls by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-            style={{
-              backgroundColor: currentTheme.cardBackground,
-              color: currentTheme.text,
-              borderColor: currentTheme.cardBorder,
-            }}
-          />
+      {!hideSearch && (
+        <div className={styles.searchSection}>
+          <div className={styles.searchContainer}>
+            <svg 
+              className={styles.searchIcon}
+              xmlns="http://www.w3.org/2000/svg" 
+              x="0px" y="0px" 
+              width="20" height="20" 
+              viewBox="0 0 50 50"
+              fill={currentTheme.textSecondary}
+            >
+              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search recalls by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+              style={{
+                backgroundColor: currentTheme.cardBackground,
+                color: currentTheme.text,
+                borderColor: currentTheme.cardBorder,
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
       
       <div 
         ref={containerRef} 

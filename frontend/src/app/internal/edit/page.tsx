@@ -9,6 +9,7 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
+import { TempRecallList } from '@/components/TempRecallList';
 import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
 import { api } from '@/services/api';
@@ -42,8 +43,11 @@ export default function InternalEditPage() {
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
+  const [tempRecalls, setTempRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
+  const [tempLoading, setTempLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tempError, setTempError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [savingRecallId, setSavingRecallId] = useState<string | null>(null);
   
@@ -111,7 +115,9 @@ export default function InternalEditPage() {
     }
 
     setLoading(true);
+    setTempLoading(true);
     setError(null);
+    setTempError(null);
     setHasSearched(true);
 
     try {
@@ -119,22 +125,43 @@ export default function InternalEditPage() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      let response;
+      // Fetch regular recalls and temp recalls in parallel
+      const promises = [];
       
       if (selectedState === 'ALL') {
         // Get all recalls from all states - exclude pending changes
-        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr, true);
+        promises.push(api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr, true));
+        promises.push(api.getAllTempRecalls(500, startDateStr, endDateStr, true));
       } else {
         // Get recalls for specific state - exclude pending changes
-        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr, true);
+        promises.push(api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr, true));
+        promises.push(api.getTempRecallsByState(selectedState, 500, startDateStr, endDateStr, true));
       }
       
-      setRecalls(response.data);
+      const [recallsResponse, tempRecallsResponse] = await Promise.allSettled(promises);
+      
+      // Handle regular recalls
+      if (recallsResponse.status === 'fulfilled') {
+        setRecalls(recallsResponse.value.data);
+      } else {
+        setError('Failed to fetch recalls');
+        setRecalls([]);
+      }
+      
+      // Handle temp recalls
+      if (tempRecallsResponse.status === 'fulfilled') {
+        setTempRecalls(tempRecallsResponse.value.data);
+      } else {
+        setTempError('Failed to fetch recent alerts');
+        setTempRecalls([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
+      setTempRecalls([]);
     } finally {
       setLoading(false);
+      setTempLoading(false);
     }
   };
 
@@ -152,7 +179,9 @@ export default function InternalEditPage() {
     setStartDate(null);
     setEndDate(null);
     setRecalls([]);
+    setTempRecalls([]);
     setError(null);
+    setTempError(null);
     setHasSearched(false);
     hasInitialSearched.current = false;
     
@@ -462,6 +491,19 @@ export default function InternalEditPage() {
 
           {hasSearched && (
             <div className={styles.results}>
+              {/* Show temp recalls (recent alerts) if available */}
+              {(tempRecalls.length > 0 || tempLoading || tempError) && (
+                <TempRecallList
+                  recalls={tempRecalls}
+                  loading={tempLoading}
+                  error={tempError}
+                  isEditMode={true}
+                  onEdit={handleEdit}
+                  showTitle={true}
+                />
+              )}
+              
+              {/* Show regular recalls */}
               <EditableRecallList
                 recalls={getFilteredRecalls()}
                 loading={loading}

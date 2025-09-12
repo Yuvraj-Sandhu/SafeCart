@@ -82,6 +82,7 @@ export function TempRecallList({
           onEdit={onEdit || (() => {})}
           onReview={onReview}
           hidePendingBadges={false}
+          hideSearch={true}
         />
       ) : (
         <RecallList
