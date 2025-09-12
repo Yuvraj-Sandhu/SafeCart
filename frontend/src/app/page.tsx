@@ -156,7 +156,9 @@ export default function Home() {
     setStartDate(null);
     setEndDate(null);
     setRecalls([]);
+    setTempRecalls([]);
     setError(null);
+    setTempError(null);
     setHasSearched(false);
   };
 

@@ -602,7 +602,6 @@ export class FDAFirebaseService {
         })
         .slice(0, limit);
 
-      logger.info(`Retrieved ${recalls.length} temp recalls for state ${stateCode}`);
       return recalls;
     } catch (error) {
       logger.error(`Error fetching temp recalls for state ${stateCode}:`, error);
@@ -640,7 +639,6 @@ export class FDAFirebaseService {
         ...doc.data()
       }));
 
-      logger.info(`Retrieved ${recalls.length} temp recalls`);
       return recalls;
     } catch (error) {
       logger.error('Error fetching all temp recalls:', error);

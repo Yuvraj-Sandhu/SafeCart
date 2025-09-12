@@ -122,7 +122,7 @@ export function tempFdaToUnified(tempRecall: any): UnifiedRecall {
     recallNumber: tempRecall.id, // Use ID as recall number for temp recalls
     source: 'FDA',
     isActive: true, // All temp recalls are considered active
-    classification: 'Recent Alert', // Special classification for temp recalls
+    classification: tempRecall.classification || 'Unclassified', // Use existing classification or default
     recallingFirm: tempRecall.recalling_firm || 'Unknown',
     establishment: tempRecall.recalling_firm,
     productTitle: tempRecall.display?.previewTitle || tempRecall.llmTitle || tempRecall.product_title || 'Unknown Product',

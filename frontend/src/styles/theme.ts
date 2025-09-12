@@ -9,8 +9,8 @@ export const theme = {
     
     // Background colors
     background: '#faf6ed',
-    backgroundSecondary: '#eceae4',
-    backgroundTertiary: '#e2e0d9',
+    backgroundSecondary: '#fffffc',
+    backgroundTertiary: '#fffdf5',
     
     // Text colors
     text: '#111827',
@@ -20,7 +20,7 @@ export const theme = {
     textWhite: '#f9fafb',
     
     // Border colors
-    border: '#d5d7db',
+    border: '#e8e8e8',
     borderFocus: '#9ca3af',
     
     // Status colors
