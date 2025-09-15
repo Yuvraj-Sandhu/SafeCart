@@ -1102,11 +1102,13 @@ async function saveToFirebase(formattedAlerts) {
       await docRef.set(tempFDARecall, { merge: true });
       // console.log(`${isNewAlert ? 'Saved' : 'Updated'}: ${alert.product_title}`);
       
-      // Add to LLM processing queue
-      recallsForLLM.push({
-        id: docId,
-        title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`
-      });
+      // Add to LLM processing queue only if it's new or doesn't have llmTitle
+      if (isNewAlert || !existingData.llmTitle) {
+        recallsForLLM.push({
+          id: isNewAlert ? docId : existingDocId,
+          title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`
+        });
+      }
       
     } catch (error) {
       console.error(`Error saving alert: ${error.message}`);
