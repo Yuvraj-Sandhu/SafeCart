@@ -85,6 +85,17 @@ router.get('/public/recall/:id', async (req: Request, res: Response) => {
       });
     }
     
+    // Try to find in temp FDA recalls
+    const tempRecall = await fdaFirebaseService.getTempRecallById(id);
+    
+    if (tempRecall) {
+      return res.json({
+        success: true,
+        recall: tempRecall,
+        source: 'FDA'
+      });
+    }
+    
     // Recall not found
     res.status(404).json({
       success: false,

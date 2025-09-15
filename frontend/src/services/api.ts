@@ -499,7 +499,12 @@ export const api = {
     if (data.source === 'USDA') {
       unifiedRecall = usdaToUnified(data.recall);
     } else if (data.source === 'FDA') {
-      unifiedRecall = fdaToUnified(data.recall);
+      // Check if it's a temp recall (has api_version field)
+      if (data.recall.api_version === 'FDA_ALERTS') {
+        unifiedRecall = tempFdaToUnified(data.recall);
+      } else {
+        unifiedRecall = fdaToUnified(data.recall);
+      }
     } else {
       throw new Error('Unknown recall source');
     }
