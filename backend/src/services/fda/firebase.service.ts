@@ -672,12 +672,33 @@ export class FDAFirebaseService {
     try {
       const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
       
+      // Get current display data to check for removed images
+      const doc = await db.collection(TEMP_RECALLS_COLLECTION).doc(id).get();
+      const currentData = doc.data();
+      const currentUploadedImages = currentData?.display?.uploadedImages || [];
+      
       const updateData: any = {};
       
       if (displayData === undefined || displayData === null) {
-        // Remove display data
+        // Remove display data and delete all uploaded images from storage
         updateData.display = admin.firestore.FieldValue.delete();
+        
+        if (currentUploadedImages.length > 0) {
+          await this.deleteTempRecallUploadedImages(id, currentUploadedImages);
+          logger.info(`Deleted all temp recall uploaded images from storage for recall ${id}`);
+        }
       } else {
+        // Check for removed uploaded images and delete them from storage
+        const newUploadedImages = displayData.uploadedImages || [];
+        const removedImages = currentUploadedImages.filter((current: any) => 
+          !newUploadedImages.find((newImg: any) => newImg.filename === current.filename)
+        );
+        
+        if (removedImages.length > 0) {
+          await this.deleteTempRecallUploadedImages(id, removedImages);
+          logger.info(`Deleted ${removedImages.length} removed temp recall uploaded images from storage`);
+        }
+        
         // Update display data
         updateData.display = displayData;
       }
@@ -760,6 +781,36 @@ export class FDAFirebaseService {
       return uploadedImages;
     } catch (error) {
       logger.error(`Error uploading temp recall images for ${recallId}:`, error);
+      throw error;
+    }
+  }
+
+  
+  /**
+   * Delete uploaded images for temp recall from Firebase Storage
+   * @param recallId - The temp recall ID
+   * @param uploadedImages - Array of uploaded images to delete
+   */
+  async deleteTempRecallUploadedImages(recallId: string, uploadedImages: any[]): Promise<void> {
+    try {
+      const bucket = admin.storage().bucket();
+
+      for (const image of uploadedImages) {
+        if (image.type === 'uploaded-image' && image.filename) {
+          const storagePath = `temp-fda-recall-images/${recallId}/${image.filename}`;
+          
+          try {
+            const file = bucket.file(storagePath);
+            await file.delete();
+            logger.info(`Deleted temp recall uploaded image from storage: ${storagePath}`);
+          } catch (deleteError) {
+            logger.error(`Failed to delete temp recall image from storage: ${storagePath}`, deleteError);
+            // Continue with other deletions even if one fails
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error deleting temp recall uploaded images from storage:', error);
       throw error;
     }
   }

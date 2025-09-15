@@ -9,6 +9,7 @@ export interface UnifiedRecall {
   id: string;
   recallNumber: string;
   source: 'USDA' | 'FDA';
+  isTemp?: boolean; // True for temp FDA recalls
   
   // Status and classification
   isActive: boolean;
@@ -121,6 +122,7 @@ export function tempFdaToUnified(tempRecall: any): UnifiedRecall {
     id: tempRecall.id,
     recallNumber: tempRecall.id, // Use ID as recall number for temp recalls
     source: 'FDA',
+    isTemp: true, // Mark as temp recall
     isActive: true, // All temp recalls are considered active
     classification: tempRecall.classification || 'Unclassified', // Use existing classification or default
     recallingFirm: tempRecall.recalling_firm || 'Unknown',

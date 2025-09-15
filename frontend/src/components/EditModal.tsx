@@ -278,7 +278,20 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       const files = pendingFiles.map(pf => pf.file);
       
       // Use source-appropriate API endpoint
-      if (recall.source === 'USDA') {
+      if (recall.isTemp) {
+        // Temp recall image upload
+        const response = await api.uploadTempRecallImages(recall.id, files, auditedDisplayData);
+        
+        // Clean up memory from preview URLs
+        pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
+        setPendingFiles([]);
+        
+        // Update local state with server response
+        finalRecall = {
+          ...editedRecall,
+          display: response.data.displayData
+        };
+      } else if (recall.source === 'USDA') {
         const response = await api.uploadImagesAndUpdateDisplay(recall.id, files, auditedDisplayData);
         
         // Clean up memory from preview URLs
@@ -306,7 +319,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       }
     } else {
       // No new images - only update display customization data
-      if (recall.source === 'USDA') {
+      if (recall.isTemp) {
+        await api.updateTempRecallDisplay(recall.id, auditedDisplayData);
+      } else if (recall.source === 'USDA') {
         await api.updateRecallDisplay(recall.id, auditedDisplayData);
       } else {
         await api.updateFDARecallDisplay(recall.id, auditedDisplayData);
@@ -381,7 +396,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       // Only admins can directly reset data
       if (internal_user?.role === 'admin') {
         // Make API call to clear display data based on source
-        if (recall.source === 'USDA') {
+        if (recall.isTemp) {
+          await api.updateTempRecallDisplay(recall.id, undefined);
+        } else if (recall.source === 'USDA') {
           await api.updateRecallDisplay(recall.id, undefined);
         } else {
           await api.updateFDARecallDisplay(recall.id, undefined);
@@ -443,20 +460,26 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     
     setIsSavingStates(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fda/recalls/${recall.id}/manual-states`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          states: manualStates,
-          useManualStates: manualStates.length > 0
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save manual states');
+      // Use the appropriate API method based on whether it's a temp recall
+      if (recall.isTemp) {
+        await api.updateTempRecallManualStates(recall.id, manualStates, manualStates.length > 0);
+      } else {
+        // For regular FDA recalls, use the existing fetch approach since there's no API method yet
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fda/recalls/${recall.id}/manual-states`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            states: manualStates,
+            useManualStates: manualStates.length > 0
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save manual states');
+        }
       }
       
       alert('Manual states saved successfully');
