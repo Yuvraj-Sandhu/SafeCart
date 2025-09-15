@@ -797,7 +797,7 @@ export class FDAFirebaseService {
 
       for (const image of uploadedImages) {
         if (image.type === 'uploaded-image' && image.filename) {
-          const storagePath = `temp-fda-recall-images/${recallId}/${image.filename}`;
+          const storagePath = `temp-recall-images/${recallId}/${image.filename}`;
           
           try {
             const file = bucket.file(storagePath);
