@@ -494,6 +494,334 @@ export class FDAFirebaseService {
   }
 
   /**
+   * TEMP RECALLS METHODS
+   * Methods for managing temporary FDA recalls from alerts scraper
+   */
+
+  /**
+   * Get temp recalls by state
+   */
+  async getTempRecallsByState(stateCode: string, options: FDAQueryOptions = {}): Promise<any[]> {
+    try {
+      const { limit = 500, startDate, endDate } = options;
+      const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
+      
+      // First, get recalls with manual states override that match the state
+      let manualStatesQuery = db.collection(TEMP_RECALLS_COLLECTION)
+        .where('useManualStates', '==', true)
+        .where('manualStatesOverride', 'array-contains', stateCode)
+        .orderBy('alert_date', 'desc');
+      
+      // Apply date filters to manual states query
+      if (startDate) {
+        const startDateStr = startDate.toISOString().split('T')[0];
+        manualStatesQuery = manualStatesQuery.where('alert_date', '>=', startDateStr);
+      }
+      
+      if (endDate) {
+        const endDateStr = endDate.toISOString().split('T')[0];
+        manualStatesQuery = manualStatesQuery.where('alert_date', '<=', endDateStr);
+      }
+      
+      manualStatesQuery = manualStatesQuery.limit(limit);
+      const manualStatesSnapshot = await manualStatesQuery.get();
+      
+      // Get state-specific recalls (not using manual override)
+      let stateQuery = db.collection(TEMP_RECALLS_COLLECTION)
+        .where('affectedStatesArray', 'array-contains', stateCode)
+        .orderBy('alert_date', 'desc');
+
+      // Apply date filters
+      if (startDate) {
+        const startDateStr = startDate.toISOString().split('T')[0];
+        stateQuery = stateQuery.where('alert_date', '>=', startDateStr);
+      }
+      
+      if (endDate) {
+        const endDateStr = endDate.toISOString().split('T')[0];
+        stateQuery = stateQuery.where('alert_date', '<=', endDateStr);
+      }
+
+      stateQuery = stateQuery.limit(limit);
+      const stateSnapshot = await stateQuery.get();
+
+      // Get nationwide recalls (only if not already requesting "Nationwide")
+      let nationwideSnapshot;
+      if (stateCode.toLowerCase() !== 'nationwide') {
+        let nationwideQuery = db.collection(TEMP_RECALLS_COLLECTION)
+          .where('affectedStatesArray', 'array-contains', 'Nationwide')
+          .orderBy('alert_date', 'desc');
+
+        if (startDate) {
+          const startDateStr = startDate.toISOString().split('T')[0];
+          nationwideQuery = nationwideQuery.where('alert_date', '>=', startDateStr);
+        }
+        
+        if (endDate) {
+          const endDateStr = endDate.toISOString().split('T')[0];
+          nationwideQuery = nationwideQuery.where('alert_date', '<=', endDateStr);
+        }
+
+        nationwideQuery = nationwideQuery.limit(limit);
+        nationwideSnapshot = await nationwideQuery.get();
+      }
+
+      // Combine and deduplicate results
+      const recallMap = new Map<string, any>();
+      
+      // Add manual states overrides
+      manualStatesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // Ensure document ID takes precedence over any stored 'id' field
+        recallMap.set(doc.id, { ...data, id: doc.id });
+      });
+      
+      // Add state-specific recalls (skip if already has manual override)
+      stateSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (!data.useManualStates) {
+          // Ensure document ID takes precedence over any stored 'id' field
+          recallMap.set(doc.id, { ...data, id: doc.id });
+        }
+      });
+      
+      // Add nationwide recalls (skip if already has manual override)
+      if (nationwideSnapshot) {
+        nationwideSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (!data.useManualStates) {
+            // Ensure document ID takes precedence over any stored 'id' field
+            recallMap.set(doc.id, { ...data, id: doc.id });
+          }
+        });
+      }
+
+      // Convert to array and sort by date
+      const recalls = Array.from(recallMap.values())
+        .sort((a, b) => {
+          const dateA = a.alert_date || '0';
+          const dateB = b.alert_date || '0';
+          return dateB.localeCompare(dateA);
+        })
+        .slice(0, limit);
+
+      return recalls;
+    } catch (error) {
+      logger.error(`Error fetching temp recalls for state ${stateCode}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all temp recalls
+   */
+  async getAllTempRecalls(options: FDAQueryOptions = {}): Promise<any[]> {
+    try {
+      const { limit = 500, startDate, endDate } = options;
+      const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
+      
+      let query = db.collection(TEMP_RECALLS_COLLECTION)
+        .orderBy('alert_date', 'desc');
+
+      // Apply date filters if provided
+      if (startDate) {
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.where('alert_date', '>=', startDateStr);
+      }
+      
+      if (endDate) {
+        const endDateStr = endDate.toISOString().split('T')[0];
+        query = query.where('alert_date', '<=', endDateStr);
+      }
+
+      query = query.limit(limit);
+      const snapshot = await query.get();
+
+      const recalls = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Ensure document ID takes precedence over any stored 'id' field
+        return { ...data, id: doc.id };
+      });
+
+      return recalls;
+    } catch (error) {
+      logger.error('Error fetching all temp recalls:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get single temp recall by ID
+   */
+  async getTempRecallById(id: string): Promise<any | null> {
+    try {
+      const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
+      const doc = await db.collection(TEMP_RECALLS_COLLECTION).doc(id).get();
+      
+      if (!doc.exists) {
+        return null;
+      }
+
+      // Ensure document ID takes precedence over any stored 'id' field
+      const data = doc.data();
+      return { ...data, id: doc.id };
+    } catch (error) {
+      logger.error(`Error fetching temp recall by ID ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update temp recall display data
+   */
+  async updateTempRecallDisplay(id: string, displayData: any): Promise<void> {
+    try {
+      const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
+      
+      // Get current display data to check for removed images
+      const doc = await db.collection(TEMP_RECALLS_COLLECTION).doc(id).get();
+      const currentData = doc.data();
+      const currentUploadedImages = currentData?.display?.uploadedImages || [];
+      
+      const updateData: any = {};
+      
+      if (displayData === undefined || displayData === null) {
+        // Remove display data and delete all uploaded images from storage
+        updateData.display = admin.firestore.FieldValue.delete();
+        
+        if (currentUploadedImages.length > 0) {
+          await this.deleteTempRecallUploadedImages(id, currentUploadedImages);
+          logger.info(`Deleted all temp recall uploaded images from storage for recall ${id}`);
+        }
+      } else {
+        // Check for removed uploaded images and delete them from storage
+        const newUploadedImages = displayData.uploadedImages || [];
+        const removedImages = currentUploadedImages.filter((current: any) => 
+          !newUploadedImages.find((newImg: any) => newImg.filename === current.filename)
+        );
+        
+        if (removedImages.length > 0) {
+          await this.deleteTempRecallUploadedImages(id, removedImages);
+          logger.info(`Deleted ${removedImages.length} removed temp recall uploaded images from storage`);
+        }
+        
+        // Update display data
+        updateData.display = displayData;
+      }
+      
+      await db.collection(TEMP_RECALLS_COLLECTION).doc(id).update(updateData);
+      logger.info(`Updated display data for temp recall ${id}`);
+    } catch (error) {
+      logger.error(`Error updating temp recall display for ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update manual states override for temp recall
+   */
+  async updateTempManualStates(id: string, statesData: any): Promise<void> {
+    try {
+      const TEMP_RECALLS_COLLECTION = 'temp_fda_recalls';
+      
+      await db.collection(TEMP_RECALLS_COLLECTION).doc(id).update(statesData);
+      logger.info(`Updated manual states for temp recall ${id}`);
+    } catch (error) {
+      logger.error(`Error updating temp manual states for ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload images for temp recall
+   */
+  async uploadTempRecallImages(recallId: string, files: Express.Multer.File[], uploadedBy?: string): Promise<any[]> {
+    try {
+      const bucket = admin.storage().bucket();
+      const uploadedImages = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 11);
+        const fileExtension = file.originalname.split('.').pop() || 'jpg';
+        const filename = `uploaded_${timestamp}_${randomString}_${i}.${fileExtension}`;
+        const storagePath = `temp-recall-images/${recallId}/${filename}`;
+
+        // Create a file reference in Firebase Storage
+        const fileRef = bucket.file(storagePath);
+
+        // Upload the file buffer
+        await fileRef.save(file.buffer, {
+          metadata: {
+            contentType: file.mimetype,
+            metadata: {
+              originalName: file.originalname,
+              uploadedAt: new Date().toISOString(),
+              recallId: recallId
+            }
+          }
+        });
+
+        // Make the file publicly readable
+        await fileRef.makePublic();
+
+        // Get the public URL
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+        // Create the uploaded image metadata
+        const uploadedImage: any = {
+          filename: filename,
+          originalName: file.originalname,
+          type: 'uploaded-image' as const,
+          storageUrl: publicUrl,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: uploadedBy || 'unknown-user',
+          size: file.size
+        };
+
+        uploadedImages.push(uploadedImage);
+        logger.info(`Uploaded temp recall image ${filename} for recall ${recallId}`);
+      }
+
+      return uploadedImages;
+    } catch (error) {
+      logger.error(`Error uploading temp recall images for ${recallId}:`, error);
+      throw error;
+    }
+  }
+
+  
+  /**
+   * Delete uploaded images for temp recall from Firebase Storage
+   * @param recallId - The temp recall ID
+   * @param uploadedImages - Array of uploaded images to delete
+   */
+  async deleteTempRecallUploadedImages(recallId: string, uploadedImages: any[]): Promise<void> {
+    try {
+      const bucket = admin.storage().bucket();
+
+      for (const image of uploadedImages) {
+        if (image.type === 'uploaded-image' && image.filename) {
+          const storagePath = `temp-recall-images/${recallId}/${image.filename}`;
+          
+          try {
+            const file = bucket.file(storagePath);
+            await file.delete();
+            logger.info(`Deleted temp recall uploaded image from storage: ${storagePath}`);
+          } catch (deleteError) {
+            logger.error(`Failed to delete temp recall image from storage: ${storagePath}`, deleteError);
+            // Continue with other deletions even if one fails
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error deleting temp recall uploaded images from storage:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Format date to YYYYMMDD string for FDA date fields
    */
   private formatDateToYYYYMMDD(date: Date): string {

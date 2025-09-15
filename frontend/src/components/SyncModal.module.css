@@ -1,0 +1,496 @@
+/* FDA Sync Modal Styles - Modern design with theme colors */
+
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow: visible; /* Allow dropdown to overflow */
+  border-radius: 1rem;
+  border: 1px solid;
+  z-index: 1001;
+  animation: slideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid;
+  flex-shrink: 0;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  scale: 1.25;
+}
+
+.closeButton:hover {
+  background-color: var(--color-backgroundSecondary);
+  transform: scale(1.1);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+.content {
+  padding: 1.5rem;
+  overflow-x: visible;
+  overflow-y: visible;
+  flex: 1;
+  position: relative; /* For dropdown positioning context */
+}
+
+.section {
+  margin-bottom: 2rem;
+  position: relative; /* For dropdown positioning */
+}
+
+.section:last-of-type {
+  margin-bottom: 1rem;
+  overflow: visible; /* Allow dropdown to extend beyond section */
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+}
+
+/* Radio Group Styles */
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.radioOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 1rem;
+  border: 2px solid;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.radioOption:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--color-shadowLight);
+}
+
+.radioWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.125rem;
+}
+
+.radioInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Custom radio icon */
+.radioIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.radioLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.radioTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.radioDescription {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+/* Option Group Styles */
+.optionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Number Input Styles */
+.numberInputWrapper {
+  position: relative;
+  display: inline-block;
+  width: 100px;
+}
+
+.numberInput {
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 1rem;
+  width: 100%;
+  transition: all 0.2s ease;
+  outline: none;
+  -moz-appearance: textfield; /* Firefox */
+  appearance: textfield;
+}
+
+/* Hide spinner buttons for Chrome, Safari, Edge */
+.numberInput::-webkit-outer-spin-button,
+.numberInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+  display: none;
+}
+
+.numberInput:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primaryLight)20;
+}
+
+.numberInput:hover:not(:focus) {
+  border-color: var(--color-borderFocus);
+}
+
+/* Custom number input buttons */
+.numberInputButtons {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: -5px;
+}
+
+.numberInputButton {
+  background: transparent;
+  border: none;
+  width: 16px;
+  height: 16px;
+  scale: 1.33;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+  padding: 0;
+  outline: none;
+  color: var(--color-textSecondary);
+}
+
+.numberInputButton:hover:not(:disabled) {
+  color: var(--color-primary) !important;
+  transform: scale(1.2);
+}
+
+.numberInputButton:active:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.numberInputButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.numberInputButton svg {
+  width: 12px;
+  height: 8px;
+}
+
+/* Custom Dropdown Styles - Matching AutocompleteInput exactly */
+.selectWrapper {
+  position: relative;
+  width: 100%;
+  z-index: 100; /* Ensure dropdown appears above other content */
+}
+
+.selectInput {
+  width: 100%;
+  padding: 0.75rem 3rem 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.selectInput:hover {
+  border-color: var(--color-borderFocus);
+}
+
+.selectArrow {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.selectArrow:hover {
+  background-color: var(--color-backgroundSecondary);
+}
+
+/* Dropdown menu - exact copy from AutocompleteInput */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1002; /* Higher than modal to ensure it appears above */
+  border: 1px solid;
+  border-radius: 0.5rem;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1px;
+  background-color: var(--color-cardBackground); /* Ensure background is set */
+}
+
+.dropdownOption {
+  color: var(--color-text);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dropdownOption:last-child {
+  border-bottom: none;
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+
+.dropdownOption:hover {
+  background-color: var(--color-primaryLight) !important;
+  color: var(--color-textBlack) !important;
+}
+
+/* Scrollbar styling for dropdown */
+.dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdown::-webkit-scrollbar-track {
+  background: var(--color-backgroundSecondary);
+  border-radius: 3px;
+}
+
+.dropdown::-webkit-scrollbar-thumb {
+  background: var(--color-textTertiary);
+  border-radius: 3px;
+}
+
+.dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textSecondary);
+}
+
+/* Hint Text */
+.hint {
+  font-size: 0.8125rem;
+  font-style: italic;
+  opacity: 0.7;
+  display: block;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* Message Styles */
+.message {
+  padding: 0.875rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid;
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: slideIn 0.3s ease;
+}
+
+.messageIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Footer Styles */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid;
+  background-color: var(--color-backgroundSecondary)10;
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .header {
+    padding: 1.25rem;
+  }
+  
+  .header h2 {
+    font-size: 1.125rem;
+  }
+  
+  .content {
+    padding: 1.25rem;
+  }
+  
+  .footer {
+    padding: 1.25rem;
+    flex-direction: column-reverse;
+  }
+  
+  .footer button {
+    width: 100%;
+  }
+  
+  .radioWrapper {
+    gap: 0.625rem;
+  }
+  
+  .radioOption {
+    padding: 0.875rem;
+  }
+  
+  .numberInputWrapper {
+    width: 100%;
+  }
+}
+
+/* Loading state */
+.radioOption:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.radioOption:has(input:disabled):hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Dark mode specific adjustments */
+[data-theme="dark"] .modal {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Smooth scrollbar styling */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: var(--color-backgroundSecondary);
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: var(--color-textTertiary);
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textSecondary);
+}

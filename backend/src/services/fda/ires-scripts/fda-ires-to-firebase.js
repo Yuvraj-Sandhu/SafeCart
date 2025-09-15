@@ -60,15 +60,32 @@ async function saveIRESRecallsToFirebase(recalls) {
   }
 
   console.log(`\nProcessing ${transformedRecalls.length} transformed recalls...`);
+  
+  // Check for duplicate IDs
+  const recallIds = transformedRecalls.map(r => r.id);
+  const uniqueIds = new Set(recallIds);
+  if (recallIds.length !== uniqueIds.size) {
+    console.warn(`WARNING: Found duplicate recall IDs! ${recallIds.length} total, ${uniqueIds.size} unique`);
+    const duplicates = recallIds.filter((id, index) => recallIds.indexOf(id) !== index);
+    console.warn(`Duplicate IDs: ${duplicates.join(', ')}`);
+  }
 
   // Process in batches
   const batches = [];
   let currentBatch = db.batch();
   let operationCount = 0;
+  const processedIds = new Set();
 
   for (const recall of transformedRecalls) {
     try {
+      // Skip if we've already processed this ID (shouldn't happen but let's check)
+      if (processedIds.has(recall.id)) {
+        console.warn(`  WARNING: Skipping duplicate recall ID: ${recall.id}`);
+        continue;
+      }
+      
       const docRef = db.collection(FDA_RECALLS_COLLECTION).doc(recall.id);
+      processedIds.add(recall.id);
       
       // Check if document exists
       const existingDoc = await docRef.get();
@@ -87,6 +104,24 @@ async function saveIRESRecallsToFirebase(recalls) {
         // Only update if it's an IRES-imported recall
         // Start with the new IRES data
         const mergedData = { ...recall };
+        
+        // Add timestamp fields for update
+        mergedData.last_synced = admin.firestore.FieldValue.serverTimestamp();
+        
+        // Preserve imported_at and ires_imported_at if they exist
+        if (existingData.imported_at) {
+          mergedData.imported_at = existingData.imported_at;
+        } else {
+          // First time being added to database
+          mergedData.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        }
+        
+        if (existingData.ires_imported_at) {
+          mergedData.ires_imported_at = existingData.ires_imported_at;
+        } else {
+          // First time being imported by IRES
+          mergedData.ires_imported_at = admin.firestore.FieldValue.serverTimestamp();
+        }
         
         // Preserve manual overrides and custom fields if they exist
         // Only add fields that have actual values (not undefined)
@@ -128,11 +163,21 @@ async function saveIRESRecallsToFirebase(recalls) {
         currentBatch.update(docRef, mergedData);
         stats.updatedRecords++;
         
+        // Log all updates for debugging
+        console.log(`  Updating: ${recall.id} (operation ${operationCount + 1})`);
+        
+        // Log if this is one of the first few for detailed debugging
         if (operationCount < 3) {
-          console.log(`  Updating: ${recall.id}`);
+          // console.log(`    Fields being updated: ${Object.keys(mergedData).join(', ')}`);
         }
       } else {
-        // New document - queue for LLM title generation
+        // New document - set all timestamp fields
+        const newRecall = { ...recall };
+        newRecall.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        newRecall.ires_imported_at = admin.firestore.FieldValue.serverTimestamp();
+        newRecall.last_synced = admin.firestore.FieldValue.serverTimestamp();
+        
+        // Queue for LLM title generation
         if (recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
@@ -140,7 +185,7 @@ async function saveIRESRecallsToFirebase(recalls) {
           });
         }
         
-        currentBatch.set(docRef, recall);
+        currentBatch.set(docRef, newRecall);
         stats.newRecords++;
         
         if (operationCount < 3) {
@@ -165,21 +210,42 @@ async function saveIRESRecallsToFirebase(recalls) {
   
   // Add remaining batch if it has operations
   if (operationCount > 0) {
+    console.log(`Adding final batch with ${operationCount} operations`);
     batches.push(currentBatch);
   }
   
-  // Commit all batches
-  console.log(`\nCommitting ${batches.length} batches to Firebase...`);
+  // Verify batch operations
+  console.log(`\nBatch summary:`);
+  console.log(`  Processed IDs: ${processedIds.size}`);
+  console.log(`  Stats - New: ${stats.newRecords}, Updated: ${stats.updatedRecords}, Skipped: ${stats.skippedFDARecords}, Errors: ${stats.errors}`);
+  console.log(`  Total operations in batches: ${stats.newRecords + stats.updatedRecords}`);
   
+  if (processedIds.size !== transformedRecalls.length) {
+    console.warn(`WARNING: Processed ${processedIds.size} unique IDs but had ${transformedRecalls.length} recalls`);
+  }
+  
+  // Commit all batches
+  console.log(`\nCommitting ${batches.length} batch(es) to Firebase...`);
+  
+  let totalCommitted = 0;
   for (let i = 0; i < batches.length; i++) {
     try {
-      await batches[i].commit();
-      console.log(`  Batch ${i + 1}/${batches.length} committed`);
+      console.log(`  Committing batch ${i + 1}/${batches.length}...`);
+      const commitResult = await batches[i].commit();
+      console.log(`  Batch ${i + 1}/${batches.length} committed successfully`);
+      totalCommitted++;
     } catch (error) {
-      console.error(`Error committing batch ${i + 1}:`, error.message);
+      console.error(`Error committing batch ${i + 1}:`, error);
+      console.error(`  Error details:`, error.message);
+      console.error(`  Error code:`, error.code);
+      if (error.details) {
+        console.error(`  Error details:`, JSON.stringify(error.details));
+      }
       stats.errors++;
     }
   }
+  
+  console.log(`Successfully committed ${totalCommitted}/${batches.length} batches`);
   
   // Process LLM titles asynchronously (non-blocking)
   if (recallsForLLM.length > 0) {
@@ -254,7 +320,7 @@ async function scrapeAndImport(options = {}) {
   } = options;
   
   console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║     FDA IRES to Firebase Import                   ║');
+  console.log('║     FDA IRES to Firebase Import                  ║');
   console.log('╚══════════════════════════════════════════════════╝\n');
   
   const scraper = new FDAIRESScraper({
@@ -299,7 +365,7 @@ async function scrapeAndImport(options = {}) {
     
     // Summary
     console.log('\n╔══════════════════════════════════════════════════╗');
-    console.log('║                   Import Summary                   ║');
+    console.log('║                   Import Summary                 ║');
     console.log('╚══════════════════════════════════════════════════╝');
     console.log(`  New records:        ${stats.newRecords}`);
     console.log(`  Updated records:    ${stats.updatedRecords}`);

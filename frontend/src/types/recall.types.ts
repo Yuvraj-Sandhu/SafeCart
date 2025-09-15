@@ -9,6 +9,7 @@ export interface UnifiedRecall {
   id: string;
   recallNumber: string;
   source: 'USDA' | 'FDA';
+  isTemp?: boolean; // True for temp FDA recalls
   
   // Status and classification
   isActive: boolean;
@@ -101,7 +102,7 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     productQuantity: fdaRecall.product_quantity,
     llmTitle: fdaRecall.llmTitle,
     reasonForRecall: fdaRecall.reason_for_recall || 'Not specified',
-    recallDate: formatFDADate(fdaRecall.report_date),
+    recallDate: formatFDADate(fdaRecall.center_classification_date || fdaRecall.report_date), // Use center_classification_date if available, else report_date
     recallInitiationDate: fdaRecall.recall_initiation_date ? formatFDADate(fdaRecall.recall_initiation_date) : formatFDADate(fdaRecall.report_date), // Use recall_initiation_date if available, else report_date
     recallUrl: fdaRecall.display?.previewUrl || fdaRecall.recall_url || undefined, // Priority: manual preview > IRES URL > none
     terminationDate: fdaRecall.termination_date ? formatFDADate(fdaRecall.termination_date) : undefined,
@@ -110,6 +111,36 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     images: fdaRecall.processedImages || [],
     display: fdaRecall.display,
     originalData: fdaRecall
+  };
+}
+
+/**
+ * Converts temp FDA recall to unified format
+ */
+export function tempFdaToUnified(tempRecall: any): UnifiedRecall {
+  return {
+    id: tempRecall.id,
+    recallNumber: tempRecall.id, // Use ID as recall number for temp recalls
+    source: 'FDA',
+    isTemp: true, // Mark as temp recall
+    isActive: true, // All temp recalls are considered active
+    classification: tempRecall.classification || 'Unclassified', // Use existing classification or default
+    recallingFirm: tempRecall.recalling_firm || 'Unknown',
+    establishment: tempRecall.recalling_firm,
+    productTitle: tempRecall.display?.previewTitle || tempRecall.llmTitle || tempRecall.product_title || 'Unknown Product',
+    productDescription: tempRecall.product_description || '',
+    productQuantity: undefined,
+    llmTitle: tempRecall.llmTitle,
+    reasonForRecall: tempRecall.reason_for_recall || 'Not specified',
+    recallDate: tempRecall.alert_date || tempRecall.date,
+    recallInitiationDate: tempRecall.alert_date || tempRecall.date,
+    recallUrl: tempRecall.alert_url,
+    terminationDate: undefined, // Temp recalls don't have termination dates
+    affectedStates: tempRecall.affectedStatesArray || [],
+    distributionPattern: tempRecall.distribution_pattern,
+    images: tempRecall.processedImages || [],
+    display: tempRecall.display,
+    originalData: tempRecall
   };
 }
 

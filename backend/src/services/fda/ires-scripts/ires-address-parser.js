@@ -4,16 +4,22 @@
  * Parses the combined recallingFirm field from IRES data
  * to extract company name and address components
  * 
+ * The aria-label contains data separated by double spaces which correspond to <br> tags:
+ * Line 1: Company name
+ * Line 2: Street address
+ * Line 3: City, State ZIP
+ * Line 4: Country
+ * 
  * Example input:
- * "Kobayashi Noodle U.S.A. 315 E 157th St  Gardena, CA 90248-2512  United States"
+ * "Beaver Street Fisheries, Inc.  1741 W Beaver St  Jacksonville, FL 32209-7526  United States"
  * 
  * Expected output:
  * {
- *   recalling_firm: "Kobayashi Noodle U.S.A.",
- *   address_1: "315 E 157th St",
- *   city: "Gardena",
- *   state: "CA",
- *   postal_code: "90248-2512",
+ *   recalling_firm: "Beaver Street Fisheries, Inc.",
+ *   address_1: "1741 W Beaver St",
+ *   city: "Jacksonville",
+ *   state: "FL",
+ *   postal_code: "32209-7526",
  *   country: "United States"
  * }
  */
@@ -57,121 +63,89 @@ function parseRecallingFirm(recallingFirmStr) {
   }
 
   try {
-    // Clean up multiple spaces
-    const cleanStr = recallingFirmStr.replace(/\s+/g, ' ').trim();
+    // Split by double spaces (or more) which represent line breaks in the aria-label
+    // This corresponds to <br> tags in the HTML
+    const lines = recallingFirmStr.split(/\s{2,}/).map(line => line.trim()).filter(line => line);
     
-    // Try to identify country at the end (common pattern: "United States", "Canada", etc.)
-    let workingStr = cleanStr;
-    let country = '';
-    
-    // Check for common country patterns at the end
-    const countryPatterns = [
-      'United States', 'USA', 'U.S.A.', 'US',
-      'Canada', 'Mexico', 'United Kingdom', 'UK'
-    ];
-    
-    for (const pattern of countryPatterns) {
-      const regex = new RegExp(`\\s+${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-      if (regex.test(workingStr)) {
-        country = pattern;
-        workingStr = workingStr.replace(regex, '').trim();
-        break;
+    // Parse based on the expected 4-line structure
+    if (lines.length >= 3) {
+      // Line 1: Recalling firm name
+      result.recalling_firm = lines[0];
+      
+      // Line 2: Street address
+      if (lines[1]) {
+        result.address_1 = lines[1];
       }
-    }
-    
-    result.country = country;
-    
-    // Look for postal code pattern (5 digits or 5-4 digits)
-    const postalRegex = /\b(\d{5}(?:-\d{4})?)\b/;
-    const postalMatch = workingStr.match(postalRegex);
-    
-    if (postalMatch) {
-      result.postal_code = postalMatch[1];
       
-      // Find state abbreviation before postal code
-      const beforePostal = workingStr.substring(0, postalMatch.index).trim();
-      const stateRegex = /\b([A-Z]{2})\s*$/;
-      const stateMatch = beforePostal.match(stateRegex);
-      
-      if (stateMatch && STATE_ABBREV_TO_FULL[stateMatch[1]]) {
-        result.state = stateMatch[1];
+      // Line 3: City, State ZIP (e.g., "Jacksonville, FL 32209-7526")
+      if (lines[2]) {
+        const cityStateZip = lines[2];
         
-        // Extract city - it should be before the state, after a comma
-        const beforeState = beforePostal.substring(0, stateMatch.index).trim();
-        const lastCommaIndex = beforeState.lastIndexOf(',');
-        
-        if (lastCommaIndex !== -1) {
-          result.city = beforeState.substring(lastCommaIndex + 1).trim();
+        // Extract postal code (5 digits or 5-4 digits)
+        const postalMatch = cityStateZip.match(/\b(\d{5}(?:-\d{4})?)\b/);
+        if (postalMatch) {
+          result.postal_code = postalMatch[1];
           
-          // Everything before the city is the address and firm name
-          const beforeCity = beforeState.substring(0, lastCommaIndex).trim();
+          // Get everything before the postal code
+          const beforePostal = cityStateZip.substring(0, postalMatch.index).trim();
           
-          // Try to split firm name from address
-          // Strategy: Look for the first number (usually start of street address)
-          const firstNumberMatch = beforeCity.match(/\d/);
-          
-          if (firstNumberMatch) {
-            const numberIndex = beforeCity.indexOf(firstNumberMatch[0]);
-            result.recalling_firm = beforeCity.substring(0, numberIndex).trim();
-            result.address_1 = beforeCity.substring(numberIndex).trim();
+          // Extract state (2 letter code, usually before postal)
+          const stateMatch = beforePostal.match(/\b([A-Z]{2})\b(?!.*\b[A-Z]{2}\b)/); // Get the last state code
+          if (stateMatch && STATE_ABBREV_TO_FULL[stateMatch[1]]) {
+            result.state = stateMatch[1];
+            
+            // Get everything before the state code as the city
+            const beforeState = beforePostal.substring(0, stateMatch.index).trim();
+            
+            // Remove trailing comma and any extra punctuation
+            result.city = beforeState.replace(/[,\s]+$/, '').trim();
           } else {
-            // No clear address pattern, treat it all as firm name
-            result.recalling_firm = beforeCity;
+            // If no state found, treat everything before postal as city
+            result.city = beforePostal.replace(/[,\s]+$/, '').trim();
           }
         } else {
-          // No clear city delimiter, try alternative parsing
-          // Look for pattern: [Firm Name] [Address] [City], [State] [Zip]
-          const parts = workingStr.split(/\s{2,}/); // Split by multiple spaces
-          
-          if (parts.length >= 2) {
-            // First part is likely firm name
-            result.recalling_firm = parts[0];
-            
-            // Try to find address in remaining parts
-            for (let i = 1; i < parts.length; i++) {
-              const part = parts[i];
-              // Check if this part looks like an address (contains numbers)
-              if (/\d/.test(part) && !result.address_1) {
-                // Check if it's not the postal code we already found
-                if (!part.includes(result.postal_code)) {
-                  result.address_1 = part;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    // Fallback: If we couldn't parse properly, at least extract firm name
-    if (!result.recalling_firm) {
-      // Take everything up to the first number as firm name
-      const firstNumberMatch = workingStr.match(/\d/);
-      if (firstNumberMatch) {
-        const numberIndex = workingStr.indexOf(firstNumberMatch[0]);
-        result.recalling_firm = workingStr.substring(0, numberIndex).trim();
-        
-        // Rest could be address
-        const remaining = workingStr.substring(numberIndex).trim();
-        if (remaining && !result.address_1) {
-          // Take the part before any comma as address
-          const commaIndex = remaining.indexOf(',');
-          if (commaIndex !== -1) {
-            result.address_1 = remaining.substring(0, commaIndex).trim();
+          // No postal code found, try to extract state and city
+          const stateMatch = cityStateZip.match(/,\s*([A-Z]{2})\b/);
+          if (stateMatch && STATE_ABBREV_TO_FULL[stateMatch[1]]) {
+            result.state = stateMatch[1];
+            result.city = cityStateZip.substring(0, stateMatch.index).trim();
           } else {
-            result.address_1 = remaining;
+            // Just use the whole thing as city
+            result.city = cityStateZip.replace(/[,\s]+$/, '').trim();
           }
         }
-      } else {
-        // No numbers found, treat whole string as firm name
-        result.recalling_firm = workingStr;
+      }
+      
+      // Line 4: Country (if present)
+      if (lines[3]) {
+        result.country = lines[3];
+      }
+      
+      // Sometimes line 3 might have an extra address line
+      // Check if we didn't find a city yet and there's a 4th line
+      if (!result.city && lines[3] && !lines[4]) {
+        // Line 3 might be address_2, and line 4 is city/state/zip
+        result.address_2 = lines[2];
+        const cityStateZip = lines[3];
+        
+        // Re-parse for city/state/zip
+        const postalMatch = cityStateZip.match(/\b(\d{5}(?:-\d{4})?)\b/);
+        if (postalMatch) {
+          result.postal_code = postalMatch[1];
+          const beforePostal = cityStateZip.substring(0, postalMatch.index).trim();
+          const stateMatch = beforePostal.match(/\b([A-Z]{2})\b(?!.*\b[A-Z]{2}\b)/);
+          if (stateMatch && STATE_ABBREV_TO_FULL[stateMatch[1]]) {
+            result.state = stateMatch[1];
+            result.city = beforePostal.substring(0, stateMatch.index).replace(/[,\s]+$/, '').trim();
+          }
+        }
       }
     }
     
-    // Clean up any remaining commas or extra spaces
+    // Clean up any fields
     Object.keys(result).forEach(key => {
       if (typeof result[key] === 'string') {
-        result[key] = result[key].replace(/^,\s*/, '').replace(/\s*,$/, '').trim();
+        result[key] = result[key].trim();
       }
     });
     

@@ -23,6 +23,7 @@ interface EditableRecallListProps {
   onEdit: (recall: UnifiedRecall) => void;
   onReview?: (recall: UnifiedRecall) => void; // New prop for approve/reject action
   hidePendingBadges?: boolean;
+  hideSearch?: boolean;
   // Selection props (optional)
   enableSelection?: boolean;
   selectedRecalls?: Set<string>;
@@ -39,6 +40,7 @@ export function EditableRecallList({
   onEdit, 
   onReview, 
   hidePendingBadges = false,
+  hideSearch = false,
   enableSelection = false,
   selectedRecalls = new Set(),
   onRecallSelect,
@@ -73,8 +75,8 @@ export function EditableRecallList({
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
-  // Filter recalls by search term
-  const filteredRecalls = recalls.filter(recall =>
+  // Filter recalls by search term (only if search is not hidden)
+  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
     recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
     recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -110,7 +112,7 @@ export function EditableRecallList({
     return columns;
   };
 
-  const handleViewDetails = (recall: UnifiedRecall, cardId?: string) => {
+  const handleVisitPage = (recall: UnifiedRecall) => {
     // Check if there's a custom URL in display data
     const display = (recall as any).display;
     const previewUrl = display?.previewUrl;
@@ -119,19 +121,21 @@ export function EditableRecallList({
     if (effectiveUrl) {
       // Open website in new tab
       window.open(effectiveUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // Toggle card expansion
-      const targetId = cardId || recall.id;
-      setExpandedCards(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(targetId)) {
-          newSet.delete(targetId);
-        } else {
-          newSet.add(targetId);
-        }
-        return newSet;
-      });
     }
+  };
+
+  const handleToggleDetails = (recall: UnifiedRecall, cardId?: string) => {
+    // Toggle card expansion
+    const targetId = cardId || recall.id;
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(targetId)) {
+        newSet.delete(targetId);
+      } else {
+        newSet.add(targetId);
+      }
+      return newSet;
+    });
   };
 
   const handleImageClick = (images: ProcessedImage[], title: string, imageIndex: number = 0) => {
@@ -198,7 +202,7 @@ export function EditableRecallList({
     );
   }
 
-  if (filteredRecalls.length === 0 && searchTerm) {
+  if (filteredRecalls.length === 0 && searchTerm && !hideSearch) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
@@ -265,12 +269,14 @@ export function EditableRecallList({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h2 style={{ color: currentTheme.text }}>
-          Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
-          {searchTerm && ` (filtered from ${recalls.length})`}
-        </h2>
-      </div>
+      {!hideSearch && (
+        <div className={styles.header}>
+          <h2 style={{ color: currentTheme.text }}>
+            Found {filteredRecalls.length} recall{filteredRecalls.length !== 1 ? 's' : ''}
+            {searchTerm && ` (filtered from ${recalls.length})`}
+          </h2>
+        </div>
+      )}
 
       {/* Select All Section with Image Stats - only show when enableSelection is true */}
       {enableSelection && filteredRecalls.length > 0 && (
@@ -355,32 +361,34 @@ export function EditableRecallList({
         </div>
       )}
       
-      <div className={styles.searchSection}>
-        <div className={styles.searchContainer}>
-          <svg 
-            className={styles.searchIcon}
-            xmlns="http://www.w3.org/2000/svg" 
-            x="0px" y="0px" 
-            width="20" height="20" 
-            viewBox="0 0 50 50"
-            fill={currentTheme.textSecondary}
-          >
-            <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search recalls by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-            style={{
-              backgroundColor: currentTheme.cardBackground,
-              color: currentTheme.text,
-              borderColor: currentTheme.cardBorder,
-            }}
-          />
+      {!hideSearch && (
+        <div className={styles.searchSection}>
+          <div className={styles.searchContainer}>
+            <svg 
+              className={styles.searchIcon}
+              xmlns="http://www.w3.org/2000/svg" 
+              x="0px" y="0px" 
+              width="20" height="20" 
+              viewBox="0 0 50 50"
+              fill={currentTheme.textSecondary}
+            >
+              <path d="M 21 3 C 11.601563 3 4 10.601563 4 20 C 4 29.398438 11.601563 37 21 37 C 24.355469 37 27.460938 36.015625 30.09375 34.34375 L 42.375 46.625 L 46.625 42.375 L 34.5 30.28125 C 36.679688 27.421875 38 23.878906 38 20 C 38 10.601563 30.398438 3 21 3 Z M 21 7 C 28.199219 7 34 12.800781 34 20 C 34 27.199219 28.199219 33 21 33 C 13.800781 33 8 27.199219 8 20 C 8 12.800781 13.800781 7 21 7 Z"></path>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search recalls by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+              style={{
+                backgroundColor: currentTheme.cardBackground,
+                color: currentTheme.text,
+                borderColor: currentTheme.cardBorder,
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
       
       <div 
         ref={containerRef} 
@@ -725,6 +733,88 @@ export function EditableRecallList({
                           </p>
                         </div>
                         
+                        {/* Link to USDA/FDA page and Share button */}
+                        {(display?.previewUrl || recall.recallUrl) && (
+                          <div className={styles.detailSection}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              width: '100%'
+                            }}>
+                              <a
+                                href={display?.previewUrl || recall.recallUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: currentTheme.text,
+                                  textDecoration: 'underline',
+                                  fontSize: '0.9rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Visit {recall.source} Page
+                                <svg 
+                                  width="14" 
+                                  height="14" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  style={{ flexShrink: 0 }}
+                                >
+                                  <path 
+                                    d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </a>
+                              
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`/recalls/${recall.id}`, '_blank');
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: currentTheme.textSecondary,
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.875rem',
+                                  lineHeight: '1.4'
+                                }}
+                                title="Share this recall"
+                              >
+                                <svg 
+                                  width="16" 
+                                  height="16" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path 
+                                    d="M18 8C19.6569 8 21 6.65685 21 5C21 3.34315 19.6569 2 18 2C16.3431 2 15 3.34315 15 5C15 5.12548 15.0077 5.24917 15.0227 5.37061L7.08259 9.34057C6.54303 8.52269 5.58896 8 4.5 8C2.84315 8 1.5 9.34315 1.5 11C1.5 12.6569 2.84315 14 4.5 14C5.58896 14 6.54303 13.4773 7.08259 12.6594L15.0227 16.6294C15.0077 16.7508 15 16.8745 15 17C15 18.6569 16.3431 20 18 20C19.6569 20 21 18.6569 21 17C21 15.3431 19.6569 14 18 14C16.9111 14 15.957 14.5226 15.4174 15.3406L7.47733 11.3706C7.49229 11.2492 7.5 11.1255 7.5 11C7.5 10.8745 7.49229 10.7508 7.47733 10.6294L15.4174 6.65943C15.957 7.47731 16.9111 8 18 8Z" 
+                                    stroke="currentColor" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                                Share
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* {recall.source === 'USDA' && (recall.originalData?.field_summary || recall.productDescription) && (
                           <div className={styles.detailSection}>
                             <h4 style={{ color: currentTheme.text }}>Summary</h4>
@@ -740,12 +830,13 @@ export function EditableRecallList({
                     )}
                     
                     <div className={styles.recallActions}>
+                      {/* View Details / Show Less Button - always show */}
                       <Button 
                         size="small" 
                         variant="secondary"
-                        onClick={() => handleViewDetails(recall, cardId)}
+                        onClick={() => handleToggleDetails(recall, cardId)}
                       >
-                        {(display?.previewUrl || recall.recallUrl) ? `Visit ${recall.source} Page` : (isExpanded ? 'Show Less' : 'View Details')}
+                        {isExpanded ? 'Show Less' : 'View Details'}
                       </Button>
                     </div>
                   </div>

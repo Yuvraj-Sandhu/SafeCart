@@ -96,17 +96,38 @@ export default function Home() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      let response;
+      // Fetch regular recalls and temp recalls in parallel
+      const promises = [];
       
       if (selectedState === 'ALL') {
         // Get all recalls from all states
-        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr);
+        promises.push(api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr));
+        promises.push(api.getAllTempRecalls(500, startDateStr, endDateStr));
       } else {
         // Get recalls for specific state
-        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr);
+        promises.push(api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr));
+        promises.push(api.getTempRecallsByState(selectedState, 500, startDateStr, endDateStr)); // Limit temp recalls to 500
       }
       
-      setRecalls(response.data);
+      const [recallsResponse, tempRecallsResponse] = await Promise.allSettled(promises);
+      
+      // Handle regular recalls
+      let regularRecalls: UnifiedRecall[] = [];
+      if (recallsResponse.status === 'fulfilled') {
+        regularRecalls = recallsResponse.value.data;
+      } else {
+        setError('Failed to fetch recalls');
+      }
+      
+      // Handle temp recalls
+      let tempRecallsData: UnifiedRecall[] = [];
+      if (tempRecallsResponse.status === 'fulfilled') {
+        tempRecallsData = tempRecallsResponse.value.data;
+      }
+      
+      // Merge temp recalls with regular recalls (temp recalls first)
+      const allRecalls = [...tempRecallsData, ...regularRecalls];
+      setRecalls(allRecalls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
@@ -186,6 +207,7 @@ export default function Home() {
 
         {hasSearched && (
           <div className={styles.results}>
+            {/* Show all recalls (temp + regular) */}
             <RecallList
               recalls={recalls}
               loading={loading}

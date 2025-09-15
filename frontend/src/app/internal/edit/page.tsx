@@ -119,17 +119,38 @@ export default function InternalEditPage() {
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
       
-      let response;
+      // Fetch regular recalls and temp recalls in parallel
+      const promises = [];
       
       if (selectedState === 'ALL') {
         // Get all recalls from all states - exclude pending changes
-        response = await api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr, true);
+        promises.push(api.getAllUnifiedRecalls('BOTH', startDateStr, endDateStr, true));
+        promises.push(api.getAllTempRecalls(500, startDateStr, endDateStr, true));
       } else {
         // Get recalls for specific state - exclude pending changes
-        response = await api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr, true);
+        promises.push(api.getUnifiedRecallsByState(selectedState, 'BOTH', startDateStr, endDateStr, true));
+        promises.push(api.getTempRecallsByState(selectedState, 500, startDateStr, endDateStr, true));
       }
       
-      setRecalls(response.data);
+      const [recallsResponse, tempRecallsResponse] = await Promise.allSettled(promises);
+      
+      // Handle regular recalls
+      let regularRecalls: UnifiedRecall[] = [];
+      if (recallsResponse.status === 'fulfilled') {
+        regularRecalls = recallsResponse.value.data;
+      } else {
+        setError('Failed to fetch recalls');
+      }
+      
+      // Handle temp recalls
+      let tempRecallsData: UnifiedRecall[] = [];
+      if (tempRecallsResponse.status === 'fulfilled') {
+        tempRecallsData = tempRecallsResponse.value.data;
+      }
+      
+      // Merge temp recalls with regular recalls (temp recalls first)
+      const allRecalls = [...tempRecallsData, ...regularRecalls];
+      setRecalls(allRecalls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
@@ -462,6 +483,7 @@ export default function InternalEditPage() {
 
           {hasSearched && (
             <div className={styles.results}>
+              {/* Show all recalls (temp + regular) */}
               <EditableRecallList
                 recalls={getFilteredRecalls()}
                 loading={loading}

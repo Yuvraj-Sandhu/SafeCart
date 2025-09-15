@@ -85,6 +85,17 @@ router.get('/public/recall/:id', async (req: Request, res: Response) => {
       });
     }
     
+    // Try to find in temp FDA recalls
+    const tempRecall = await fdaFirebaseService.getTempRecallById(id);
+    
+    if (tempRecall) {
+      return res.json({
+        success: true,
+        recall: tempRecall,
+        source: 'FDA'
+      });
+    }
+    
     // Recall not found
     res.status(404).json({
       success: false,
@@ -405,18 +416,25 @@ router.post('/sync/fda/trigger', authenticate, requireAdmin, async (req: Request
  * enforcement reports from the FDA website. This provides faster
  * updates than the FDA API.
  * 
+ * @body {number} weeks - Number of past weeks to fetch (default 4, 0 for new recalls only)
  * @returns JSON response with sync status
  * 
  * @example
  * POST /api/sync/fda/ires/trigger
+ * Body: { "weeks": 2 }
  */
 router.post('/sync/fda/ires/trigger', authenticate, requireAdmin, async (req: Request, res: Response) => {
   try {
     // Import the IRES sync service
     const { fdaIRESSyncService } = require('../services/fda/ires-sync.service');
     
+    // Get weeks from request body (default to 4 if not provided)
+    const weeks = typeof req.body.weeks === 'number' && req.body.weeks >= 0 
+      ? req.body.weeks 
+      : 4;
+    
     // Start the sync and wait for result
-    const result = await fdaIRESSyncService.triggerManualSync();
+    const result = await fdaIRESSyncService.triggerManualSync(weeks);
     
     res.json(result);
   } catch (error) {

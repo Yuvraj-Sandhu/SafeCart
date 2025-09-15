@@ -7,11 +7,38 @@
  * The IRES system provides weekly enforcement reports that are more up-to-date than the OpenFDA API.
  * 
  * Installation:
- *   npm install playwright
+ *   npm install playwright playwright-extra puppeteer-extra-plugin-stealth
  *   npx playwright install chromium
+ * 
+ * Stealth Mode:
+ *   When running in headless mode (for Cloud Run), uses playwright-extra with stealth plugin
+ *   to evade bot detection mechanisms.
  */
 
-const { chromium } = require('playwright');
+// Dynamically load playwright or playwright-extra based on requirements
+let chromium;
+let useStealthMode = false;
+
+try {
+  // Try to load playwright-extra with stealth plugin
+  const { chromium: playwrightChromium } = require('playwright-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  
+  // Add stealth plugin with all evasions
+  playwrightChromium.use(StealthPlugin());
+  
+  chromium = playwrightChromium;
+  useStealthMode = true;
+  console.log('Stealth mode available - will use enhanced evasion techniques');
+} catch (error) {
+  // Debug the error
+  console.log('Could not load stealth mode:', error.message);
+  
+  // Fallback to regular playwright if stealth dependencies not installed
+  chromium = require('playwright').chromium;
+  console.log('Using standard Playwright (stealth mode not available)');
+}
+
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -30,23 +57,96 @@ class FDAIRESScraper {
    */
   async init() {
     console.log('Initializing browser...');
+    console.log(`Mode: ${this.headless ? 'Headless' : 'Headed'}, Stealth: ${useStealthMode && this.headless ? 'Enabled' : 'Disabled'}`);
     
-    this.browser = await chromium.launch({
-      headless: this.headless,
-      args: [
+    // Enhanced args for stealth mode
+    const browserArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor'
+    ];
+    
+    // Add stealth-specific args when in headless mode with stealth
+    if (this.headless && useStealthMode) {
+      browserArgs.push(
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--window-size=1920,1080',
+        '--start-maximized',
+        '--disable-infobars',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      );
+    } else if (!this.headless) {
+      // Non-stealth args for headed mode
+      browserArgs.push(
         '--disable-blink-features=AutomationControlled',
         '--disable-features=IsolateOrigins,site-per-process'
-      ]
-    });
+      );
+    }
+    
+    const launchOptions = {
+      headless: this.headless,
+      args: browserArgs
+    };
+    
+    // Remove automation flag when using stealth
+    if (this.headless && useStealthMode) {
+      launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+    }
+    
+    this.browser = await chromium.launch(launchOptions);
 
-    this.context = await this.browser.newContext({
+    // Enhanced context options for stealth
+    const contextOptions = {
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      extraHTTPHeaders: {
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      permissions: ['geolocation']
+    };
+    
+    // Add more realistic headers when using stealth
+    if (this.headless && useStealthMode) {
+      contextOptions.screen = { width: 1920, height: 1080 };
+      contextOptions.deviceScaleFactor = 1;
+      contextOptions.hasTouch = false;
+      contextOptions.isMobile = false;
+      contextOptions.permissions = ['geolocation', 'notifications'];
+      contextOptions.extraHTTPHeaders = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="121", "Google Chrome";v="121"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-User': '?1',
+        'Sec-Fetch-Dest': 'document',
+        'Upgrade-Insecure-Requests': '1'
+      };
+    } else {
+      contextOptions.extraHTTPHeaders = {
         'Accept-Language': 'en-US,en;q=0.9'
-      }
-    });
-
+      };
+    }
+    
+    this.context = await this.browser.newContext(contextOptions);
+    
+    // Apply additional evasions to context BEFORE creating page when in stealth mode
+    if (this.headless && useStealthMode) {
+      await this.applyStealthEvasions();
+    }
+    
     this.page = await this.context.newPage();
 
     // Log console messages for debugging (filter out font/resource errors)
@@ -67,26 +167,187 @@ class FDAIRESScraper {
   }
 
   /**
+   * Apply additional stealth evasions beyond the stealth plugin
+   */
+  async applyStealthEvasions() {
+    console.log('Applying additional stealth evasions...');
+    
+    // Apply to context so it affects all pages created from this context
+    await this.context.addInitScript(() => {
+      // Override navigator.webdriver
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
+      
+      // Mock chrome runtime
+      if (!window.chrome) {
+        window.chrome = {};
+      }
+      if (!window.chrome.runtime) {
+        window.chrome.runtime = {
+          connect: () => {},
+          sendMessage: () => {},
+          onMessage: { addListener: () => {} }
+        };
+      }
+      
+      // Override plugins to look realistic
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+          {
+            0: { type: 'application/x-google-chrome-pdf', suffixes: 'pdf', description: 'Portable Document Format' },
+            length: 1,
+            name: 'Chrome PDF Plugin'
+          },
+          {
+            0: { type: 'application/x-nacl', suffixes: '', description: 'Native Client Executable' },
+            length: 1,
+            name: 'Native Client'
+          }
+        ]
+      });
+      
+      // Override permissions API
+      if (window.navigator.permissions && window.navigator.permissions.query) {
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => {
+          if (parameters.name === 'notifications') {
+            return Promise.resolve({ state: 'granted' });
+          }
+          return originalQuery(parameters);
+        };
+      }
+      
+      // Add chrome.loadTimes
+      if (window.chrome) {
+        window.chrome.loadTimes = () => ({
+          requestTime: Date.now() / 1000 - 100,
+          startLoadTime: Date.now() / 1000 - 99,
+          commitLoadTime: Date.now() / 1000 - 98,
+          finishDocumentLoadTime: Date.now() / 1000 - 97,
+          finishLoadTime: Date.now() / 1000 - 96,
+          navigationStart: Date.now() / 1000 - 100
+        });
+      }
+      
+      // Mock battery API
+      if (!navigator.getBattery) {
+        navigator.getBattery = () => Promise.resolve({
+          charging: true,
+          chargingTime: Infinity,
+          dischargingTime: Infinity,
+          level: 1.0,
+          addEventListener: () => {},
+          removeEventListener: () => {}
+        });
+      }
+      
+      // Override WebGL vendor and renderer
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter.apply(this, arguments);
+      };
+      
+      const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+        if (parameter === 37445) {
+          return 'Intel Inc.';
+        }
+        if (parameter === 37446) {
+          return 'Intel Iris OpenGL Engine';
+        }
+        return getParameter2.apply(this, arguments);
+      };
+    });
+  }
+
+  /**
    * Navigate to IRES and wait for it to load
    */
   async navigateToIRES() {
-    console.log(`Navigating to ${this.baseUrl}...`);
+    const maxRetries = 3;
+    let attempt = 0;
     
-    await this.page.goto(this.baseUrl, {
-      waitUntil: 'load',
-      timeout: 60000
-    });
+    while (attempt < maxRetries) {
+      try {
+        console.log(`Navigating to ${this.baseUrl} (attempt ${attempt + 1}/${maxRetries})...`);
+        
+        const response = await this.page.goto(this.baseUrl, {
+          waitUntil: 'networkidle',
+          timeout: 60000
+        });
+        
+        // Check response status
+        if (response) {
+          console.log(`Response status: ${response.status()}`);
+          
+          // Check for bot detection
+          if (response.status() === 403 || response.status() === 429) {
+            console.warn(`Possible bot detection (HTTP ${response.status()})`);
+            
+            if (attempt < maxRetries - 1) {
+              // Exponential backoff
+              const waitTime = Math.pow(2, attempt) * 5000;
+              console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
+              await this.page.waitForTimeout(waitTime);
+              
+              // Clear cookies and try again
+              await this.context.clearCookies();
+              attempt++;
+              continue;
+            }
+          }
+        }
 
-    // Wait for the main content to load
-    await this.page.waitForSelector('body', { timeout: 30000 });
-    
-    console.log('IRES page loaded');
-    
-    // Take a screenshot for debugging
-    if (this.debug) {
-      await this.page.screenshot({ path: 'debug-ires-home.png' });
-      console.log('Screenshot saved: debug-ires-home.png');
+        // Wait for the main content to load
+        await this.page.waitForSelector('body', { timeout: 30000 });
+        
+        // Additional wait for dynamic content
+        await this.page.waitForTimeout(2000);
+        
+        // Verify we're on the correct page by checking for specific elements
+        const hasTable = await this.page.locator('#fda_table').count() > 0;
+        const hasDropdown = await this.page.locator('select[name="month_select"]').count() > 0;
+        
+        if (hasTable || hasDropdown) {
+          console.log('IRES page loaded successfully');
+          
+          // Take a screenshot for debugging
+          if (this.debug) {
+            await this.page.screenshot({ path: 'debug-ires-home.png' });
+            console.log('Screenshot saved: debug-ires-home.png');
+          }
+          
+          return true;
+        } else {
+          console.warn('Page loaded but expected elements not found');
+          if (attempt < maxRetries - 1) {
+            attempt++;
+            continue;
+          }
+        }
+        
+      } catch (error) {
+        console.error(`Navigation attempt ${attempt + 1} failed:`, error.message);
+        
+        if (attempt < maxRetries - 1) {
+          attempt++;
+          const waitTime = Math.pow(2, attempt) * 3000;
+          console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
+          await this.page.waitForTimeout(waitTime);
+        } else {
+          throw new Error(`Failed to navigate to IRES after ${maxRetries} attempts: ${error.message}`);
+        }
+      }
     }
+    
+    throw new Error(`Failed to load IRES page after ${maxRetries} attempts`);
   }
 
   /**
@@ -324,53 +585,89 @@ class FDAIRESScraper {
   }
 
   /**
+   * Try to find and return the Product Type dropdown with Food option
+   */
+  async findProductTypeDropdown() {
+    // Get all select elements and check what we have
+    const selects = await this.page.locator('select').all();
+    console.log(`Found ${selects.length} select elements on page`);
+    
+    // Look for the select that contains 'Food' option
+    let productTypeSelect = null;
+    let selectIndex = -1;
+    
+    for (let i = 0; i < selects.length; i++) {
+      const select = selects[i];
+      
+      // Check if element is visible and enabled
+      const isVisible = await select.isVisible({ timeout: 1000 }).catch(() => false);
+      const isEnabled = await select.isEnabled({ timeout: 1000 }).catch(() => false);
+      
+      if (isVisible && isEnabled) {
+        // Click to load options for visible and enabled selects
+        await select.click({ timeout: 10000 }).catch(() => {});
+        await this.page.waitForTimeout(500);
+      }
+      
+      const options = await select.locator('option').all();
+      let hasFoodOption = false;
+      
+      for (const option of options) {
+        const text = await option.textContent().catch(() => '');
+        if (text && text.toLowerCase().includes('food')) {
+          hasFoodOption = true;
+          break;
+        }
+      }
+      
+      if (hasFoodOption) {
+        productTypeSelect = select;
+        selectIndex = i;
+        console.log(`Found Product Type dropdown at position ${i + 1}`);
+        break;
+      }
+    }
+    
+    return productTypeSelect;
+  }
+
+  /**
    * Filter the results to show only Food products
    */
   async filterByFoodProducts() {
-    console.log('🍔 Filtering by Food products...');
+    console.log('Filtering by Food products...');
     
     try {
-      // Wait 10 seconds for form elements to fully load
-      console.log('⏳ Waiting 10 seconds for form elements to load...');
-      await this.page.waitForTimeout(10000);
-      
-      // Get all select elements and check what we have
-      const selects = await this.page.locator('select').all();
-      console.log(`🔍 Found ${selects.length} select elements on page`);
-      
-      // Look for the select that contains 'Food' option
       let productTypeSelect = null;
-      let selectIndex = -1;
+      const waitTimes = [10000, 30000, 60000, 90000]; // 10s, 30s, 60s, 90s
+      let totalWaitTime = 0;
       
-      for (let i = 0; i < selects.length; i++) {
-        const select = selects[i];
+      // Try to find the dropdown with progressive wait times
+      for (let attempt = 0; attempt < waitTimes.length; attempt++) {
+        const waitTime = waitTimes[attempt];
         
-        // Check if element is visible and enabled
-        const isVisible = await select.isVisible({ timeout: 1000 }).catch(() => false);
-        const isEnabled = await select.isEnabled({ timeout: 1000 }).catch(() => false);
-        
-        if (isVisible && isEnabled) {
-          // Click to load options for visible and enabled selects
-          await select.click({ timeout: 10000 });
-          await this.page.waitForTimeout(500);
+        if (attempt === 0) {
+          console.log(`Waiting ${waitTime / 1000} seconds for form elements to load...`);
+        } else {
+          console.log(`Retry ${attempt}: Waiting additional ${waitTime / 1000} seconds for slow-loading page...`);
         }
         
-        const options = await select.locator('option').all();
-        let hasFoodOption = false;
+        await this.page.waitForTimeout(waitTime);
+        totalWaitTime += waitTime;
         
-        for (const option of options) {
-          const text = await option.textContent().catch(() => '');
-          if (text && text.toLowerCase().includes('food')) {
-            hasFoodOption = true;
-            break;
-          }
-        }
+        // Try to find the Product Type dropdown
+        productTypeSelect = await this.findProductTypeDropdown();
         
-        if (hasFoodOption) {
-          productTypeSelect = select;
-          selectIndex = i;
-          console.log(`✅ Found Product Type dropdown at position ${i + 1}`);
+        if (productTypeSelect) {
+          console.log(`Successfully found Product Type dropdown after ${totalWaitTime / 1000} seconds total wait`);
           break;
+        } else {
+          console.log(`Product Type dropdown not found after ${totalWaitTime / 1000} seconds`);
+          
+          if (attempt < waitTimes.length - 1) {
+            // Try refreshing the page state before next attempt
+            await this.page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+          }
         }
       }
       
@@ -380,10 +677,10 @@ class FDAIRESScraper {
         if (isVisible) {
           // Select the Food option for visible dropdown
           await productTypeSelect.selectOption({ label: 'Food' });
-          console.log('✅ Selected Food from Product Type dropdown');
+          console.log('Selected Food from Product Type dropdown');
         } else {
           // For invisible multi-select dropdown, try scrolling into view first
-          console.log('🔄 Product Type dropdown not visible, trying to scroll into view...');
+          console.log('Product Type dropdown not visible, trying to scroll into view...');
           await productTypeSelect.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
           await this.page.waitForTimeout(1000);
           
@@ -392,7 +689,7 @@ class FDAIRESScraper {
           
           if (isVisibleAfterScroll) {
             await productTypeSelect.selectOption({ label: 'Food' });
-            console.log('✅ Selected Food from Product Type dropdown after scrolling');
+            console.log('Selected Food from Product Type dropdown after scrolling');
           } else {
             // Try using JavaScript to select the option directly
             console.log('🔧 Trying JavaScript selection for hidden dropdown...');
@@ -411,7 +708,7 @@ class FDAIRESScraper {
               }
               return false;
             });
-            console.log('✅ Attempted JavaScript selection for Food option');
+            console.log('Attempted JavaScript selection for Food option');
           }
         }
         
@@ -422,15 +719,17 @@ class FDAIRESScraper {
         // Take a screenshot to see the filtered results
         if (this.debug) {
           await this.page.screenshot({ path: 'debug-food-filtered.png' });
-          console.log('📸 Screenshot saved: debug-food-filtered.png');
+          console.log('Screenshot saved: debug-food-filtered.png');
         }
       } else {
-        throw new Error('Could not find Product Type dropdown with Food option');
+        // After all retries failed
+        const maxWaitTime = waitTimes.reduce((a, b) => a + b, 0) / 1000;
+        throw new Error(`Could not find Product Type dropdown with Food option after ${maxWaitTime} seconds of waiting`);
       }
 
     } catch (error) {
-      console.error('❌ Error filtering by Food products:', error);
-      console.log('⚠️  Proceeding with all results');
+      console.error('Error filtering by Food products:', error);
+      console.log('Proceeding with all results');
     }
   }
 
@@ -438,7 +737,7 @@ class FDAIRESScraper {
    * Extract recall data from the current page
    */
   async extractRecallData() {
-    console.log('📊 Extracting recall data...');
+    console.log('Extracting recall data...');
     
     try {
       // Wait for the data table to be present
@@ -453,7 +752,7 @@ class FDAIRESScraper {
         const fdaTable = document.querySelector('#fda_table');
         if (fdaTable) {
           const rows = fdaTable.querySelectorAll('tbody tr');
-          console.log(`Found ${rows.length} data rows in #fda_table tbody`);
+          // console.log(`Found ${rows.length} data rows in #fda_table tbody`);
           
           // For each row, just check if it has a View Details link
           rows.forEach((row, index) => {
@@ -471,12 +770,12 @@ class FDAIRESScraper {
         return data;
       });
 
-      console.log(`✅ Found ${recalls.length} recalls with View Details links`);
+      console.log(`Found ${recalls.length} recalls with View Details links`);
       
       return recalls;
 
     } catch (error) {
-      console.error('❌ Error extracting recall data:', error);
+      console.error('Error extracting recall data:', error);
       return [];
     }
   }
@@ -487,15 +786,27 @@ class FDAIRESScraper {
    * @param {number} recallIndex - Index of the recall (for finding the correct button)
    */
   async extractDetailedInfo(recall, recallIndex) {
-    console.log(`🔍 Getting details for recall ${recallIndex + 1} (row ${recall.rowIndex})`);
+    console.log(`Getting details for recall ${recallIndex + 1} (row ${recall.rowIndex})`);
     
     try {
+      // Add a small delay between recalls to avoid overwhelming the server
+      if (recallIndex > 0) {
+        await this.page.waitForTimeout(500);
+      }
+      
+      // Wait for any pending network requests to complete
+      // try {
+      //   await this.page.waitForLoadState('networkidle', { timeout: 5000 });
+      // } catch (e) {
+      //   console.log('Network not idle, continuing anyway');
+      // }
+      
       // The view details are links in the fda_table specifically
       // Target the correct table using its ID
       const fdaTable = this.page.locator('#fda_table');
       const tableRows = await fdaTable.locator('tbody tr').all();
       
-      console.log(`📊 Found ${tableRows.length} data rows in #fda_table tbody`);
+      // console.log(`Found ${tableRows.length} data rows in #fda_table tbody`);
       
       if (recall.rowIndex < tableRows.length) {
         const targetRow = tableRows[recall.rowIndex];
@@ -505,39 +816,136 @@ class FDAIRESScraper {
           const targetLink = await targetRow.locator('td.productType a').first();
           
           if (await targetLink.isVisible({ timeout: 2000 })) {
-            // Click the link
-            await targetLink.click();
-            console.log('✅ Clicked View Details link');
+            // Scroll to the element and hover (more human-like interaction)
+            try {
+              await targetLink.scrollIntoViewIfNeeded();
+              await this.page.waitForTimeout(100);
+              await targetLink.hover();
+              await this.page.waitForTimeout(100);
+            } catch (e) {
+              console.log('Could not scroll/hover, continuing anyway');
+            }
             
-            // Wait for modal to appear and load content
-            await this.page.waitForTimeout(2000);
+            // Try multiple click strategies
+            let clicked = false;
+            let clickAttempt = 0;
+            const maxClickAttempts = 3;
             
-            // Extract detailed information from the modal ONLY
-            const detailedInfo = await this.extractModalContent();
+            while (!clicked && clickAttempt < maxClickAttempts) {
+              clickAttempt++;
+              console.log(`Click attempt ${clickAttempt}/${maxClickAttempts} for recall ${recallIndex + 1}`);
+              
+              try {
+                if (clickAttempt === 1) {
+                  // First attempt: Regular click with shorter timeout
+                  await targetLink.click({ timeout: 5000 });
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (regular click)');
+                } else if (clickAttempt === 2) {
+                  // Second attempt: Force click to bypass any overlays
+                  await targetLink.click({ force: true, timeout: 5000 });
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (force click)');
+                } else {
+                  // Third attempt: JavaScript click
+                  await this.page.evaluate((rowIdx) => {
+                    const rows = document.querySelectorAll('#fda_table tbody tr');
+                    const row = rows[rowIdx];
+                    if (row) {
+                      const link = row.querySelector('td.productType a');
+                      if (link) {
+                        link.click();
+                        return true;
+                      }
+                    }
+                    return false;
+                  }, recall.rowIndex);
+                  clicked = true;
+                  console.log('Successfully clicked View Details link (JavaScript click)');
+                }
+                
+                // If click succeeded, wait for modal
+                if (clicked) {
+                  // Try to detect modal with retry logic
+                  let modalDetected = false;
+                  const modalWaitTimes = [100, 500, 1000, 2000]; // 100ms, then 500ms, then 1s, then 2s
+
+                  for (let modalAttempt = 0; modalAttempt < modalWaitTimes.length; modalAttempt++) {
+                    const waitTime = modalWaitTimes[modalAttempt];
+                    
+                    if (modalAttempt === 0) {
+                      // First attempt - wait initial time
+                      await this.page.waitForTimeout(waitTime);
+                    } else {
+                      // Retry attempts - wait additional time
+                      console.log(`Modal retry ${modalAttempt}: waiting additional ${waitTime}ms...`);
+                      await this.page.waitForTimeout(waitTime);
+                    }
+                    
+                    // Check directly if modal content is visible
+                    const hasProductData = await this.page.locator('#productData').isVisible({ timeout: 100 }).catch(() => false);
+                    const hasDialog = await this.page.locator('.ui-dialog-content, [role="dialog"]').first().isVisible({ timeout: 100 }).catch(() => false);
+                    
+                    if (hasProductData || hasDialog) {
+                      console.log(`Modal detected after ${modalAttempt === 0 ? waitTime : 'retry ' + modalAttempt}`);
+                      modalDetected = true;
+                      break;
+                    }
+                  }
+                  
+                  if (!modalDetected) {
+                    console.log('Modal not visible after all retries, trying next click method...');
+                    clicked = false;
+                  }
+                } 
+              } catch (clickError) {
+                console.log(`Click attempt ${clickAttempt} failed: ${clickError.message}`);
+                if (clickAttempt < maxClickAttempts) {
+                  // Wait before retry
+                  await this.page.waitForTimeout(2000);
+                }
+              }
+            }
             
-            // Close the modal
-            await this.closeModal();
-            
-            // Return ONLY modal data in exact order
-            return detailedInfo;
+            if (clicked) {
+              // Extract detailed information from the modal ONLY
+              const detailedInfo = await this.extractModalContent();
+              
+              // Close the modal
+              await this.closeModal();
+              
+              // Return ONLY modal data in exact order
+              return detailedInfo;
+            } else {
+              console.log('All click attempts failed for this recall');
+              
+              // Last resort: Try to extract anyway in case modal is there but detection failed
+              console.log('Attempting extraction despite click failure...');
+              const detailedInfo = await this.extractModalContent();
+              if (detailedInfo && Object.keys(detailedInfo).length > 0) {
+                console.log('Successfully extracted data despite click issues');
+                await this.closeModal();
+                return detailedInfo;
+              }
+            }
           } else {
-            console.log('⚠️  View Details link not visible');
+            console.log('View Details link not visible');
           }
         } catch (e) {
-          console.log('⚠️  Error clicking View Details link:', e.message);
+          console.log('Error processing View Details link:', e.message);
         }
       }
 
       // Fallback if no link found
-      console.log('⚠️  Could not find View Details link for this recall');
+      console.log('Could not find View Details link for this recall');
       return {};
 
     } catch (error) {
-      console.error('❌ Error extracting detailed info:', error);
+      console.error('Error extracting detailed info:', error);
       
       if (this.debug) {
         await this.page.screenshot({ path: `debug-detail-error-${recallIndex}.png` });
-        console.log(`📸 Error screenshot saved: debug-detail-error-${recallIndex}.png`);
+        console.log(`Error screenshot saved: debug-detail-error-${recallIndex}.png`);
       }
       
       return {};
@@ -549,12 +957,55 @@ class FDAIRESScraper {
    */
   async extractModalContent() {
     try {
-      // Wait for modal content to load
-      await this.page.waitForTimeout(1000);
+      // Progressive wait for modal content to load
+      const contentWaitTimes = [100, 300, 1000]; // 100ms, then 300ms, then 1000ms
+      let contentReady = false;
+      
+      for (let contentAttempt = 0; contentAttempt < contentWaitTimes.length; contentAttempt++) {
+        const waitTime = contentWaitTimes[contentAttempt];
+        
+        if (contentAttempt === 0) {
+          // First attempt - wait initial time
+          await this.page.waitForTimeout(waitTime);
+        } else {
+          // Retry attempts - wait additional time
+          console.log(`Modal content retry ${contentAttempt}: waiting additional ${waitTime}ms...`);
+          await this.page.waitForTimeout(waitTime);
+        }
+        
+        // Check if modal content has loaded by looking for data rows
+        const hasContent = await this.page.evaluate(() => {
+          const productData = document.querySelector('#productData');
+          if (productData) {
+            const rows = productData.querySelectorAll('.row.displayDetailsColumn');
+            return rows.length > 0;
+          }
+          return false;
+        });
+        
+        if (hasContent) {
+          console.log(`Modal content ready after ${contentAttempt === 0 ? waitTime + 'ms' : 'retry ' + contentAttempt}`);
+          contentReady = true;
+          break;
+        }
+      }
+      
+      if (!contentReady) {
+        console.log('Modal content not fully loaded after all retries, extracting anyway...');
+      }
 
       // Extract information from the modal using the specific HTML structure
       const modalData = await this.page.evaluate(() => {
         const data = {};
+        
+        // Debug: Check what modal elements exist
+        const debugInfo = {
+          hasProductData: !!document.querySelector('#productData'),
+          hasUIDialog: !!document.querySelector('.ui-dialog-content'),
+          hasRoleDialog: !!document.querySelector('[role="dialog"]'),
+          hasModal: !!document.querySelector('.modal')
+        };
+        console.log('Modal elements present:', JSON.stringify(debugInfo));
         
         // Target the productData container specifically
         const productData = document.querySelector('#productData');
@@ -688,8 +1139,20 @@ class FDAIRESScraper {
                     // Strategy 1: Check if value paragraph is direct sibling of boldFont div
                     const directSiblingP = boldDiv.nextElementSibling;
                     if (directSiblingP && directSiblingP.tagName === 'P') {
-                      // Use textContent which won't be broken by quotes/apostrophes
-                      valueText = directSiblingP.textContent?.trim() || '';
+                      // Special handling for fields with addresses (preserve line breaks)
+                      if (labelText.includes('Recalling Firm')) {
+                        // Get innerHTML and replace <br> tags with double spaces
+                        const innerHTML = directSiblingP.innerHTML || '';
+                        // Replace <br> tags with double spaces to preserve line breaks
+                        const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                        // Create a temporary element to extract text
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = textWithBreaks;
+                        valueText = tempDiv.textContent?.trim() || '';
+                      } else {
+                        // Use textContent which won't be broken by quotes/apostrophes
+                        valueText = directSiblingP.textContent?.trim() || '';
+                      }
                       // If textContent is empty, try aria-label as fallback
                       if (!valueText && directSiblingP.hasAttribute('aria-label')) {
                         valueText = directSiblingP.getAttribute('aria-label') || '';
@@ -702,8 +1165,17 @@ class FDAIRESScraper {
                       if (valueDiv && valueDiv.tagName === 'DIV') {
                         const valueP = valueDiv.querySelector('p');
                         if (valueP) {
-                          // Use textContent first
-                          valueText = valueP.textContent?.trim() || '';
+                          // Special handling for fields with addresses (preserve line breaks)
+                          if (labelText.includes('Recalling Firm')) {
+                            const innerHTML = valueP.innerHTML || '';
+                            const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = textWithBreaks;
+                            valueText = tempDiv.textContent?.trim() || '';
+                          } else {
+                            // Use textContent first
+                            valueText = valueP.textContent?.trim() || '';
+                          }
                           // Fallback to aria-label if textContent is empty
                           if (!valueText && valueP.hasAttribute('aria-label')) {
                             valueText = valueP.getAttribute('aria-label') || '';
@@ -716,8 +1188,18 @@ class FDAIRESScraper {
                     if (!valueText) {
                       const allParagraphs = column.querySelectorAll('p');
                       for (const p of allParagraphs) {
-                        // Use textContent first
-                        const pText = p.textContent?.trim() || '';
+                        let pText = '';
+                        // Special handling for fields with addresses (preserve line breaks)
+                        if (labelText.includes('Recalling Firm')) {
+                          const innerHTML = p.innerHTML || '';
+                          const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = textWithBreaks;
+                          pText = tempDiv.textContent?.trim() || '';
+                        } else {
+                          // Use textContent first
+                          pText = p.textContent?.trim() || '';
+                        }
                         // If this paragraph doesn't contain a colon (not a label), it's likely a value
                         if (pText && !pText.includes(':') && pText !== labelText) {
                           valueText = pText;
@@ -740,8 +1222,18 @@ class FDAIRESScraper {
                       if (parentRow) {
                         const allRowParagraphs = parentRow.querySelectorAll('p');
                         for (const p of allRowParagraphs) {
-                          // Use textContent instead of aria-label to avoid broken attributes
-                          const pText = p.textContent?.trim() || '';
+                          let pText = '';
+                          // Special handling for fields with addresses (preserve line breaks)
+                          if (labelText.includes('Recalling Firm')) {
+                            const innerHTML = p.innerHTML || '';
+                            const textWithBreaks = innerHTML.replace(/<br\s*\/?>/gi, '  ');
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = textWithBreaks;
+                            pText = tempDiv.textContent?.trim() || '';
+                          } else {
+                            // Use textContent instead of aria-label to avoid broken attributes
+                            pText = p.textContent?.trim() || '';
+                          }
                           // Skip if this is a label (contains colon) or is empty
                           if (pText && !pText.includes(':') && pText !== labelText) {
                             valueText = pText;
@@ -787,11 +1279,11 @@ class FDAIRESScraper {
         }
       });
 
-      console.log(`📋 Extracted ${extractedCount} additional data fields from modal`);
+      console.log(`Extracted ${extractedCount} additional data fields from modal`);
       return cleanedData;
 
     } catch (error) {
-      console.log('⚠️  Error extracting modal content:', error.message);
+      console.log('Error extracting modal content:', error.message);
       return {};
     }
   }
@@ -801,33 +1293,37 @@ class FDAIRESScraper {
    */
   async closeModal() {
     try {
-      // Try different methods to close the modal
-      const closeActions = [
-        () => this.page.locator('.ui-dialog-titlebar-close').click(),
-        () => this.page.locator('[aria-label="close"]').click(),
-        () => this.page.locator('.close').click(),
-        () => this.page.keyboard.press('Escape')
-      ];
-
-      for (const closeAction of closeActions) {
-        try {
-          await closeAction();
-          await this.page.waitForTimeout(500);
-          
-          // Check if modal is closed by looking for the modal element
-          const modalExists = await this.page.locator('.ui-dialog-content, [role="dialog"], .modal').isVisible().catch(() => false);
-          if (!modalExists) {
-            console.log('✅ Modal closed');
-            return;
-          }
-        } catch (e) {
-          // Try next close method
-        }
+      // First try the most reliable method - ESC key
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(200); // Small wait to let modal close
+      
+      // Quick check if modal is closed
+      const modalExists = await this.page.locator('.ui-dialog-content, [role="dialog"], .modal, #productData')
+        .first()
+        .isVisible({ timeout: 100 })
+        .catch(() => false);
+      
+      if (!modalExists) {
+        console.log('Modal closed');
+        return;
       }
-
-      console.log('⚠️  Could not close modal, continuing anyway');
+      
+      // If ESC didn't work, try clicking the close button
+      try {
+        const closeButton = this.page.locator('.ui-dialog-titlebar-close').first();
+        if (await closeButton.isVisible({ timeout: 100 })) {
+          await closeButton.click();
+          console.log('Modal closed via button');
+          return;
+        }
+      } catch (e) {
+        // Button not found or clickable
+      }
+      
+      // If still not closed, just continue (modal might auto-close on next action)
+      console.log('Modal may still be open, continuing anyway');
     } catch (error) {
-      console.log('⚠️  Error closing modal:', error.message);
+      console.log('Error closing modal:', error.message);
     }
   }
 
@@ -852,7 +1348,7 @@ class FDAIRESScraper {
       return isFoodType || isFoodDesc;
     });
     
-    console.log(`🍔 Filtered ${foodRecalls.length} food recalls from ${recalls.length} total recalls`);
+    console.log(`Filtered ${foodRecalls.length} food recalls from ${recalls.length} total recalls`);
     
     if (foodRecalls.length > 0) {
       const foodTypes = {};
@@ -860,7 +1356,7 @@ class FDAIRESScraper {
         const type = recall.productType || recall.product_type || 'Unknown';
         foodTypes[type] = (foodTypes[type] || 0) + 1;
       });
-      console.log('📊 Food product types:', foodTypes);
+      console.log('Food product types:', foodTypes);
     }
     
     return foodRecalls;
@@ -1005,7 +1501,8 @@ class FDAIRESScraper {
         const processingCount = Math.min(recalls.length, maxRecalls);
         console.log(`Processing ${processingCount} recalls for detailed info...`);
         
-        // Get detailed information for each recall
+        
+        // Get detailed information for each recall sequentially
         for (let i = 0; i < processingCount; i++) {
           const detailedRecall = await this.extractDetailedInfo(recalls[i], i);
           
@@ -1015,9 +1512,11 @@ class FDAIRESScraper {
           
           allDetailedRecalls.push(detailedRecall);
           
-          // Small delay between requests
+          // Small delay between requests to avoid overwhelming the server
           await this.page.waitForTimeout(500);
         }
+        
+        console.log(`Completed processing ${allDetailedRecalls.length} recalls from this report`);
         
         // Navigate back to the main page for next report (if not last)
         if (reportIndex < reports.length - 1) {
@@ -1025,7 +1524,7 @@ class FDAIRESScraper {
         }
       }
       
-      console.log(`\n✅ Total recalls extracted: ${allDetailedRecalls.length}`);
+      console.log(`\nTotal recalls extracted: ${allDetailedRecalls.length}`);
       return allDetailedRecalls;
 
     } catch (error) {

@@ -371,4 +371,317 @@ router.post('/recalls/:id/upload-images', authenticate, requireAdmin, upload.arr
   }
 });
 
+/**
+ * TEMP RECALLS ROUTES
+ * Routes for managing temporary FDA recalls from alerts scraper
+ */
+
+/**
+ * Get temp recalls by state
+ * GET /api/fda/temp-recalls/state/:stateCode
+ */
+router.get('/temp-recalls/state/:stateCode', async (req: Request, res: Response) => {
+  try {
+    const { stateCode } = req.params;
+    const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
+    
+    // Parse date filters if provided
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+    
+    let recalls = await fdaFirebaseService.getTempRecallsByState(stateCode, {
+      limit,
+      startDate,
+      endDate
+    });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA_TEMP`;
+        return !pendingIds.has(compositeId);
+      });
+    }
+    
+    const response: FDARecallResponse = {
+      success: true,
+      data: recalls,
+      total: recalls.length,
+      source: 'FDA'
+    };
+    
+    res.json(response);
+  } catch (error) {
+    logger.error('Error in temp recalls by state endpoint:', error);
+    const response: FDARecallResponse = {
+      success: false,
+      data: [],
+      source: 'FDA',
+      error: error instanceof Error ? error.message : 'Failed to fetch temp recalls'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * Get all temp recalls
+ * GET /api/fda/temp-recalls/all
+ */
+router.get('/temp-recalls/all', async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 500;
+    const excludePending = req.query.excludePending === 'true';
+    
+    // Parse date filters if provided
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+    
+    let recalls = await fdaFirebaseService.getAllTempRecalls({
+      limit,
+      startDate,
+      endDate
+    });
+    
+    // Filter out recalls with pending changes if requested
+    if (excludePending) {
+      const pendingIds = await PendingChangesService.getPendingRecallIds();
+      recalls = recalls.filter(recall => {
+        const compositeId = `${recall.id}_FDA_TEMP`;
+        return !pendingIds.has(compositeId);
+      });
+    }
+    
+    const response: FDARecallResponse = {
+      success: true,
+      data: recalls,
+      total: recalls.length,
+      source: 'FDA'
+    };
+    
+    res.json(response);
+  } catch (error) {
+    logger.error('Error in all temp recalls endpoint:', error);
+    const response: FDARecallResponse = {
+      success: false,
+      data: [],
+      source: 'FDA',
+      error: error instanceof Error ? error.message : 'Failed to fetch temp recalls'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * Get single temp recall by ID
+ * GET /api/fda/temp-recalls/:id
+ */
+router.get('/temp-recalls/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const recall = await fdaFirebaseService.getTempRecallById(id);
+    
+    if (!recall) {
+      res.status(404).json({
+        success: false,
+        data: [],
+        source: 'FDA',
+        error: 'Temp recall not found'
+      });
+      return;
+    }
+    
+    const response: FDARecallResponse = {
+      success: true,
+      data: [recall],
+      total: 1,
+      source: 'FDA'
+    };
+    
+    res.json(response);
+  } catch (error) {
+    logger.error('Error in temp recall by ID endpoint:', error);
+    const response: FDARecallResponse = {
+      success: false,
+      data: [],
+      source: 'FDA',
+      error: error instanceof Error ? error.message : 'Failed to fetch temp recall'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * Update temp recall display data
+ * PUT /api/fda/temp-recalls/:id/display
+ */
+router.put('/temp-recalls/:id/display', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const displayData = req.body.display;
+    
+    // Add audit information to display data if display data is provided
+    let auditedDisplay = displayData;
+    if (displayData && req.user) {
+      auditedDisplay = {
+        ...displayData,
+        lastEditedAt: new Date().toISOString(),
+        lastEditedBy: req.user.username
+      };
+    }
+    
+    // If display is explicitly undefined or null, ensure we pass that through
+    if (displayData === undefined || displayData === null) {
+      auditedDisplay = undefined;
+    }
+    
+    await fdaFirebaseService.updateTempRecallDisplay(id, auditedDisplay);
+    
+    res.json({
+      success: true,
+      message: 'Temp recall display data updated successfully'
+    });
+  } catch (error) {
+    logger.error('Error updating temp recall display:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update temp recall display'
+    });
+  }
+});
+
+/**
+ * Update manual states override for temp recall
+ * PUT /api/fda/temp-recalls/:id/manual-states
+ */
+router.put('/temp-recalls/:id/manual-states', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Type guard - middleware ensures user exists
+    if (!req.user) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const { id } = req.params;
+    const { states, useManualStates } = req.body;
+    
+    // Validate input
+    if (!Array.isArray(states)) {
+      return res.status(400).json({
+        success: false,
+        error: 'States must be an array'
+      });
+    }
+    
+    // Validate that recall exists
+    const recall = await fdaFirebaseService.getTempRecallById(id);
+    if (!recall) {
+      return res.status(404).json({
+        success: false,
+        error: 'Temp recall not found'
+      });
+    }
+    
+    // Update manual states override
+    const updateData = {
+      manualStatesOverride: states,
+      useManualStates: useManualStates !== false, // Default to true
+      manualStatesUpdatedBy: req.user.username,
+      manualStatesUpdatedAt: new Date().toISOString()
+    };
+    
+    await fdaFirebaseService.updateTempManualStates(id, updateData);
+    
+    logger.info(`Admin ${req.user.username} updated manual states for temp recall ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Manual states override updated successfully',
+      data: updateData
+    });
+  } catch (error) {
+    logger.error('Error updating temp manual states:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update manual states'
+    });
+  }
+});
+
+/**
+ * Upload images for temp recall
+ * POST /api/fda/temp-recalls/:id/upload-images
+ */
+router.post('/temp-recalls/:id/upload-images', authenticate, requireAdmin, upload.array('images', 10), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No images provided'
+      });
+    }
+    
+    // Validate that temp recall exists
+    const recall = await fdaFirebaseService.getTempRecallById(id);
+    if (!recall) {
+      return res.status(404).json({
+        success: false,
+        error: 'Temp recall not found'
+      });
+    }
+    
+    // Parse display data from form data
+    let displayData;
+    try {
+      displayData = req.body.displayData ? JSON.parse(req.body.displayData) : {};
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid display data format'
+      });
+    }
+    
+    logger.info(`Uploading ${files.length} images for temp recall ${id}`);
+    
+    // Upload images to Firebase Storage and get metadata
+    const uploadedImages = await fdaFirebaseService.uploadTempRecallImages(id, files, req.user?.username);
+    
+    // Update display data with uploaded images
+    const updatedDisplayData = {
+      ...displayData,
+      uploadedImages: [
+        ...(displayData.uploadedImages || []),
+        ...uploadedImages
+      ],
+      lastEditedAt: new Date().toISOString(),
+      lastEditedBy: req.user?.username || 'unknown-user'
+    };
+    
+    // Save updated display data to Firestore
+    await fdaFirebaseService.updateTempRecallDisplay(id, updatedDisplayData);
+    
+    logger.info(`Successfully uploaded ${uploadedImages.length} images for temp recall ${id}`);
+    
+    res.json({
+      success: true,
+      message: `Successfully uploaded ${uploadedImages.length} images`,
+      data: {
+        uploadedImages,
+        displayData: updatedDisplayData
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error uploading temp recall images:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload images'
+    });
+  }
+});
+
 export default router;

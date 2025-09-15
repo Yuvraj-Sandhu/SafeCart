@@ -169,9 +169,9 @@ function transformIRESToFDA(iresRecall) {
       // Metadata
       source: 'FDA',
       api_version: 'IRES', // Mark as IRES import
-      imported_at: admin.firestore.FieldValue.serverTimestamp(),
+      // Note: imported_at, ires_imported_at, and last_synced are set in fda-ires-to-firebase.js
+      // to ensure they're properly handled (only set on first creation vs every update)
       ires_imported: true, // Flag to indicate IRES import
-      ires_imported_at: admin.firestore.FieldValue.serverTimestamp(),
       
       // Searchable arrays (using FDAApiService's parseAffectedStates for consistency)
       affectedStatesArray: fdaApiService.parseAffectedStates(iresRecall.distributionPattern || ''),
@@ -192,10 +192,29 @@ function transformIRESToFDA(iresRecall) {
                            iresRecall['pressReleaseUrl(S)'] ||
                            iresRecall['pressReleaseURL(S)'];
     
+    // Validate that it's actually a URL and not an address or other text
     if (pressReleaseUrl) {
-      transformedRecall.recall_url = pressReleaseUrl;
-      // Also keep as press_release_url for compatibility
-      transformedRecall.press_release_url = pressReleaseUrl;
+      // Check if it's a valid URL (starts with http/https or contains www.)
+      const isValidUrl = (
+        pressReleaseUrl.startsWith('http://') || 
+        pressReleaseUrl.startsWith('https://') ||
+        pressReleaseUrl.includes('www.') ||
+        pressReleaseUrl.includes('.gov/') ||
+        pressReleaseUrl.includes('.com/') ||
+        pressReleaseUrl.includes('.org/')
+      );
+      
+      if (isValidUrl) {
+        // Ensure it has proper protocol
+        let finalUrl = pressReleaseUrl;
+        if (!pressReleaseUrl.startsWith('http://') && !pressReleaseUrl.startsWith('https://')) {
+          finalUrl = 'https://' + pressReleaseUrl;
+        }
+        
+        transformedRecall.recall_url = finalUrl;
+        // Also keep as press_release_url for compatibility
+        transformedRecall.press_release_url = finalUrl;
+      }
     }
     
     // Generate document ID
