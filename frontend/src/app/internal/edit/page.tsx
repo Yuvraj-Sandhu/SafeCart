@@ -9,7 +9,6 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { Button } from '@/components/ui/Button';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { EditableRecallList } from '@/components/EditableRecallList';
-import { TempRecallList } from '@/components/TempRecallList';
 import { EditModal } from '@/components/EditModal';
 import { US_STATES } from '@/data/states';
 import { api } from '@/services/api';
@@ -43,11 +42,8 @@ export default function InternalEditPage() {
   
   // Data states
   const [recalls, setRecalls] = useState<UnifiedRecall[]>([]);
-  const [tempRecalls, setTempRecalls] = useState<UnifiedRecall[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tempLoading, setTempLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tempError, setTempError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [savingRecallId, setSavingRecallId] = useState<string | null>(null);
   
@@ -115,9 +111,7 @@ export default function InternalEditPage() {
     }
 
     setLoading(true);
-    setTempLoading(true);
     setError(null);
-    setTempError(null);
     setHasSearched(true);
 
     try {
@@ -141,27 +135,27 @@ export default function InternalEditPage() {
       const [recallsResponse, tempRecallsResponse] = await Promise.allSettled(promises);
       
       // Handle regular recalls
+      let regularRecalls: UnifiedRecall[] = [];
       if (recallsResponse.status === 'fulfilled') {
-        setRecalls(recallsResponse.value.data);
+        regularRecalls = recallsResponse.value.data;
       } else {
         setError('Failed to fetch recalls');
-        setRecalls([]);
       }
       
       // Handle temp recalls
+      let tempRecallsData: UnifiedRecall[] = [];
       if (tempRecallsResponse.status === 'fulfilled') {
-        setTempRecalls(tempRecallsResponse.value.data);
-      } else {
-        setTempError('Failed to fetch recent alerts');
-        setTempRecalls([]);
+        tempRecallsData = tempRecallsResponse.value.data;
       }
+      
+      // Merge temp recalls with regular recalls (temp recalls first)
+      const allRecalls = [...tempRecallsData, ...regularRecalls];
+      setRecalls(allRecalls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
       setRecalls([]);
-      setTempRecalls([]);
     } finally {
       setLoading(false);
-      setTempLoading(false);
     }
   };
 
@@ -179,9 +173,7 @@ export default function InternalEditPage() {
     setStartDate(null);
     setEndDate(null);
     setRecalls([]);
-    setTempRecalls([]);
     setError(null);
-    setTempError(null);
     setHasSearched(false);
     hasInitialSearched.current = false;
     
@@ -491,19 +483,7 @@ export default function InternalEditPage() {
 
           {hasSearched && (
             <div className={styles.results}>
-              {/* Show temp recalls (recent alerts) if available */}
-              {(tempRecalls.length > 0 || tempLoading || tempError) && (
-                <TempRecallList
-                  recalls={tempRecalls}
-                  loading={tempLoading}
-                  error={tempError}
-                  isEditMode={true}
-                  onEdit={handleEdit}
-                  showTitle={true}
-                />
-              )}
-              
-              {/* Show regular recalls */}
+              {/* Show all recalls (temp + regular) */}
               <EditableRecallList
                 recalls={getFilteredRecalls()}
                 loading={loading}
