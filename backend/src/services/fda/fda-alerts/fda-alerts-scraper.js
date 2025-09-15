@@ -1053,7 +1053,7 @@ async function saveToFirebase(formattedAlerts) {
       
       // Map to TempFDARecall structure
       const tempFDARecall = {
-        id: docId,
+        // Don't store id in document data - Firestore document ID is the source of truth
         alert_url: alert.alert_url,
         alert_date: alert.alert_date,
         date: alert.alert_date,  // Same as alert_date for consistency

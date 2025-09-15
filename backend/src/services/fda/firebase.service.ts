@@ -572,14 +572,16 @@ export class FDAFirebaseService {
       // Add manual states overrides
       manualStatesSnapshot.docs.forEach(doc => {
         const data = doc.data();
-        recallMap.set(doc.id, { id: doc.id, ...data });
+        // Ensure document ID takes precedence over any stored 'id' field
+        recallMap.set(doc.id, { ...data, id: doc.id });
       });
       
       // Add state-specific recalls (skip if already has manual override)
       stateSnapshot.docs.forEach(doc => {
         const data = doc.data();
         if (!data.useManualStates) {
-          recallMap.set(doc.id, { id: doc.id, ...data });
+          // Ensure document ID takes precedence over any stored 'id' field
+          recallMap.set(doc.id, { ...data, id: doc.id });
         }
       });
       
@@ -588,7 +590,8 @@ export class FDAFirebaseService {
         nationwideSnapshot.docs.forEach(doc => {
           const data = doc.data();
           if (!data.useManualStates) {
-            recallMap.set(doc.id, { id: doc.id, ...data });
+            // Ensure document ID takes precedence over any stored 'id' field
+            recallMap.set(doc.id, { ...data, id: doc.id });
           }
         });
       }
@@ -634,10 +637,11 @@ export class FDAFirebaseService {
       query = query.limit(limit);
       const snapshot = await query.get();
 
-      const recalls = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const recalls = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Ensure document ID takes precedence over any stored 'id' field
+        return { ...data, id: doc.id };
+      });
 
       return recalls;
     } catch (error) {
@@ -658,7 +662,9 @@ export class FDAFirebaseService {
         return null;
       }
 
-      return { id: doc.id, ...doc.data() };
+      // Ensure document ID takes precedence over any stored 'id' field
+      const data = doc.data();
+      return { ...data, id: doc.id };
     } catch (error) {
       logger.error(`Error fetching temp recall by ID ${id}:`, error);
       throw error;
