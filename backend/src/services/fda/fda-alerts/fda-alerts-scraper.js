@@ -1041,10 +1041,14 @@ async function saveToFirebase(formattedAlerts) {
         .limit(1)
         .get();
       
-      if (!existingQuery.empty) {
-        // console.log(`Skipping existing alert: ${alert.product_title}`);
-        skippedCount++;
-        continue;
+      let isNewAlert = existingQuery.empty;
+      let existingData = null;
+      let existingDocId = null;
+      
+      if (!isNewAlert) {
+        // Get the existing document data
+        existingData = existingQuery.docs[0].data();
+        existingDocId = existingQuery.docs[0].id;
       }
       
       // Map to TempFDARecall structure
@@ -1064,15 +1068,39 @@ async function saveToFirebase(formattedAlerts) {
         distribution_pattern: alert.distribution_pattern,
         source: 'FDA',
         api_version: 'FDA_ALERTS',
-        imported_at: admin.firestore.FieldValue.serverTimestamp(),
+        last_synced: admin.firestore.FieldValue.serverTimestamp(),
         affectedStatesArray: alert.affected_states || ['Nationwide']
       };
       
-      // Save to Firestore with the new docId
-      const docRef = collection.doc(docId);
-      await docRef.set(tempFDARecall);
-      // console.log(`Saved: ${alert.product_title}`);
-      savedCount++;
+      // Handle timestamp fields
+      if (isNewAlert) {
+        // New alert - set imported_at
+        tempFDARecall.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        savedCount++;
+      } else {
+        // Existing alert - preserve imported_at if it exists
+        if (existingData.imported_at) {
+          tempFDARecall.imported_at = existingData.imported_at;
+        } else {
+          // Fallback for old data that doesn't have imported_at
+          tempFDARecall.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        }
+        
+        // Preserve manual overrides and display data
+        if (existingData.display) {
+          tempFDARecall.display = existingData.display;
+        }
+        if (existingData.llmTitle) {
+          tempFDARecall.llmTitle = existingData.llmTitle;
+        }
+        
+        skippedCount++; // Count as updated, not new
+      }
+      
+      // Save to Firestore
+      const docRef = collection.doc(isNewAlert ? docId : existingDocId);
+      await docRef.set(tempFDARecall, { merge: true });
+      // console.log(`${isNewAlert ? 'Saved' : 'Updated'}: ${alert.product_title}`);
       
       // Add to LLM processing queue
       recallsForLLM.push({

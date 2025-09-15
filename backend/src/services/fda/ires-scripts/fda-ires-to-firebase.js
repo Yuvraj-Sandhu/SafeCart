@@ -105,6 +105,24 @@ async function saveIRESRecallsToFirebase(recalls) {
         // Start with the new IRES data
         const mergedData = { ...recall };
         
+        // Add timestamp fields for update
+        mergedData.last_synced = admin.firestore.FieldValue.serverTimestamp();
+        
+        // Preserve imported_at and ires_imported_at if they exist
+        if (existingData.imported_at) {
+          mergedData.imported_at = existingData.imported_at;
+        } else {
+          // First time being added to database
+          mergedData.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        }
+        
+        if (existingData.ires_imported_at) {
+          mergedData.ires_imported_at = existingData.ires_imported_at;
+        } else {
+          // First time being imported by IRES
+          mergedData.ires_imported_at = admin.firestore.FieldValue.serverTimestamp();
+        }
+        
         // Preserve manual overrides and custom fields if they exist
         // Only add fields that have actual values (not undefined)
         if (existingData.display !== undefined) {
@@ -153,7 +171,13 @@ async function saveIRESRecallsToFirebase(recalls) {
           // console.log(`    Fields being updated: ${Object.keys(mergedData).join(', ')}`);
         }
       } else {
-        // New document - queue for LLM title generation
+        // New document - set all timestamp fields
+        const newRecall = { ...recall };
+        newRecall.imported_at = admin.firestore.FieldValue.serverTimestamp();
+        newRecall.ires_imported_at = admin.firestore.FieldValue.serverTimestamp();
+        newRecall.last_synced = admin.firestore.FieldValue.serverTimestamp();
+        
+        // Queue for LLM title generation
         if (recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
@@ -161,7 +185,7 @@ async function saveIRESRecallsToFirebase(recalls) {
           });
         }
         
-        currentBatch.set(docRef, recall);
+        currentBatch.set(docRef, newRecall);
         stats.newRecords++;
         
         if (operationCount < 3) {

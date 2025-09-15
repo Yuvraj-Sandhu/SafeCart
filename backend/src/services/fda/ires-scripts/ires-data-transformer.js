@@ -169,9 +169,9 @@ function transformIRESToFDA(iresRecall) {
       // Metadata
       source: 'FDA',
       api_version: 'IRES', // Mark as IRES import
-      imported_at: admin.firestore.FieldValue.serverTimestamp(),
+      // Note: imported_at, ires_imported_at, and last_synced are set in fda-ires-to-firebase.js
+      // to ensure they're properly handled (only set on first creation vs every update)
       ires_imported: true, // Flag to indicate IRES import
-      ires_imported_at: admin.firestore.FieldValue.serverTimestamp(),
       
       // Searchable arrays (using FDAApiService's parseAffectedStates for consistency)
       affectedStatesArray: fdaApiService.parseAffectedStates(iresRecall.distributionPattern || ''),
