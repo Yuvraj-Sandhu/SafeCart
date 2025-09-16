@@ -148,8 +148,13 @@ export default function InternalEditPage() {
         tempRecallsData = tempRecallsResponse.value.data;
       }
       
-      // Merge temp recalls with regular recalls (temp recalls first)
-      const allRecalls = [...tempRecallsData, ...regularRecalls];
+      // Merge temp recalls with regular recalls and sort by date (newest first)
+      const allRecalls = [...tempRecallsData, ...regularRecalls].sort((a, b) => {
+        const dateA = a.recallDate || '';
+        const dateB = b.recallDate || '';
+        // Sort in descending order (newest first)
+        return dateB.localeCompare(dateA);
+      });
       setRecalls(allRecalls);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch recalls');
