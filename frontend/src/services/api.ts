@@ -562,6 +562,22 @@ export const api = {
     return response.json();
   },
 
+  // Trigger FDA Alerts sync (admin only)
+  async triggerFdaAlertsSync(daysBack = 7): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/sync/fda/alerts/trigger`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ daysBack })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to trigger FDA Alerts sync');
+    }
+    return response.json();
+  },
+
   // TEMP RECALLS METHODS
   // Methods for managing temporary FDA recalls from alerts scraper
 
