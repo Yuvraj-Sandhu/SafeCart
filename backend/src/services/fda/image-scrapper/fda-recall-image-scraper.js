@@ -623,53 +623,90 @@ class FDARecallImageScraper {
   }
 }
 
-// Example usage and testing
+// Command-line interface for use by image service
 if (require.main === module) {
   (async () => {
-    // Initialize with headless mode and download enabled
+    // Parse command line arguments
+    const args = process.argv.slice(2);
+    const options = {};
+
+    args.forEach(arg => {
+      const [key, value] = arg.split('=');
+      options[key.replace('--', '')] = value;
+    });
+
+    const url = options.url;
+    const recallId = options.recallId || 'unknown';
+    const headless = options.headless !== 'false';
+    const download = options.download !== 'false';
+
+    if (!url) {
+      console.error('Usage: node fda-recall-image-scraper.js --url=<FDA_RECALL_URL> [--recallId=<ID>] [--headless=true] [--download=true]');
+      process.exit(1);
+    }
+
+    // Initialize scraper
     const scraper = new FDARecallImageScraper({
-      headless: true,
-      downloadImages: true,
-      minWidth: 800  // Ensure images are at least 800px wide
+      headless: headless,
+      downloadImages: download,
+      minWidth: 800
     });
 
     try {
-      // Test with sample URLs
-      const testUrl = 'https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts/one-frozen-llc-voluntarily-recalls-good-gathertm-southwest-style-burrito-bowl-blend-frozen-12oz-bags';
+      console.log('Image Scraper: Starting image extraction...');
+      console.log(`URL: ${url}`);
+      console.log(`Recall ID: ${recallId}`);
 
-      console.log('\n====================================================');
-      console.log('FDA Recall Image Scraper Test');
-      console.log('====================================================\n');
-
-      const result = await scraper.scrapeRecallImages(testUrl, {
-        recallId: 'test_recall_001'
+      const result = await scraper.scrapeRecallImages(url, {
+        recallId: recallId
       });
 
+      // Output structured JSON for the service to parse
       if (result.success) {
-        console.log(`\n✓ Successfully scraped: ${testUrl}`);
-        console.log(`Total Images Found: ${result.totalFound}`);
-        console.log(`Downloaded: ${result.downloadedCount}`);
+        console.log(`Image Scraper: Successfully scraped ${result.downloadedCount} images`);
 
-        if (result.images && result.images.length > 0) {
-          console.log('\n--- Downloaded Images ---');
-          result.images.forEach((img, index) => {
-            console.log(`\n${index + 1}. ${img.filename}`);
-            console.log(`   Size: ${(img.size / 1024).toFixed(1)} KB`);
-            console.log(`   Dimensions: ${img.width}x${img.height}`);
-            console.log(`   Processed: ${img.processed ? 'Yes' : 'No'}`);
-            console.log(`   Path: ${img.path}`);
-          });
-        }
+        // Output parseable result
+        const output = {
+          success: true,
+          images: result.images.map(img => ({
+            filename: img.filename,
+            path: img.path,
+            size: img.size,
+            width: img.width,
+            height: img.height
+          }))
+        };
+
+        // Special markers for service parsing
+        console.log(`SCRAPER_RESULT:${JSON.stringify(output)}SCRAPER_RESULT_END`);
+
+        // Also log individual paths for fallback parsing
+        result.images.forEach((img, index) => {
+          console.log(`Image Scraper: Downloaded ${index + 1}/${result.images.length}: ${img.filename} (${(img.size / 1024).toFixed(1)} KB)`);
+          console.log(`   Path: ${img.path}`);
+        });
       } else {
-        console.error('\n✗ Failed to extract images:', result.error);
+        console.error(`Image Scraper: Failed to extract images: ${result.error}`);
+        console.log(`SCRAPER_RESULT:${JSON.stringify({
+          success: false,
+          error: result.error
+        })}SCRAPER_RESULT_END`);
+        process.exit(1);
       }
 
     } catch (error) {
-      console.error('\n✗ Error during testing:', error);
+      console.error('Image Scraper: Fatal error:', error.message);
+      console.log(`SCRAPER_RESULT:${JSON.stringify({
+        success: false,
+        error: error.message
+      })}SCRAPER_RESULT_END`);
+      process.exit(1);
     } finally {
       await scraper.close();
-      console.log('\n✓ Browser closed');
+      console.log('Image Scraper: Browser closed');
     }
+
+    process.exit(0);
   })();
 }
 
