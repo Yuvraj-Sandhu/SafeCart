@@ -194,12 +194,12 @@ async function saveIRESRecallsToFirebase(recalls) {
         stats.newRecords++;
 
         // Collect recall with URL for image processing
-        if (recall.field_recall_url && recall.field_recall_url !== 'N/A') {
+        if (recall.recall_url && recall.recall_url !== 'N/A') {
           recallsWithUrls.push({
             id: recall.id,
-            url: recall.field_recall_url
+            url: recall.recall_url
           });
-          console.log(`  New recall: ${recall.id}, field_recall_url: ${recall.field_recall_url}`);
+          console.log(`  New recall: ${recall.id}, recall_url: ${recall.recall_url}`);
         }
 
         if (operationCount < 3) {
