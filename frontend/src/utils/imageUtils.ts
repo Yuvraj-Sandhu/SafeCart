@@ -37,11 +37,11 @@ export function getRecallImages(recall: RecallWithDisplay): ProcessedImage[] {
 /**
  * Gets combined images from a unified recall
  */
-export function getUnifiedRecallImages(recall: UnifiedRecall): ProcessedImage[] {
+export function getUnifiedRecallImages(recall: UnifiedRecall, includeScrapped: boolean = true): ProcessedImage[] {
   // Get images from the UnifiedRecall structure
   const processedImages = recall.images || [];
   const uploadedImages = recall.display?.uploadedImages || [];
-  
+
   // Convert UnifiedRecall images to ProcessedImage format if needed
   const convertedImages: ProcessedImage[] = processedImages.map(img => ({
     originalFilename: img.filename || 'unknown',
@@ -51,8 +51,52 @@ export function getUnifiedRecallImages(recall: UnifiedRecall): ProcessedImage[] 
     size: 0, // Size not available in unified format
     processedAt: new Date().toISOString()
   }));
-  
-  return combineImages(convertedImages, uploadedImages);
+
+  // Get scrapped images if enabled
+  let scrappedImages: ProcessedImage[] = [];
+
+  if (includeScrapped && recall.scrapped_images && recall.display?.scrappedImagesConfig?.enabled) {
+    const config = recall.display.scrappedImagesConfig;
+
+    // Create all scrapped images with their original indices
+    interface ScrappedImageWithIndex extends ProcessedImage {
+      originalIndex: number;
+    }
+
+    const allScrappedImages: ScrappedImageWithIndex[] = recall.scrapped_images.urls.map((url, index) => ({
+      originalFilename: `scrapped-${index}`,
+      type: 'scrapped-image' as any,
+      sourceUrl: recall.scrapped_images!.sourceUrls[index] || '',
+      storageUrl: url,
+      size: 0,
+      processedAt: recall.scrapped_images!.processedAt,
+      originalIndex: index // Keep track of original index
+    }));
+
+    // Apply custom order first (if exists)
+    let orderedImages: ScrappedImageWithIndex[] = allScrappedImages;
+    if (config.order && config.order.length > 0) {
+      // The order array contains the indices in their desired display order
+      orderedImages = config.order.map(originalIndex => allScrappedImages[originalIndex]).filter(img => img !== undefined);
+    }
+
+    // Then filter by visibility
+    let filteredImages: ScrappedImageWithIndex[] = orderedImages;
+    if (config.visibleIndices !== undefined) {
+      // If visibleIndices is defined (even if empty), use it to filter
+      // Empty array means hide all images
+      filteredImages = orderedImages.filter(img =>
+        config.visibleIndices!.includes(img.originalIndex)
+      );
+    }
+    // If visibleIndices is undefined, show all images (default behavior)
+
+    // Convert back to ProcessedImage array (remove originalIndex)
+    scrappedImages = filteredImages.map(({ originalIndex, ...img }) => img);
+  }
+
+  // Combine all images: processed, uploaded, then scrapped
+  return combineImages(convertedImages, uploadedImages).concat(scrappedImages);
 }
 
 /**
