@@ -127,7 +127,7 @@ export class FirebaseService {
     let savedCount = 0;
     let failedCount = 0;
     const newRecallIds: string[] = [];
-    const newRecallsForLLM: Array<{ id: string, title: string }> = [];
+    const newRecallsForLLM: Array<{ id: string, title: string, reason?: string }> = [];
 
     // Process in chunks of 500 (Firestore batch limit)
     for (let i = 0; i < recalls.length; i += FIRESTORE_BATCH_LIMIT) {
@@ -162,9 +162,10 @@ export class FirebaseService {
               updateData.llmTitle = existingData.llmTitle;
             } else {
               // Existing recall without llmTitle - add to LLM processing queue
-              newRecallsForLLM.push({ 
-                id: docRef.id, 
-                title: recall.field_title 
+              newRecallsForLLM.push({
+                id: docRef.id,
+                title: recall.field_title,
+                reason: recall.field_recall_reason
               });
             }
             
@@ -182,9 +183,10 @@ export class FirebaseService {
             newRecallIds.push(docRef.id);
             
             // New recall - add to LLM processing queue
-            newRecallsForLLM.push({ 
-              id: docRef.id, 
-              title: recall.field_title 
+            newRecallsForLLM.push({
+              id: docRef.id,
+              title: recall.field_title,
+              reason: recall.field_recall_reason
             });
           }
           
@@ -222,11 +224,11 @@ export class FirebaseService {
   /**
    * Processes recall titles with OpenAI for specific recalls
    * This runs asynchronously to avoid blocking the sync process
-   * 
-   * @param recallsToProcess - Array of recalls with id and title to process
+   *
+   * @param recallsToProcess - Array of recalls with id, title, and reason to process
    * @private
    */
-  private async processLLMTitlesForRecalls(recallsToProcess: Array<{ id: string, title: string }>): Promise<void> {
+  private async processLLMTitlesForRecalls(recallsToProcess: Array<{ id: string, title: string, reason?: string }>): Promise<void> {
     if (!openAIService.isAvailable()) {
       logger.info('OpenAI service not available, skipping LLM title processing');
       return;
@@ -248,7 +250,7 @@ export class FirebaseService {
           }
 
           // Get enhanced title from OpenAI
-          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
           
           if (enhancedTitle) {
             // Update the recall with the enhanced title

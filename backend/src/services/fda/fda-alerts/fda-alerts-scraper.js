@@ -1024,9 +1024,12 @@ async function saveToFirebase(formattedAlerts) {
   let savedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
-  
+
   // Array to collect recalls that need LLM title processing
   const recallsForLLM = [];
+
+  // Array to collect new recalls with URLs for image processing
+  const recallsWithUrls = [];
   
   for (const alert of formattedAlerts) {
     try {
@@ -1077,6 +1080,15 @@ async function saveToFirebase(formattedAlerts) {
         // New alert - set imported_at
         tempFDARecall.imported_at = admin.firestore.FieldValue.serverTimestamp();
         savedCount++;
+
+        // Collect new recall with URL for image processing
+        if (alert.alert_url) {
+          recallsWithUrls.push({
+            id: docId,
+            url: alert.alert_url
+          });
+          console.log(`  New temp recall: ID: ${docId}, URL: ${alert.alert_url}`);
+        }
       } else {
         // Existing alert - preserve imported_at if it exists
         if (existingData.imported_at) {
@@ -1106,7 +1118,8 @@ async function saveToFirebase(formattedAlerts) {
       if (isNewAlert || !existingData.llmTitle) {
         recallsForLLM.push({
           id: isNewAlert ? docId : existingDocId,
-          title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`
+          title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`,
+          reason: alert.reason_for_recall
         });
       }
       
@@ -1123,7 +1136,14 @@ async function saveToFirebase(formattedAlerts) {
   console.log(`Skipped (already exists): ${skippedCount}`);
   console.log(`Errors: ${errorCount}`);
   console.log(`Collection: temp_fda_recalls`);
-  
+
+  // Output recalls with URLs for image processing service
+  if (recallsWithUrls.length > 0) {
+    console.log(`\nNew temp recalls: ${recallsWithUrls.length}`);
+    // Output JSON for parsing by sync service
+    console.log(`ALERTS_RESULT:${JSON.stringify({ recalls: recallsWithUrls })}ALERTS_RESULT_END`);
+  }
+
   // Process LLM titles asynchronously if any new recalls were saved
   if (recallsForLLM.length > 0) {
     console.log(`\nQueuing ${recallsForLLM.length} recalls for LLM title generation...`);
@@ -1158,7 +1178,7 @@ async function processLLMTitlesForTempRecalls(recallsToProcess) {
         }
 
         // Get enhanced title from OpenAI
-        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
         
         if (enhancedTitle) {
           // Update the recall with the enhanced title

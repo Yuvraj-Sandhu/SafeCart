@@ -124,6 +124,7 @@ app.listen(PORT, () => {
   syncService.startAutoSync();
   syncService.startFDAAutoSync();
   syncService.startFDAIRESAutoSync(); // Start FDA IRES scraper at 9 AM ET
+  syncService.startFDAAlertsAutoSync(); // Start FDA Alerts scraper at 8:30 AM ET
   syncService.startUsdaEmailAutoSend();
   
   // Initial sync disabled to avoid startup delays in production

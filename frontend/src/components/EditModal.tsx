@@ -87,6 +87,23 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const [manualStates, setManualStates] = useState<string[]>([]);
   const [currentStateInput, setCurrentStateInput] = useState('');
   const [isSavingStates, setIsSavingStates] = useState(false);
+
+  // Scrapped images configuration states
+  const [scrappedImagesEnabled, setScrappedImagesEnabled] = useState(
+    recall.display?.scrappedImagesConfig?.enabled !== undefined
+      ? recall.display.scrappedImagesConfig.enabled
+      : true  // Default to true (enabled)
+  );
+  const [scrappedImagesOrder, setScrappedImagesOrder] = useState<number[]>(
+    recall.display?.scrappedImagesConfig?.order || []
+  );
+  const [scrappedImagesVisible, setScrappedImagesVisible] = useState<number[]>(
+    recall.display?.scrappedImagesConfig?.visibleIndices !== undefined
+      ? recall.display.scrappedImagesConfig.visibleIndices
+      : (recall.scrapped_images ? Array.from({ length: recall.scrapped_images.count }, (_, i) => i) : [])
+  );
+  const [isReorderingMode, setIsReorderingMode] = useState(false);
+  const [tempOrder, setTempOrder] = useState<number[]>([]);
   
   // Check if this is an FDA recall and user is admin
   const isFDARecall = recall.source === 'FDA';
@@ -241,6 +258,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         primaryImageIndex: primaryImageIndex >= 0 ? primaryImageIndex : undefined,
         cardSplits: cardSplits.length > 0 ? cardSplits : undefined,
         uploadedImages: uploadedImages.length > 0 ? uploadedImages : undefined,
+        scrappedImagesConfig: recall.scrapped_images && recall.scrapped_images.count > 0 ? {
+          enabled: scrappedImagesEnabled,
+          visibleIndices: scrappedImagesVisible.length > 0 ? scrappedImagesVisible : undefined,
+          order: scrappedImagesOrder.length > 0 ? scrappedImagesOrder : undefined
+        } : undefined
       };
 
       // Role-based routing: Admins save directly, members create pending changes
@@ -388,6 +410,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
       setPrimaryImageIndex(-1);
       setCardSplits([]);
       setUploadedImages([]);
+      setScrappedImagesEnabled(false);
+      setScrappedImagesOrder([]);
+      setScrappedImagesVisible([]);
+      setIsReorderingMode(false);
+      setTempOrder([]);
       
       // Clean up pending files and their preview URLs
       pendingFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
@@ -814,6 +841,305 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               >
                 Clear primary image
               </button>
+            </div>
+          )}
+
+          {/* Scrapped Images Toggle - Only show if recall has scrapped images */}
+          {recall.scrapped_images && recall.scrapped_images.count > 0 && (
+            <div className={styles.section}>
+              <h3>Scraped Images</h3>
+              <p className={styles.sectionDescription}>
+                {recall.scrapped_images.count} images were automatically scraped from the FDA website.
+                Toggle to include them in the recall display.
+              </p>
+
+              {/* Toggle Switch */}
+              <div className={styles.toggleRow}>
+                <label className={styles.toggleLabel} style={{ color: currentTheme.text }}>
+                  Show scraped images:
+                </label>
+                <label htmlFor="scrappedImagesToggle">
+                  <input
+                    id="scrappedImagesToggle"
+                    type="checkbox"
+                    className={styles.checkboxInput}
+                    checked={scrappedImagesEnabled}
+                    onChange={(e) => setScrappedImagesEnabled(e.target.checked)}
+                  />
+                  <div className={styles.toggleSwitch} />
+                </label>
+              </div>
+
+              {/* Image Management Grid - Only show when enabled */}
+              {scrappedImagesEnabled && (
+                <div className={styles.scrappedImagesGrid}>
+                  <p className={styles.gridDescription} style={{ color: currentTheme.textSecondary, marginBottom: '0.75rem' }}>
+                    {isReorderingMode
+                      ? `Reordering ${scrappedImagesVisible.length} selected images - click them in your preferred order:`
+                      : 'Select which images to show:'}
+                  </p>
+
+                  <div className={styles.imageGrid}>
+                    {recall.scrapped_images.urls.map((url, index) => {
+                      // In reorder mode, only show visible images
+                      if (isReorderingMode && !scrappedImagesVisible.includes(index)) {
+                        return null;
+                      }
+
+                      return (
+                      <div
+                        key={`scrapped-${index}`}
+                        className={styles.scrappedImageItem}
+                        onClick={(e) => {
+                          // Only process click if not clicking on download button
+                          if (!(e.target as HTMLElement).closest(`.${styles.downloadButton}`)) {
+                            if (isReorderingMode) {
+                              // In reordering mode, add/remove from order
+                              const orderIndex = tempOrder.indexOf(index);
+                              if (orderIndex >= 0) {
+                                // Remove from order
+                                setTempOrder(tempOrder.filter(i => i !== index));
+                              } else {
+                                // Add to order
+                                setTempOrder([...tempOrder, index]);
+                              }
+                            } else {
+                              // Normal mode - toggle visibility
+                              if (scrappedImagesVisible.includes(index)) {
+                                setScrappedImagesVisible(scrappedImagesVisible.filter(i => i !== index));
+                              } else {
+                                setScrappedImagesVisible([...scrappedImagesVisible, index]);
+                              }
+                            }
+                          }
+                        }}
+                        style={{
+                          borderColor: isReorderingMode
+                            ? (tempOrder.includes(index) ? currentTheme.primary : currentTheme.cardBorder)
+                            : (scrappedImagesVisible.includes(index) ? currentTheme.primary : currentTheme.cardBorder),
+                          borderWidth: isReorderingMode && tempOrder.includes(index) ? '3px' : '2px',
+                          position: 'relative',
+                          backgroundColor: 'transparent',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {/* Checkbox for visibility OR order number for reordering */}
+                        {isReorderingMode ? (
+                          // Show order number in reordering mode
+                          tempOrder.includes(index) && (
+                            <div
+                              className={styles.imageCheckbox}
+                              style={{
+                                backgroundColor: currentTheme.primary,
+                                borderColor: currentTheme.primary,
+                                pointerEvents: 'none',
+                                fontWeight: 'bold',
+                                fontSize: '0.875rem',
+                                color: 'white'
+                              }}
+                            >
+                              {tempOrder.indexOf(index) + 1}
+                            </div>
+                          )
+                        ) : (
+                          // Show checkbox in normal mode
+                          <div
+                            className={styles.imageCheckbox}
+                            style={{
+                              backgroundColor: scrappedImagesVisible.includes(index) ? currentTheme.primary : 'transparent',
+                              borderColor: currentTheme.primary,
+                              pointerEvents: 'none'
+                            }}
+                          >
+                            {scrappedImagesVisible.includes(index) && (
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                              </svg>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Image thumbnail */}
+                        <img
+                          src={url}
+                          alt={`Scraped ${index + 1}`}
+                          style={{
+                            opacity: isReorderingMode
+                              ? (tempOrder.includes(index) ? 1 : 0.5)
+                              : (scrappedImagesVisible.includes(index) ? 1 : 0.4),
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                            margin: 0,
+                            padding: 0,
+                            pointerEvents: 'none' // Disable pointer events to let parent handle click
+                          }}
+                        />
+
+                        {/* Image number badge - show display position */}
+                        {!isReorderingMode && (
+                          <div
+                            className={styles.imageBadge}
+                            style={{
+                              backgroundColor: scrappedImagesVisible.includes(index)
+                                ? currentTheme.primary
+                                : currentTheme.textSecondary,
+                              color: 'white',
+                              opacity: scrappedImagesVisible.includes(index) ? 1 : 0.6
+                            }}
+                          >
+                            {(() => {
+                              if (scrappedImagesVisible.includes(index) && scrappedImagesOrder.length > 0) {
+                                // For visible images with custom order, calculate display position
+                                const positionInOrder = scrappedImagesOrder.indexOf(index);
+
+                                // Count how many visible images come before this one in the order
+                                let displayPosition = 1;
+                                for (let i = 0; i < positionInOrder; i++) {
+                                  if (scrappedImagesVisible.includes(scrappedImagesOrder[i])) {
+                                    displayPosition++;
+                                  }
+                                }
+                                return displayPosition;
+                              } else {
+                                // For non-visible or non-ordered images, show original position
+                                return index + 1;
+                              }
+                            })()}
+                          </div>
+                        )}
+
+                        {/* Download button */}
+                        <button
+                          className={styles.downloadButton}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(url);
+                              const blob = await response.blob();
+                              const downloadUrl = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = downloadUrl;
+                              a.download = `scraped-${recall.recallNumber}-${index + 1}.jpg`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              window.URL.revokeObjectURL(downloadUrl);
+                            } catch (error) {
+                              console.error('Failed to download image:', error);
+                              alert('Failed to download image');
+                            }
+                          }}
+                          style={{
+                            color: currentTheme.primary
+                          }}
+                          title="Download image"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 2V10M8 10L5 7M8 10L11 7M2 14H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bulk actions */}
+                  <div className={styles.bulkActions}>
+                    {isReorderingMode ? (
+                      // Reorder mode buttons
+                      <>
+                        <Button
+                          variant="primary"
+                          size="small"
+                          onClick={() => {
+                            // Create a new order array that maintains positions for all images
+                            const newOrder: number[] = [];
+
+                            // First, add the reordered visible images
+                            tempOrder.forEach(index => {
+                              newOrder.push(index);
+                            });
+
+                            // Then add any visible images that weren't reordered (shouldn't happen but safe)
+                            scrappedImagesVisible.forEach(index => {
+                              if (!newOrder.includes(index)) {
+                                newOrder.push(index);
+                              }
+                            });
+
+                            // Finally, add all non-visible images at the end to maintain their relative order
+                            for (let i = 0; i < recall.scrapped_images!.count; i++) {
+                              if (!newOrder.includes(i)) {
+                                newOrder.push(i);
+                              }
+                            }
+
+                            setScrappedImagesOrder(newOrder);
+                            setIsReorderingMode(false);
+                          }}
+                          disabled={tempOrder.length === 0}
+                        >
+                          Apply Order
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => {
+                            setTempOrder([]);
+                            setIsReorderingMode(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      // Normal mode buttons
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => setScrappedImagesVisible(
+                            Array.from({ length: recall.scrapped_images!.count }, (_, i) => i)
+                          )}
+                        >
+                          Show All
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => setScrappedImagesVisible([])}
+                        >
+                          Hide All
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => {
+                            setIsReorderingMode(true);
+                            setTempOrder([]);
+                          }}
+                          disabled={scrappedImagesVisible.length === 0}
+                        >
+                          Reorder Images
+                        </Button>
+                        {scrappedImagesOrder.length > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={() => {
+                              setScrappedImagesOrder([]);
+                              alert('Image order has been reset to default');
+                            }}
+                          >
+                            Reset Order
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

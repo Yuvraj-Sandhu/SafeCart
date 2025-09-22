@@ -447,8 +447,46 @@ router.post('/sync/fda/ires/trigger', authenticate, requireAdmin, async (req: Re
 });
 
 /**
+ * POST /api/sync/fda/alerts/trigger
+ *
+ * Manually triggers FDA Alerts website scraping
+ *
+ * This endpoint triggers the FDA Alerts scraper to fetch the latest
+ * press releases and unclassified recalls from the FDA website.
+ *
+ * @body {number} daysBack - Number of days to look back (default 7)
+ * @returns JSON response with sync status
+ *
+ * @example
+ * POST /api/sync/fda/alerts/trigger
+ * Body: { "daysBack": 7 }
+ */
+router.post('/sync/fda/alerts/trigger', authenticate, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    // Import the Alerts sync service
+    const { fdaAlertsSyncService } = require('../services/fda/alerts-sync.service');
+
+    // Get daysBack from request body (default to 7 if not provided)
+    const daysBack = typeof req.body.daysBack === 'number' && req.body.daysBack >= 0
+      ? req.body.daysBack
+      : 7;
+
+    // Start the sync and wait for result
+    const result = await fdaAlertsSyncService.triggerManualSync(daysBack);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Error triggering FDA Alerts sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start FDA Alerts sync'
+    });
+  }
+});
+
+/**
  * POST /api/sync/fda/historical
- * 
+ *
  * Triggers FDA historical data sync
  * 
  * This is typically run once when setting up SafeCart to populate

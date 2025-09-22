@@ -9,6 +9,7 @@ import * as cron from 'node-cron';
 import logger from '../../utils/logger';
 import { spawn } from 'child_process';
 import path from 'path';
+import { fdaImageService } from './image.service';
 
 export class FDAIRESSyncService {
   private cronJob: cron.ScheduledTask | null = null;
@@ -139,9 +140,16 @@ export class FDAIRESSyncService {
         });
       });
       
-      // Parse the output to extract statistics
-      const stats = this.parseScraperOutput(stdout);
-      
+      // Parse the output to extract statistics and recalls
+      const { stats, recalls } = this.parseScraperOutput(stdout);
+
+      // Process images for new recalls if any
+      let imageStats = { processed: 0, uploaded: 0, failed: 0 };
+      if (recalls.length > 0) {
+        logger.info(`[IRES Sync] Processing images for ${recalls.length} recalls...`);
+        imageStats = await this.processRecallImages(recalls);
+      }
+
       // Log results
       const duration = Math.round((Date.now() - startTime) / 1000);
       logger.info(`[IRES Sync] Sync completed in ${duration}s`, {
@@ -149,16 +157,22 @@ export class FDAIRESSyncService {
         newRecords: stats.newRecords,
         updatedRecords: stats.updatedRecords,
         totalProcessed: stats.totalProcessed,
-        errors: stats.errors
+        errors: stats.errors,
+        imagesProcessed: imageStats.processed,
+        imagesUploaded: imageStats.uploaded,
+        imagesFailed: imageStats.failed
       });
-      
+
       // Update success metrics
       this.lastSyncTime = new Date();
       this.consecutiveFailures = 0;
-      
+
       // If we imported new recalls, log for monitoring
       if (stats.newRecords > 0) {
         logger.info(`[IRES Sync] Imported ${stats.newRecords} new FDA recalls from IRES`);
+        if (imageStats.uploaded > 0) {
+          logger.info(`[IRES Sync] Uploaded ${imageStats.uploaded} images for recalls`);
+        }
       }
       
     } catch (error) {
@@ -214,13 +228,16 @@ export class FDAIRESSyncService {
   }
   
   /**
-   * Parse scraper output to extract statistics
+   * Parse scraper output to extract statistics and recall URLs
    */
   private parseScraperOutput(output: string): {
-    newRecords: number;
-    updatedRecords: number;
-    totalProcessed: number;
-    errors: number;
+    stats: {
+      newRecords: number;
+      updatedRecords: number;
+      totalProcessed: number;
+      errors: number;
+    };
+    recalls: Array<{ id: string; url: string }>;
   } {
     const stats = {
       newRecords: 0,
@@ -228,28 +245,108 @@ export class FDAIRESSyncService {
       totalProcessed: 0,
       errors: 0
     };
-    
+
+    const recalls: Array<{ id: string; url: string }> = [];
+
     try {
       // Parse the summary section from output
       const newRecordsMatch = output.match(/New records:\s+(\d+)/);
       const updatedRecordsMatch = output.match(/Updated records:\s+(\d+)/);
       const errorsMatch = output.match(/Errors:\s+(\d+)/);
       const totalMatch = output.match(/Total processed:\s+(\d+)/);
-      
+
       if (newRecordsMatch) stats.newRecords = parseInt(newRecordsMatch[1]);
       if (updatedRecordsMatch) stats.updatedRecords = parseInt(updatedRecordsMatch[1]);
       if (errorsMatch) stats.errors = parseInt(errorsMatch[1]);
       if (totalMatch) stats.totalProcessed = parseInt(totalMatch[1]);
-      
+
       // If total not found, calculate it
       if (!stats.totalProcessed) {
         stats.totalProcessed = stats.newRecords + stats.updatedRecords;
       }
-      
+
+      // Look for JSON output with recall URLs (if scraper provides it)
+      const jsonMatch = output.match(/IRES_RECALLS:(.+)IRES_RECALLS_END/);
+      if (jsonMatch) {
+        try {
+          const recallData = JSON.parse(jsonMatch[1]);
+          recalls.push(...recallData);
+        } catch (e) {
+          logger.warn('[IRES Sync] Could not parse recalls JSON');
+        }
+      }
+
+      // Fallback: Parse individual recall saves from logs
+      const lines = output.split('\n');
+      const recallPattern = /(?:New|Updated) recall:\s+([A-Z0-9-]+).*field_recall_url:\s+([^\s]+)/i;
+
+      for (const line of lines) {
+        const match = line.match(recallPattern);
+        if (match && match[2] && match[2] !== 'N/A') {
+          recalls.push({
+            id: match[1],
+            url: match[2]
+          });
+        }
+      }
+
     } catch (error) {
-      logger.warn('[IRES Sync] Could not parse scraper output statistics');
+      logger.warn('[IRES Sync] Could not parse scraper output', error);
     }
-    
+
+    return { stats, recalls };
+  }
+
+  /**
+   * Process images for new recalls
+   */
+  private async processRecallImages(recalls: Array<{ id: string; url: string }>): Promise<{
+    processed: number;
+    uploaded: number;
+    failed: number;
+  }> {
+    const stats = {
+      processed: 0,
+      uploaded: 0,
+      failed: 0
+    };
+
+    for (const recall of recalls) {
+      try {
+        // Skip if no URL or invalid URL
+        if (!recall.url || recall.url === 'N/A' || !recall.url.startsWith('http')) {
+          logger.info(`[IRES Sync] Skipping recall ${recall.id} - no valid URL`);
+          continue;
+        }
+
+        logger.info(`[IRES Sync] Processing images for recall ${recall.id}`);
+
+        // Process images using the shared image service
+        const result = await fdaImageService.processRecallImages(
+          recall.id,
+          recall.url,
+          'fda_recalls' // IRES uses main FDA recalls collection
+        );
+
+        stats.processed++;
+
+        if (result.success) {
+          stats.uploaded += result.imagesUploaded;
+          logger.info(`[IRES Sync] Uploaded ${result.imagesUploaded} images for recall ${recall.id}`);
+        } else {
+          stats.failed++;
+          logger.error(`[IRES Sync] Failed to process images for recall ${recall.id}: ${result.error}`);
+        }
+
+        // Small delay between recalls to avoid overwhelming servers
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        stats.failed++;
+        logger.error(`[IRES Sync] Error processing images for recall ${recall.id}:`, error);
+      }
+    }
+
     return stats;
   }
   

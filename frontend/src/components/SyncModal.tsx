@@ -20,15 +20,19 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
   const { currentTheme } = useTheme();
   
   // State for sync method selection
-  const [syncMethod, setSyncMethod] = useState<'usda' | 'fda-api' | 'fda-ires'>('usda');
-  
+  const [syncMethod, setSyncMethod] = useState<'usda' | 'fda-api' | 'fda-ires' | 'fda-alerts'>('usda');
+
   // State for API sync options
   const [apiDays, setApiDays] = useState(60);
   const [apiDaysInput, setApiDaysInput] = useState('60');
-  
+
   // State for IRES sync options
   const [iresWeeks, setIresWeeks] = useState(4);
   const [showWeeksDropdown, setShowWeeksDropdown] = useState(false);
+
+  // State for Alerts sync options
+  const [alertsDays, setAlertsDays] = useState(7);
+  const [alertsDaysInput, setAlertsDaysInput] = useState('7');
   
   // Loading state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -72,6 +76,14 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
       setApiDays(num);
     }
   };
+
+  const handleAlertsDaysChange = (value: string) => {
+    setAlertsDaysInput(value);
+    const num = parseInt(value);
+    if (!isNaN(num) && num >= 1 && num <= 60) {
+      setAlertsDays(num);
+    }
+  };
   
   const handleSync = async () => {
     setIsSyncing(true);
@@ -90,14 +102,19 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
         setSyncMessage('Starting OpenFDA API sync...');
         await api.triggerFdaSync(daysToSync);
         setSyncMessage(`OpenFDA API sync started successfully for last ${daysToSync} days!`);
-      } else {
+      } else if (syncMethod === 'fda-ires') {
         // Trigger IRES sync
         setSyncMessage('Starting FDA IRES scraper sync...');
         await api.triggerFdaIresSync(iresWeeks);
-        const weeksText = iresWeeks === 0 
-          ? 'new recalls only' 
+        const weeksText = iresWeeks === 0
+          ? 'new recalls only'
           : `last ${iresWeeks} week${iresWeeks !== 1 ? 's' : ''}`;
         setSyncMessage(`FDA IRES sync started successfully for ${weeksText}!`);
+      } else {
+        // Trigger FDA Alerts sync
+        setSyncMessage('Starting FDA Alerts scraper sync...');
+        await api.triggerFdaAlertsSync(alertsDays);
+        setSyncMessage(`FDA Alerts sync started successfully for last ${alertsDays} days!`);
       }
       
       // Notify parent component
@@ -299,6 +316,51 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
                   </span>
                 </div>
               </label>
+
+              <label
+                className={`${styles.radioOption} ${syncMethod === 'fda-alerts' ? styles.selected : ''}`}
+                style={{
+                  borderColor: syncMethod === 'fda-alerts' ? currentTheme.primary : currentTheme.cardBorder,
+                  backgroundColor: syncMethod === 'fda-alerts' ? `${currentTheme.primaryLight}10` : 'transparent'
+                }}
+              >
+                <div className={styles.radioWrapper}>
+                  <input
+                    type="radio"
+                    name="syncMethod"
+                    value="fda-alerts"
+                    checked={syncMethod === 'fda-alerts'}
+                    onChange={() => setSyncMethod('fda-alerts')}
+                    disabled={isSyncing}
+                    className={styles.radioInput}
+                  />
+                  <div
+                    className={styles.radioIcon}
+                    style={{
+                      borderColor: syncMethod === 'fda-alerts' ? currentTheme.primary : currentTheme.inputBorder,
+                      backgroundColor: syncMethod === 'fda-alerts' ? currentTheme.primary : 'transparent'
+                    }}
+                  >
+                    {syncMethod === 'fda-alerts' && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M10 3L4.5 8.5L2 6"
+                          stroke="white"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.radioLabel}>
+                  <span className={styles.radioTitle} style={{ color: currentTheme.text }}>FDA Alerts Scraper</span>
+                  <span className={styles.radioDescription} style={{ color: currentTheme.textSecondary }}>
+                    Press releases - Gets unclassified recalls earliest
+                  </span>
+                </div>
+              </label>
             </div>
           </div>
           
@@ -361,6 +423,65 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
                     : apiDaysInput === ''
                     ? 'Enter number of days (1-365)'
                     : 'Please enter a valid number between 1 and 365'
+                  }
+                </span>
+              </div>
+            ) : syncMethod === 'fda-alerts' ? (
+              <div className={styles.optionGroup}>
+                <label className={styles.label} style={{ color: currentTheme.text }}>
+                  Days to sync:
+                </label>
+                <div className={styles.numberInputWrapper}>
+                  <input
+                    type="text"
+                    value={alertsDaysInput}
+                    onChange={(e) => handleAlertsDaysChange(e.target.value)}
+                    disabled={isSyncing}
+                    className={styles.numberInput}
+                    placeholder="Enter days"
+                    style={{
+                      backgroundColor: currentTheme.inputBackground,
+                      borderColor: currentTheme.inputBorder,
+                      color: currentTheme.text
+                    }}
+                  />
+                  <div className={styles.numberInputButtons}>
+                    <button
+                      type="button"
+                      className={styles.numberInputButton}
+                      onClick={() => {
+                        const newValue = Math.min(60, (parseInt(alertsDaysInput) || 0) + 1);
+                        handleAlertsDaysChange(newValue.toString());
+                      }}
+                      disabled={isSyncing || parseInt(alertsDaysInput) >= 60}
+                      aria-label="Increase days"
+                    >
+                      <svg viewBox="0 0 12 8" fill="none">
+                        <path d="M6 2L10 6L2 6L6 2Z" fill="currentColor"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.numberInputButton}
+                      onClick={() => {
+                        const newValue = Math.max(1, (parseInt(alertsDaysInput) || 2) - 1);
+                        handleAlertsDaysChange(newValue.toString());
+                      }}
+                      disabled={isSyncing || parseInt(alertsDaysInput) <= 1}
+                      aria-label="Decrease days"
+                    >
+                      <svg viewBox="0 0 12 8" fill="none">
+                        <path d="M6 6L2 2L10 2L6 6Z" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <span className={styles.hint} style={{ color: currentTheme.textSecondary }}>
+                  {alertsDaysInput && !isNaN(parseInt(alertsDaysInput)) && parseInt(alertsDaysInput) >= 1 && parseInt(alertsDaysInput) <= 60
+                    ? `Fetches alerts from the last ${alertsDays} days`
+                    : alertsDaysInput === ''
+                    ? 'Enter number of days (1-60)'
+                    : 'Please enter a valid number between 1 and 60'
                   }
                 </span>
               </div>
@@ -520,8 +641,9 @@ export function SyncModal({ onClose, onSyncStarted }: SyncModalProps) {
             variant="primary"
             onClick={handleSync}
             disabled={
-              isSyncing || 
-              (syncMethod === 'fda-api' && (!apiDaysInput || parseInt(apiDaysInput) < 1 || parseInt(apiDaysInput) > 365 || isNaN(parseInt(apiDaysInput))))
+              isSyncing ||
+              (syncMethod === 'fda-api' && (!apiDaysInput || parseInt(apiDaysInput) < 1 || parseInt(apiDaysInput) > 365 || isNaN(parseInt(apiDaysInput)))) ||
+              (syncMethod === 'fda-alerts' && (!alertsDaysInput || parseInt(alertsDaysInput) < 1 || parseInt(alertsDaysInput) > 60 || isNaN(parseInt(alertsDaysInput))))
             }
           >
             {isSyncing ? 'Starting Sync...' : 'Start Sync'}

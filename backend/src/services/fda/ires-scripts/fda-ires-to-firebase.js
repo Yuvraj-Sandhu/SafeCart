@@ -51,6 +51,9 @@ async function saveIRESRecallsToFirebase(recalls) {
   // Array to collect recalls that need LLM title processing
   const recallsForLLM = [];
 
+  // Array to collect recalls with URLs for image processing
+  const recallsWithUrls = [];
+
   // Transform IRES data to FDA schema
   const transformedRecalls = batchTransformIRESRecalls(recalls);
   
@@ -156,16 +159,19 @@ async function saveIRESRecallsToFirebase(recalls) {
         if (!mergedData.llmTitle && recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
-            title: recall.product_description
+            title: recall.product_description,
+            reason: recall.reason_for_recall
           });
         }
         
         currentBatch.update(docRef, mergedData);
         stats.updatedRecords++;
-        
+
+        // Don't collect URLs for existing recalls - no image processing needed
+
         // Log all updates for debugging
         console.log(`  Updating: ${recall.id} (operation ${operationCount + 1})`);
-        
+
         // Log if this is one of the first few for detailed debugging
         if (operationCount < 3) {
           // console.log(`    Fields being updated: ${Object.keys(mergedData).join(', ')}`);
@@ -181,13 +187,23 @@ async function saveIRESRecallsToFirebase(recalls) {
         if (recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
-            title: recall.product_description
+            title: recall.product_description,
+            reason: recall.reason_for_recall
           });
         }
         
         currentBatch.set(docRef, newRecall);
         stats.newRecords++;
-        
+
+        // Collect recall with URL for image processing
+        if (recall.recall_url && recall.recall_url !== 'N/A') {
+          recallsWithUrls.push({
+            id: recall.id,
+            url: recall.recall_url
+          });
+          console.log(`  New recall: ${recall.id}, recall_url: ${recall.recall_url}`);
+        }
+
         if (operationCount < 3) {
           console.log(`  Creating: ${recall.id}`);
         }
@@ -254,7 +270,14 @@ async function saveIRESRecallsToFirebase(recalls) {
       console.error('Error processing LLM titles:', error);
     });
   }
-  
+
+  // Output recalls with URLs for image processing (parseable by sync service)
+  if (recallsWithUrls.length > 0) {
+    console.log(`\n${recallsWithUrls.length} recalls have URLs for image processing`);
+    // Output in JSON format for sync service to parse
+    console.log(`IRES_RECALLS:${JSON.stringify(recallsWithUrls)}IRES_RECALLS_END`);
+  }
+
   return stats;
 }
 
@@ -284,7 +307,7 @@ async function processLLMTitlesForIRESRecalls(recallsToProcess) {
         }
 
         // Get enhanced title from OpenAI
-        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
         
         if (enhancedTitle) {
           // Update the recall with the enhanced title

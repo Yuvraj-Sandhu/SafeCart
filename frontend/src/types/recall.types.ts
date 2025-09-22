@@ -42,7 +42,15 @@ export interface UnifiedRecall {
     type: string;
     filename?: string;
   }>;
-  
+
+  // Scrapped images (from FDA web scraping)
+  scrapped_images?: {
+    urls: string[];
+    count: number;
+    processedAt: string;
+    sourceUrls: string[];
+  };
+
   // Display customizations
   display?: DisplayData;
   
@@ -109,6 +117,7 @@ export function fdaToUnified(fdaRecall: any): UnifiedRecall {
     affectedStates: fdaRecall.affectedStatesArray || [],
     distributionPattern: fdaRecall.distribution_pattern,
     images: fdaRecall.processedImages || [],
+    scrapped_images: fdaRecall.scrapped_images,
     display: fdaRecall.display,
     originalData: fdaRecall
   };
@@ -139,6 +148,7 @@ export function tempFdaToUnified(tempRecall: any): UnifiedRecall {
     affectedStates: tempRecall.affectedStatesArray || [],
     distributionPattern: tempRecall.distribution_pattern,
     images: tempRecall.processedImages || [],
+    scrapped_images: tempRecall.scrapped_images,
     display: tempRecall.display,
     originalData: tempRecall
   };

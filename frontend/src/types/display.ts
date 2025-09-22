@@ -13,19 +13,26 @@ export interface UserInfo {
   email: string;
 }
 
+export interface ScrappedImagesConfig {
+  enabled: boolean;           // Toggle to show/hide scrapped images
+  visibleIndices?: number[];  // Which images to show (undefined = all)
+  order?: number[];          // Custom order (undefined = original order)
+}
+
 export interface DisplayData {
   primaryImageIndex?: number; // Index of the primary image to show first on main card (relative to main card's image range)
   cardSplits?: CardSplit[];   // Array defining how to split cards
   previewTitle?: string;      // Override title for the main card
   previewUrl?: string;        // Override URL for recall links (Visit USDA/FDA page)
   uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
-  
+  scrappedImagesConfig?: ScrappedImagesConfig; // Configuration for displaying scrapped images
+
   // Approval audit fields
   proposedBy?: UserInfo;      // Who proposed these changes
   proposedAt?: string;        // When changes were proposed
   approvedBy?: UserInfo;      // Who approved these changes
   approvedAt?: string;        // When changes were approved
-  
+
   // Direct edit audit fields
   lastEditedBy?: string;      // Who last edited this recall (for direct admin edits)
   lastEditedAt?: string;      // When this recall was last edited
