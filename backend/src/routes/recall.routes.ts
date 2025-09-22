@@ -814,4 +814,96 @@ router.post('/recalls/:id/upload-images', authenticate, requireAdmin, upload.arr
   }
 });
 
+/**
+ * GET /api/recalls/download-image
+ *
+ * Downloads an image from Firebase Storage
+ *
+ * This endpoint proxies image downloads through the backend to handle
+ * CORS issues and authentication with Firebase Storage.
+ *
+ * @query url - The Firebase Storage URL of the image to download
+ * @query filename - Optional filename for the downloaded file
+ *
+ * @returns Binary image data with appropriate headers for download
+ *
+ * @example
+ * GET /api/recalls/download-image?url=https://storage.googleapis.com/...&filename=image.png
+ */
+router.get('/recalls/download-image', async (req: Request, res: Response) => {
+  try {
+    const { url, filename } = req.query;
+
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Image URL is required'
+      });
+    }
+
+    // Parse the storage path from the URL
+    // Format: https://storage.googleapis.com/BUCKET_NAME/PATH_TO_FILE
+    const urlPattern = /https:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)/;
+    const match = url.match(urlPattern);
+
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Firebase Storage URL format'
+      });
+    }
+
+    const bucketName = match[1];
+    const filePath = decodeURIComponent(match[2]);
+
+    // Get the file from Firebase Storage
+    const { getStorage } = await import('firebase-admin/storage');
+    const storage = getStorage();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(filePath);
+
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Image not found'
+      });
+    }
+
+    // Get file metadata
+    const [metadata] = await file.getMetadata();
+    const contentType = metadata.contentType || 'application/octet-stream';
+    const downloadFilename = filename || filePath.split('/').pop() || 'image';
+
+    // Set appropriate headers for file download
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+    // Stream the file to the response
+    const stream = file.createReadStream();
+    stream.on('error', (error) => {
+      logger.error('Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to download image'
+        });
+      }
+    });
+
+    stream.pipe(res);
+
+  } catch (error) {
+    logger.error('Error downloading image:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to download image'
+      });
+    }
+  }
+});
+
 export default router;

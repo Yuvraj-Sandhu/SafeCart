@@ -1015,16 +1015,28 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                           className={styles.downloadButton}
                           onClick={async () => {
                             try {
-                              const response = await fetch(url);
+                              // Use backend endpoint to download the image
+                              const filename = `scraped-${recall.recallNumber}-${index + 1}.jpg`;
+                              const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/recalls/download-image?` +
+                                `url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
+                              const response = await fetch(downloadUrl, {
+                                credentials: 'include'
+                              });
+
+                              if (!response.ok) {
+                                throw new Error('Failed to download image');
+                              }
+
                               const blob = await response.blob();
-                              const downloadUrl = window.URL.createObjectURL(blob);
+                              const blobUrl = window.URL.createObjectURL(blob);
                               const a = document.createElement('a');
-                              a.href = downloadUrl;
-                              a.download = `scraped-${recall.recallNumber}-${index + 1}.jpg`;
+                              a.href = blobUrl;
+                              a.download = filename;
                               document.body.appendChild(a);
                               a.click();
                               document.body.removeChild(a);
-                              window.URL.revokeObjectURL(downloadUrl);
+                              window.URL.revokeObjectURL(blobUrl);
                             } catch (error) {
                               console.error('Failed to download image:', error);
                               alert('Failed to download image');
