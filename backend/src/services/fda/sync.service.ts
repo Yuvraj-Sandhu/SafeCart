@@ -71,7 +71,7 @@ export class FDASyncService {
     let newRecords = 0;
     let updatedRecords = 0;
     const newRecallIds: string[] = [];
-    const newRecallsForLLM: Array<{ id: string, title: string }> = [];
+    const newRecallsForLLM: Array<{ id: string, title: string, reason?: string }> = [];
 
     logger.info(`Processing ${recalls.length} FDA recalls for save/update...`);
 
@@ -149,9 +149,10 @@ export class FDASyncService {
             updateData.llmTitle = existingData.llmTitle;
           } else {
             // Existing recall without llmTitle - add to LLM processing queue
-            newRecallsForLLM.push({ 
-              id: docId, 
-              title: recall.product_description 
+            newRecallsForLLM.push({
+              id: docId,
+              title: recall.product_description,
+              reason: recall.reason_for_recall
             });
           }
           
@@ -182,9 +183,10 @@ export class FDASyncService {
           newRecallIds.push(docId);
           
           // New recall - add to LLM processing queue
-          newRecallsForLLM.push({ 
-            id: docId, 
-            title: recall.product_description 
+          newRecallsForLLM.push({
+            id: docId,
+            title: recall.product_description,
+            reason: recall.reason_for_recall
           });
         }
         
@@ -237,11 +239,11 @@ export class FDASyncService {
   /**
    * Processes FDA recall titles with OpenAI for specific recalls
    * This runs asynchronously to avoid blocking the sync process
-   * 
-   * @param recallsToProcess - Array of recalls with id and title to process
+   *
+   * @param recallsToProcess - Array of recalls with id, title, and reason to process
    * @private
    */
-  private async processLLMTitlesForFDARecalls(recallsToProcess: Array<{ id: string, title: string }>): Promise<void> {
+  private async processLLMTitlesForFDARecalls(recallsToProcess: Array<{ id: string, title: string, reason?: string }>): Promise<void> {
     if (!openAIService.isAvailable()) {
       logger.info('OpenAI service not available, skipping LLM title processing for FDA recalls');
       return;
@@ -265,7 +267,7 @@ export class FDASyncService {
           }
 
           // Get enhanced title from OpenAI
-          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+          const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
           
           if (enhancedTitle) {
             // Update the recall with the enhanced title

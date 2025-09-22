@@ -1118,7 +1118,8 @@ async function saveToFirebase(formattedAlerts) {
       if (isNewAlert || !existingData.llmTitle) {
         recallsForLLM.push({
           id: isNewAlert ? docId : existingDocId,
-          title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`
+          title: alert.product_title || `${alert.brand_name} - ${alert.product_description}`,
+          reason: alert.reason_for_recall
         });
       }
       
@@ -1177,7 +1178,7 @@ async function processLLMTitlesForTempRecalls(recallsToProcess) {
         }
 
         // Get enhanced title from OpenAI
-        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
         
         if (enhancedTitle) {
           // Update the recall with the enhanced title

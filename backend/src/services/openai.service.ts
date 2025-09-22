@@ -31,7 +31,7 @@ class OpenAIService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async enhanceRecallTitle(originalTitle: string): Promise<string | null> {
+  async enhanceRecallTitle(originalTitle: string, recallReason?: string): Promise<string | null> {
     if (!this.openai) {
       console.log('OpenAI not initialized, skipping title enhancement');
       return null;
@@ -41,35 +41,46 @@ class OpenAIService {
       return null;
     }
 
-    const systemPrompt = `You are an expert at creating clear, concise, and informative titles for food 
-    recall notices. Your goal is to transform technical recall titles into consumer-friendly headlines 
-    that immediately convey the most important information.
+    const systemPrompt = `You are an expert at creating clear, urgent, and informative titles for food recall notices.
+    Your titles must immediately communicate the danger to consumers in plain language while including specific pathogens or contaminants.
 
-    Guidelines:
-    1. Keep titles concise (under 80 characters when possible)
-    2. Include the specific product type
-    3. Mention the primary health risk or reason for recall if apparent
-    4. Use active, clear language
-    5. Remove technical codes and jargon
-    6. Focus on what consumers need to know immediately
+    CRITICAL GUIDELINES:
+    1. ALWAYS include the specific pathogen/contaminant name (e.g., "Listeria", "E. Coli", "Salmonella", "Metal Fragments")
+    2. Lead with the product name/brand when known
+    3. Be specific about the danger - never use generic terms like "health risk" or "safety concern"
+    4. Keep under 80 characters while being informative
+    5. Use urgent, active language that compels action
+    6. Remove technical jargon but keep critical safety terms
 
-    Examples:
-    Original: "FSIS-RC-023-2024 - Class I Recall: Establishment Recalls Raw Ground Beef Products due to Possible E. coli O157:H7 Contamination"
-    Enhanced: "Ground Beef Recalled for Possible E. Coli Contamination"
+    TITLE FORMULA:
+    [Product/Brand] Recalled for [Specific Pathogen/Contaminant/Issue]
 
-    Original: "Public Health Alert: RTE Meat and Poultry Products Produced Without Benefit of Inspection"
-    Enhanced: "Ready-to-Eat Meat Products Recalled - Produced Without Inspection"
+    EXCELLENT EXAMPLES:
+    Title: "Ground Beef Recalled for E. Coli O157:H7 Contamination"
+    Title: "Kirkland Ahi Tuna Recalled for Listeria monocytogenes Risk"
+    Title: "Frozen Shrimp Products Recalled for Cesium-137 Radiation"
+    Title: "BulkSupplements Inositol Recalled for Staphylococcus aureus"
+    Title: "Baby Formula Recalled for Cronobacter sakazakii Bacteria"
+    Title: "Peanut Butter Recalled - Contains Glass Fragments"
+    Title: "Raw Milk Cheese Recalled for Brucella Contamination"
 
-    Original: "Recall 073-2024: Undeclared Milk Allergen in Dark Chocolate Products Distributed Nationwide"
-    Enhanced: "Dark Chocolate Recalled for Undeclared Milk Allergen"
+    BAD EXAMPLES (never do this):
+    "Product Recalled for Possible Health Risk" - Too vague
+    "Food Safety Alert" - No specific information
+    "Voluntary Recall Notice" - Doesn't say what's wrong
+    "Product May Be Contaminated" - Doesn't specify contamination type
 
-    Original: "Voluntary Recall of Frozen Chicken Nuggets Due to Possible Foreign Matter Contamination (Metal)"
-    Enhanced: "Frozen Chicken Nuggets Recalled - May Contain Metal Pieces"
+    PATHOGEN/CONTAMINANT SEVERITY GUIDE:
+    - Always use the scientific name for bacteria (E. coli, Listeria monocytogenes, Salmonella)
+    - For chemicals, use the specific name (Cesium-137, Lead, Cadmium)
+    - For allergens, be specific (Undeclared Peanuts, Hidden Milk Allergen)
+    - For foreign objects, describe them (Metal Shavings, Glass Pieces, Plastic Fragments)`;
 
-    Original: "Recall Notification - Retail Distribution - WA, OR, ID, CA - Fresh Produce Items - Listeria monocytogenes"
-    Enhanced: "Fresh Produce Recalled in 4 Western States for Listeria Risk"`;
-
-    const userPrompt = `Enhance this recall title: "${originalTitle}"`;
+    let userPrompt = `Product Title: "${originalTitle}"`;
+    if (recallReason && recallReason.trim().length > 0) {
+      userPrompt += `\nRecall Reason: "${recallReason}"`;
+    }
+    userPrompt += `\n\nCreate a clear, specific recall title that tells consumers exactly what product is being recalled and why it's dangerous.`;
 
     let lastError: Error | null = null;
 

@@ -159,7 +159,8 @@ async function saveIRESRecallsToFirebase(recalls) {
         if (!mergedData.llmTitle && recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
-            title: recall.product_description
+            title: recall.product_description,
+            reason: recall.reason_for_recall
           });
         }
         
@@ -186,7 +187,8 @@ async function saveIRESRecallsToFirebase(recalls) {
         if (recall.product_description) {
           recallsForLLM.push({
             id: recall.id,
-            title: recall.product_description
+            title: recall.product_description,
+            reason: recall.reason_for_recall
           });
         }
         
@@ -305,7 +307,7 @@ async function processLLMTitlesForIRESRecalls(recallsToProcess) {
         }
 
         // Get enhanced title from OpenAI
-        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title);
+        const enhancedTitle = await openAIService.enhanceRecallTitle(recall.title, recall.reason);
         
         if (enhancedTitle) {
           // Update the recall with the enhanced title
