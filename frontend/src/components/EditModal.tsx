@@ -90,14 +90,17 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
 
   // Scrapped images configuration states
   const [scrappedImagesEnabled, setScrappedImagesEnabled] = useState(
-    recall.display?.scrappedImagesConfig?.enabled || false
+    recall.display?.scrappedImagesConfig?.enabled !== undefined
+      ? recall.display.scrappedImagesConfig.enabled
+      : true  // Default to true (enabled)
   );
   const [scrappedImagesOrder, setScrappedImagesOrder] = useState<number[]>(
     recall.display?.scrappedImagesConfig?.order || []
   );
   const [scrappedImagesVisible, setScrappedImagesVisible] = useState<number[]>(
-    recall.display?.scrappedImagesConfig?.visibleIndices ||
-    (recall.scrapped_images ? Array.from({ length: recall.scrapped_images.count }, (_, i) => i) : [])
+    recall.display?.scrappedImagesConfig?.visibleIndices !== undefined
+      ? recall.display.scrappedImagesConfig.visibleIndices
+      : (recall.scrapped_images ? Array.from({ length: recall.scrapped_images.count }, (_, i) => i) : [])
   );
   const [isReorderingMode, setIsReorderingMode] = useState(false);
   const [tempOrder, setTempOrder] = useState<number[]>([]);

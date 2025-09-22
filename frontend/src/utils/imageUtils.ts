@@ -1,5 +1,5 @@
 import { ProcessedImage } from '@/services/api';
-import { UploadedImage, RecallWithDisplay } from '@/types/display';
+import { UploadedImage, RecallWithDisplay, ScrappedImagesConfig } from '@/types/display';
 import { UnifiedRecall } from '@/types/recall.types';
 
 /**
@@ -55,8 +55,8 @@ export function getUnifiedRecallImages(recall: UnifiedRecall, includeScrapped: b
   // Get scrapped images if enabled
   let scrappedImages: ProcessedImage[] = [];
 
-  if (includeScrapped && recall.scrapped_images && recall.display?.scrappedImagesConfig?.enabled) {
-    const config = recall.display.scrappedImagesConfig;
+  if (includeScrapped && recall.scrapped_images && recall.display?.scrappedImagesConfig?.enabled !== false) {
+    const config: Partial<ScrappedImagesConfig> = recall.display?.scrappedImagesConfig || {};
 
     // Create all scrapped images with their original indices
     interface ScrappedImageWithIndex extends ProcessedImage {
@@ -77,7 +77,7 @@ export function getUnifiedRecallImages(recall: UnifiedRecall, includeScrapped: b
     let orderedImages: ScrappedImageWithIndex[] = allScrappedImages;
     if (config.order && config.order.length > 0) {
       // The order array contains the indices in their desired display order
-      orderedImages = config.order.map(originalIndex => allScrappedImages[originalIndex]).filter(img => img !== undefined);
+      orderedImages = config.order.map((originalIndex: number) => allScrappedImages[originalIndex]).filter((img: ScrappedImageWithIndex | undefined) => img !== undefined);
     }
 
     // Then filter by visibility
@@ -85,7 +85,7 @@ export function getUnifiedRecallImages(recall: UnifiedRecall, includeScrapped: b
     if (config.visibleIndices !== undefined) {
       // If visibleIndices is defined (even if empty), use it to filter
       // Empty array means hide all images
-      filteredImages = orderedImages.filter(img =>
+      filteredImages = orderedImages.filter((img: ScrappedImageWithIndex) =>
         config.visibleIndices!.includes(img.originalIndex)
       );
     }
