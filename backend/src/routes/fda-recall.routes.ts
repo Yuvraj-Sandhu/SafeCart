@@ -400,7 +400,7 @@ router.get('/temp-recalls/state/:stateCode', async (req: Request, res: Response)
     if (excludePending) {
       const pendingIds = await PendingChangesService.getPendingRecallIds();
       recalls = recalls.filter(recall => {
-        const compositeId = `${recall.id}_FDA_TEMP`;
+        const compositeId = `${recall.id}_TEMP_FDA`;
         return !pendingIds.has(compositeId);
       });
     }
@@ -448,7 +448,7 @@ router.get('/temp-recalls/all', async (req: Request, res: Response) => {
     if (excludePending) {
       const pendingIds = await PendingChangesService.getPendingRecallIds();
       recalls = recalls.filter(recall => {
-        const compositeId = `${recall.id}_FDA_TEMP`;
+        const compositeId = `${recall.id}_TEMP_FDA`;
         return !pendingIds.has(compositeId);
       });
     }

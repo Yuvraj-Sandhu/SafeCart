@@ -626,20 +626,20 @@ export function RecallList({
                 </div>
                 */}
                 
-                <div className={styles.recallMeta}>
+                {/* <div className={styles.recallMeta}> */}
                   {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {recall.recallingFirm}
                   </span> */}
-                  <span 
+                  {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {formatRecallDate(recall.recallDate)}
-                  </span>
-                </div>
+                  </span> */}
+                {/* </div> */}
                 
                 {isExpanded && (
                   <div className={styles.expandedDetails}>

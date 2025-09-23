@@ -127,8 +127,9 @@ export default function Home() {
       
       // Merge temp recalls with regular recalls and sort by date (newest first)
       const allRecalls = [...tempRecallsData, ...regularRecalls].sort((a, b) => {
-        const dateA = a.recallDate || '';
-        const dateB = b.recallDate || '';
+        // Use recallInitiationDate if available, otherwise fall back to recallDate
+        const dateA = a.recallInitiationDate || a.recallDate || '';
+        const dateB = b.recallInitiationDate || b.recallDate || '';
         // Sort in descending order (newest first)
         return dateB.localeCompare(dateA);
       });
