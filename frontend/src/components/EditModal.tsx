@@ -376,7 +376,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Step 1: Create/update pending change WITHOUT images first
     const pendingChange = await pendingChangesApi.createPendingChange({
       recallId: recall.id,
-      recallSource: recall.source,
+      recallSource: recall.isTemp ? 'TEMP_FDA' : recall.source,
       originalRecall: recall, // Store full recall data to avoid additional API calls
       proposedDisplay: cleanProposedDisplay
     });
@@ -442,9 +442,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         alert('Reset completed successfully!');
       } else {
         // For members, check if this recall has pending changes
-        if (hasPendingChanges(recall.id, recall.source)) {
+        const recallSource = recall.isTemp ? 'TEMP_FDA' : recall.source;
+        if (hasPendingChanges(recall.id, recallSource)) {
           // If it has pending changes, withdraw them (remove from pending queue)
-          const pendingChangesForRecall = getPendingChangesForRecall(recall.id, recall.source);
+          const pendingChangesForRecall = getPendingChangesForRecall(recall.id, recallSource);
           
           if (pendingChangesForRecall.length > 0) {
             // Withdraw the pending change (members can withdraw their own changes)
