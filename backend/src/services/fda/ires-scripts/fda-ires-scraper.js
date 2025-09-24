@@ -287,20 +287,29 @@ class FDAIRESScraper {
         if (response) {
           console.log(`Response status: ${response.status()}`);
           
-          // Check for bot detection
-          if (response.status() === 403 || response.status() === 429) {
-            console.warn(`Possible bot detection (HTTP ${response.status()})`);
-            
+          // Check for bot detection or authentication issues
+          if (response.status() === 401 || response.status() === 403 || response.status() === 429) {
+            console.warn(`Access denied (HTTP ${response.status()})`);
+
+            // For 401, it's likely permanent authentication failure
+            if (response.status() === 401) {
+              console.error('401 Unauthorized - The IRES website may have changed authentication requirements');
+              throw new Error('Authentication failed - IRES returned 401 Unauthorized');
+            }
+
+            // For 403 and 429, retry with backoff
             if (attempt < maxRetries - 1) {
               // Exponential backoff
               const waitTime = Math.pow(2, attempt) * 5000;
               console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
               await this.page.waitForTimeout(waitTime);
-              
+
               // Clear cookies and try again
               await this.context.clearCookies();
               attempt++;
               continue;
+            } else {
+              throw new Error(`Failed after ${maxRetries} attempts - HTTP ${response.status()}`);
             }
           }
         }

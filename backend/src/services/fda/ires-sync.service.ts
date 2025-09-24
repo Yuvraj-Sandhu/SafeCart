@@ -108,7 +108,21 @@ export class FDAIRESSyncService {
       // Wait for process to complete with promise
       await new Promise<void>((resolve, reject) => {
         let timedOut = false;
-        
+        let authenticationFailed = false;
+
+        // Monitor stdout for authentication failures
+        child.stdout?.on('data', (data) => {
+          const output = data.toString();
+          // Check for 401 error in output
+          if (output.includes('401 Unauthorized') ||
+              output.includes('Authentication failed') ||
+              output.includes('IRES returned 401')) {
+            authenticationFailed = true;
+            logger.error('[IRES Sync] Authentication failed - killing process immediately');
+            child.kill('SIGTERM');
+          }
+        });
+
         // Set timeout of 45 minutes (increased from 30)
         const timeout = setTimeout(() => {
           timedOut = true;
@@ -124,8 +138,10 @@ export class FDAIRESSyncService {
         
         child.on('close', (code) => {
           clearTimeout(timeout);
-          
-          if (timedOut) {
+
+          if (authenticationFailed) {
+            reject(new Error('Authentication failed - IRES returned 401 Unauthorized. The website may have changed authentication requirements.'));
+          } else if (timedOut) {
             reject(new Error('Scraper timeout after 45 minutes'));
           } else if (code !== 0) {
             reject(new Error(`Scraper exited with code ${code}`));
