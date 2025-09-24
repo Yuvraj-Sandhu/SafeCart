@@ -123,7 +123,7 @@
 /* Mobile devices (phones) */
 @media (max-width: 640px) {
   .recallImage {
-    max-height: 33vh; /* On mobile: limit to 33% of viewport height */
+    max-height: 30vh; /* On mobile: limit to 30% of viewport height */
   }
 }
 
@@ -137,14 +137,14 @@
 /* Small laptops */
 @media (min-width: 1025px) and (max-width: 1440px) {
   .recallImage {
-    max-height: 400px;
+    max-height: 350px;
   }
 }
 
 /* Large screens */
 @media (min-width: 1440px) {
   .recallImage {
-    max-height: 500px; /* On large screens: allow up to 70% of viewport height */
+    max-height: 400px; /* On large screens: allow up to 70% of viewport height */
   }
 }
 
