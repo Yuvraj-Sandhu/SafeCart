@@ -116,8 +116,13 @@ router.post('/:id/upload-images', upload.array('images', 10), async (req, res) =
     let uploadedImages;
     if (pendingChange.recallSource === 'USDA') {
       uploadedImages = await firebaseService.uploadRecallImages(pendingChange.recallId, files, req.user?.username);
-    } else {
+    } else if (pendingChange.recallSource === 'FDA' || pendingChange.recallSource === 'TEMP_FDA') {
       uploadedImages = await fdaFirebaseService.uploadFDARecallImages(pendingChange.recallId, files, req.user?.username);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid recall source'
+      });
     }
 
     // Parse display data from form data
@@ -227,16 +232,16 @@ router.get('/recall/:recallId/:source', async (req, res) => {
   try {
     const { recallId, source } = req.params;
     
-    if (source !== 'USDA' && source !== 'FDA') {
+    if (source !== 'USDA' && source !== 'FDA' && source !== 'TEMP_FDA') {
       return res.status(400).json({
         success: false,
         message: 'Invalid recall source'
       });
     }
-    
+
     const pendingChanges = await PendingChangesService.getPendingChangesByRecall(
       recallId,
-      source as 'USDA' | 'FDA'
+      source as 'USDA' | 'FDA' | 'TEMP_FDA'
     );
     
     res.json({

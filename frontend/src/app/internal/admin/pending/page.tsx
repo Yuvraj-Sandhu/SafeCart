@@ -48,26 +48,32 @@ export default function AdminPendingPage() {
         const originalRecall = change.originalRecall;
         
         // Extract title from proposed display or original recall
-        const displayTitle = change.proposedDisplay?.previewTitle || 
+        const displayTitle = change.proposedDisplay?.previewTitle ||
                            originalRecall?.display?.previewTitle ||
                            originalRecall?.productTitle ||
+                           originalRecall?.product_title ||
                            originalRecall?.field_title ||
                            `Recall ${change.recallId}`;
         
         // Create a UnifiedRecall object using the original recall data
         const recall: UnifiedRecall = {
           id: change.recallId, // Use ORIGINAL recall ID for consistency
-          recallNumber: originalRecall?.recallNumber || change.recallId,
-          source: change.recallSource,
+          recallNumber: originalRecall?.recallNumber || originalRecall?.recall_number || originalRecall?.field_recall_number || change.recallId,
+          source: change.recallSource === 'TEMP_FDA' ? 'FDA' : change.recallSource,
+          isTemp: change.recallSource === 'TEMP_FDA',
           isActive: originalRecall?.isActive ?? true,
-          classification: originalRecall?.classification || originalRecall?.field_risk_level || 'Pending Review',
-          recallingFirm: originalRecall?.recallingFirm || originalRecall?.recalling_firm || `Submitted by ${change.proposedBy.username}`,
+          classification: originalRecall?.classification || originalRecall?.field_risk_level || originalRecall?.field_recall_classification || 'Pending Review',
+          recallingFirm: originalRecall?.recallingFirm || originalRecall?.recalling_firm || originalRecall?.field_establishment || `Submitted by ${change.proposedBy.username}`,
           productTitle: displayTitle,
-          productDescription: originalRecall?.productDescription || originalRecall?.field_summary || `Changes submitted on ${new Date(change.proposedAt).toLocaleDateString()}`,
-          reasonForRecall: originalRecall?.reasonForRecall || originalRecall?.reason_for_recall || 'Awaiting Admin Review',
-          recallDate: originalRecall?.recallDate || originalRecall?.report_date || change.proposedAt,
-          affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || ['Admin Review Required'],
+          productDescription: originalRecall?.productDescription || originalRecall?.product_description || originalRecall?.field_summary || originalRecall?.field_product_items || `Changes submitted on ${new Date(change.proposedAt).toLocaleDateString()}`,
+          reasonForRecall: originalRecall?.reasonForRecall || originalRecall?.reason_for_recall || originalRecall?.field_recall_reason || 'Awaiting Admin Review',
+          recallDate: originalRecall?.recallDate || originalRecall?.report_date || originalRecall?.field_recall_date || originalRecall?.date || change.proposedAt,
+          affectedStates: originalRecall?.affectedStates || originalRecall?.affectedStatesArray || (originalRecall?.field_states ? originalRecall.field_states.split(', ') : ['Admin Review Required']),
           images: originalRecall?.images || originalRecall?.processedImages || [],
+          scrapped_images: originalRecall?.scrapped_images,
+          llmTitle: originalRecall?.llmTitle,
+          recallInitiationDate: originalRecall?.recallInitiationDate || originalRecall?.recall_initiation_date || originalRecall?.alert_date,
+          recallUrl: originalRecall?.recallUrl || originalRecall?.recall_url || originalRecall?.alert_url,
           display: change.proposedDisplay, // The proposed changes for review
           originalData: change // Store pending change for approve/reject actions
         };

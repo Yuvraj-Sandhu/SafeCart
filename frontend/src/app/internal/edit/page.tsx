@@ -36,6 +36,8 @@ export default function InternalEditPage() {
   // Advanced options states
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [filterNoImages, setFilterNoImages] = useState(false);
+  const [filterNoImagesMarked, setFilterNoImagesMarked] = useState(false);
+  const [showHiddenRecallsOnly, setShowHiddenRecallsOnly] = useState(false);
   const [showUSDARecalls, setShowUSDARecalls] = useState(true);
   const [showFDARecalls, setShowFDARecalls] = useState(true);
   const [showApproved, setShowApproved] = useState(true);
@@ -109,6 +111,9 @@ export default function InternalEditPage() {
       setError('Please select a state');
       return;
     }
+
+    // Reset the hidden recalls filter when doing a normal search
+    setShowHiddenRecallsOnly(false);
 
     setLoading(true);
     setError(null);
@@ -185,6 +190,7 @@ export default function InternalEditPage() {
     // Reset advanced options
     setShowAdvancedOptions(false);
     setFilterNoImages(false);
+    setFilterNoImagesMarked(false);
     setShowUSDARecalls(true);
     setShowFDARecalls(true);
     setShowApproved(true);
@@ -202,7 +208,7 @@ export default function InternalEditPage() {
     setShowUSDARecalls(false);
     setShowFDARecalls(true);
     setSelectedState('ALL');
-    
+
     setLoading(true);
     setError(null);
     setHasSearched(true);
@@ -211,17 +217,17 @@ export default function InternalEditPage() {
       // Format dates for API
       const startDateStr = startDate ? startDate.toISOString().split('T')[0] : undefined;
       const endDateStr = endDate ? endDate.toISOString().split('T')[0] : undefined;
-      
+
       // Fetch ALL FDA recalls (not just nationwide)
       const fdaResponse = await api.getAllFDARecalls(5000, startDateStr, endDateStr);
-      
+
       // Filter for recalls with empty or missing affected states
-      const emptyStateRecalls = fdaResponse.data.filter(recall => 
+      const emptyStateRecalls = fdaResponse.data.filter(recall =>
         !recall.affectedStates || recall.affectedStates.length === 0
       );
-      
+
       setRecalls(emptyStateRecalls);
-      
+
       // Show a message about the results
       if (emptyStateRecalls.length === 0) {
         setError('No FDA recalls found with empty states');
@@ -231,6 +237,25 @@ export default function InternalEditPage() {
       setRecalls([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleHiddenRecalls = () => {
+    // Simply toggle the filter - no API calls needed since hidden recalls are already loaded
+    const newShowHiddenRecallsOnly = !showHiddenRecallsOnly;
+    setShowHiddenRecallsOnly(newShowHiddenRecallsOnly);
+
+    // Check if we're turning ON the hidden recalls filter
+    if (newShowHiddenRecallsOnly) {
+      const hiddenCount = recalls.filter(r => r.display?.hideFromFrontend === true).length;
+      if (hiddenCount === 0 && hasSearched) {
+        setError('No hidden recalls found in the current search results');
+      } else {
+        setError(null);
+      }
+    } else {
+      // When turning OFF the filter (showing all recalls), clear any error
+      setError(null);
     }
   };
 
@@ -262,14 +287,24 @@ export default function InternalEditPage() {
   const getFilteredRecalls = () => {
     let filtered = recalls;
 
+    // PRIORITY FILTER: If showing hidden recalls only, filter for those first
+    if (showHiddenRecallsOnly) {
+      // Show ONLY recalls that are marked as hidden - skip other filters
+      filtered = filtered.filter(recall => {
+        return recall.display?.hideFromFrontend === true;
+      });
+      return filtered; // Return early, skip all other filters
+    }
+
+    // Normal filtering logic (when NOT showing hidden recalls only)
+    // Note: We NO LONGER exclude hidden recalls - they will be shown with reduced opacity
+
     // Special case: if both USDA and FDA are off but showApproved is on, show only approved recalls
     if (!showUSDARecalls && !showFDARecalls && showApproved) {
       filtered = filtered.filter(recall => {
         return recall.display && (recall.display.approvedBy || recall.display.lastEditedBy);
       });
     } else {
-      // Normal filtering logic
-      
       // Filter by source (USDA/FDA)
       if (!showUSDARecalls || !showFDARecalls) {
         filtered = filtered.filter(recall => {
@@ -291,12 +326,27 @@ export default function InternalEditPage() {
     // Filter by image presence (always apply this filter)
     if (filterNoImages) {
       filtered = filtered.filter(recall => {
-        // Check both processed images and uploaded images
+        // Check processed images, uploaded images, and scrapped images
         const hasProcessedImages = recall.images && recall.images.length > 0;
         const hasUploadedImages = recall.display?.uploadedImages && recall.display.uploadedImages.length > 0;
-        
-        // Return recalls that have NO images (neither processed nor uploaded)
-        return !hasProcessedImages && !hasUploadedImages;
+
+        // Check scrapped images (only count if enabled and has visible images)
+        const hasScrappedImages = recall.scrapped_images &&
+          recall.scrapped_images.count > 0 &&
+          (recall.display?.scrappedImagesConfig?.enabled !== false) && // Default is true if not specified
+          (recall.display?.scrappedImagesConfig?.visibleIndices === undefined ||
+           recall.display?.scrappedImagesConfig?.visibleIndices.length > 0);
+
+        // Return recalls that have NO images (neither processed, uploaded, nor scrapped)
+        return !hasProcessedImages && !hasUploadedImages && !hasScrappedImages;
+      });
+    }
+
+    // Filter out recalls marked as "no images available"
+    if (filterNoImagesMarked) {
+      filtered = filtered.filter(recall => {
+        // Hide recalls that have been marked as having no images available
+        return recall.display?.noImagesAvailable !== true;
       });
     }
 
@@ -383,10 +433,32 @@ export default function InternalEditPage() {
                   <label htmlFor="filterNoImagesInput" className={styles.toggleSwitch}></label>
                   <span>Show only recalls without images</span>
                 </div>
-                
-                <div 
+
+                <div
                   className={styles.filterOption}
-                  style={{ 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="filterNoImagesMarkedInput"
+                    checked={filterNoImagesMarked}
+                    onChange={(e) => setFilterNoImagesMarked(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="filterNoImagesMarkedInput" className={styles.toggleSwitch}></label>
+                  <span>Show unreviewed image searches only</span>
+                </div>
+
+                <div
+                  className={styles.filterOption}
+                  style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
@@ -449,8 +521,8 @@ export default function InternalEditPage() {
                   <span>Show Approved</span>
                 </div>
                 
-                <div 
-                  style={{ 
+                <div
+                  style={{
                     marginTop: '1rem',
                     paddingTop: '1rem',
                     borderTop: `1px solid ${currentTheme.cardBorder}`
@@ -470,6 +542,24 @@ export default function InternalEditPage() {
                     }}
                   >
                     Show FDA recalls with empty states
+                  </a>
+
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleToggleHiddenRecalls();
+                    }}
+                    style={{
+                      color: currentTheme.textTertiary,
+                      textDecoration: 'underline',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer',
+                      display: 'block',
+                      marginTop: '0.5rem'
+                    }}
+                  >
+                    {showHiddenRecallsOnly ? 'Show all recalls' : 'Show hidden recalls only'}
                   </a>
                 </div>
               </div>
@@ -494,6 +584,7 @@ export default function InternalEditPage() {
                 loading={loading}
                 error={error}
                 onEdit={handleEdit}
+                showHiddenRecallsOnly={showHiddenRecallsOnly}
               />
             </div>
           )}

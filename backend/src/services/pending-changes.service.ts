@@ -167,7 +167,7 @@ export class PendingChangesService {
   // Get pending changes for a specific recall
   static async getPendingChangesByRecall(
     recallId: string,
-    recallSource: 'USDA' | 'FDA'
+    recallSource: 'USDA' | 'FDA' | 'TEMP_FDA'
   ): Promise<PendingChange[]> {
     const snapshot = await db.collection(PENDING_CHANGES_COLLECTION)
       .where('recallId', '==', recallId)
@@ -231,9 +231,12 @@ export class PendingChangesService {
     if (pendingChange.recallSource === 'USDA') {
       const firebaseService = new FirebaseService();
       await firebaseService.updateRecallDisplay(pendingChange.recallId, approvedDisplay);
-    } else {
+    } else if (pendingChange.recallSource === 'FDA') {
       const fdaFirebaseService = new FDAFirebaseService();
       await fdaFirebaseService.updateRecallDisplay(pendingChange.recallId, approvedDisplay);
+    } else if (pendingChange.recallSource === 'TEMP_FDA') {
+      const fdaFirebaseService = new FDAFirebaseService();
+      await fdaFirebaseService.updateTempRecallDisplay(pendingChange.recallId, approvedDisplay);
     }
     
     // Delete the pending change

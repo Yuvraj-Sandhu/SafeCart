@@ -74,11 +74,15 @@ export function RecallList({
     }
   }, [columnCount]);
 
-  // Filter recalls by search term (only if search is not hidden)
-  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
-    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter recalls by search term and visibility (only if search is not hidden)
+  const filteredRecalls = hideSearch
+    ? recalls.filter(recall => recall.display?.hideFromFrontend !== true)
+    : recalls.filter(recall =>
+        recall.display?.hideFromFrontend !== true && (
+          recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
 
   // Initialize displayed recalls
   useEffect(() => {
@@ -541,28 +545,31 @@ export function RecallList({
                   )}
                 </div>
               ) : (
-                <div 
-                  className={styles.imagePlaceholder}
-                  style={{ backgroundColor: currentTheme.backgroundSecondary, position: 'relative' }}
+                <div
+                  className={styles.noImageHeader}
+                  style={{
+                    position: 'relative',
+                    padding: '2.5rem 1rem 0rem',
+                    background: currentTheme.cardBackground
+                  }}
                 >
-                  <svg 
-                    width="60" 
-                    height="60" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke={currentTheme.textSecondary}
-                    strokeWidth="1.5"
-                    style={{ opacity: 0.5 }}
+                  <h3
+                    className={styles.noImageTitle}
+                    style={{
+                      color: currentTheme.text,
+                      fontSize: '1.25rem',
+                      fontWeight: '600',
+                      lineHeight: '1.25',
+                      margin: 0
+                    }}
                   >
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
+                    {displayTitle}
+                  </h3>
                   {/* Relative time badge for recalls without images */}
                   {recall.recallInitiationDate && (
-                    <div 
+                    <div
                       className={styles.timeBadge}
-                      style={{ 
+                      style={{
                         backgroundColor: currentTheme.cardBackground,
                         color: currentTheme.textSecondary,
                         borderColor: currentTheme.cardBorder
@@ -610,13 +617,16 @@ export function RecallList({
                     {recall.isActive ? 'Active' : 'Closed'}
                   </span> */}
                 {/* </div> */}
-                
-                <h3 
-                  className={styles.recallTitle}
-                  style={{ color: currentTheme.text }}
-                >
-                  {displayTitle}
-                </h3>
+
+                {/* Only show title here if we have an image (otherwise it's shown in the header) */}
+                {firstImage && (
+                  <h3
+                    className={styles.recallTitle}
+                    style={{ color: currentTheme.text }}
+                  >
+                    {displayTitle}
+                  </h3>
+                )}
                 
                 {/* Commented out state names display - uncomment to show states again
                 <div className={styles.recallStates}>
@@ -626,20 +636,20 @@ export function RecallList({
                 </div>
                 */}
                 
-                <div className={styles.recallMeta}>
+                {/* <div className={styles.recallMeta}> */}
                   {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {recall.recallingFirm}
                   </span> */}
-                  <span 
+                  {/* <span 
                     className={styles.metaItem}
                     style={{ color: currentTheme.textSecondary }}
                   >
                     {formatRecallDate(recall.recallDate)}
-                  </span>
-                </div>
+                  </span> */}
+                {/* </div> */}
                 
                 {isExpanded && (
                   <div className={styles.expandedDetails}>

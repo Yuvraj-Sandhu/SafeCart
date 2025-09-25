@@ -97,14 +97,14 @@ export function usePendingChanges() {
   }, [isInternalAuthenticated, internal_user?.uid]); // Only depend on internal_user.uid, not the entire user object
 
   // Helper function to check if a recall has pending changes
-  const hasPendingChanges = (recallId: string, recallSource: 'USDA' | 'FDA'): boolean => {
+  const hasPendingChanges = (recallId: string, recallSource: 'USDA' | 'FDA' | 'TEMP_FDA'): boolean => {
     return pendingChanges.some(
       change => change.recallId === recallId && change.recallSource === recallSource
     );
   };
 
   // Helper function to get pending changes for a specific recall
-  const getPendingChangesForRecall = (recallId: string, recallSource: 'USDA' | 'FDA'): PendingChange[] => {
+  const getPendingChangesForRecall = (recallId: string, recallSource: 'USDA' | 'FDA' | 'TEMP_FDA'): PendingChange[] => {
     return pendingChanges.filter(
       change => change.recallId === recallId && change.recallSource === recallSource
     );

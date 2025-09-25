@@ -51,7 +51,7 @@ export const pendingChangesApi = {
   },
 
   // Get pending changes for a specific recall
-  async getPendingChangesByRecall(recallId: string, source: 'USDA' | 'FDA'): Promise<PendingChange[]> {
+  async getPendingChangesByRecall(recallId: string, source: 'USDA' | 'FDA' | 'TEMP_FDA'): Promise<PendingChange[]> {
     const response = await fetch(`${API_BASE_URL}/pending-changes/recall/${recallId}/${source}`, {
       credentials: 'include',
     });

@@ -31,14 +31,15 @@ interface EditableRecallListProps {
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
   imageStats?: { total: number; withImages: number };
+  showHiddenRecallsOnly?: boolean; // New prop to control opacity
 }
 
-export function EditableRecallList({ 
-  recalls, 
-  loading, 
-  error, 
-  onEdit, 
-  onReview, 
+export function EditableRecallList({
+  recalls,
+  loading,
+  error,
+  onEdit,
+  onReview,
   hidePendingBadges = false,
   hideSearch = false,
   enableSelection = false,
@@ -46,7 +47,8 @@ export function EditableRecallList({
   onRecallSelect,
   onSelectAll,
   onDeselectAll,
-  imageStats
+  imageStats,
+  showHiddenRecallsOnly = false
 }: EditableRecallListProps) {
   const { currentTheme } = useTheme();
   const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
@@ -75,11 +77,13 @@ export function EditableRecallList({
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
-  // Filter recalls by search term (only if search is not hidden)
-  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
-    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter recalls by search term only (visibility filtering handled by parent)
+  const filteredRecalls = hideSearch
+    ? recalls
+    : recalls.filter(recall =>
+        recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
   // Create masonry columns with horizontal ordering (including split cards)
   const createMasonryColumns = (recalls: UnifiedRecall[]) => {
@@ -447,6 +451,9 @@ export function EditableRecallList({
                 displayTitle = display.previewTitle;
               }
               
+              const isHidden = recall.display?.hideFromFrontend === true;
+              const shouldReduceOpacity = isHidden && !showHiddenRecallsOnly;
+
               return (
                 <div
                   key={cardId}
@@ -455,6 +462,7 @@ export function EditableRecallList({
                     backgroundColor: currentTheme.cardBackground,
                     borderColor: isSelected ? currentTheme.primary : currentTheme.cardBorder,
                     borderWidth: isSelected ? '2px' : '1px',
+                    opacity: shouldReduceOpacity ? 0.5 : 1,
                   }}
                 >
 
@@ -526,28 +534,31 @@ export function EditableRecallList({
                       )}
                     </div>
                   ) : (
-                    <div 
-                      className={styles.imagePlaceholder}
-                      style={{ backgroundColor: currentTheme.backgroundSecondary, position: 'relative' }}
+                    <div
+                      className={styles.noImageHeader}
+                      style={{
+                        position: 'relative',
+                        padding: '2.5rem 1rem 0rem',
+                        background: currentTheme.cardBackground
+                      }}
                     >
-                      <svg 
-                        width="60" 
-                        height="60" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke={currentTheme.textSecondary}
-                        strokeWidth="1.5"
-                        style={{ opacity: 0.5 }}
+                      <h3
+                        className={styles.noImageTitle}
+                        style={{
+                          color: currentTheme.text,
+                          fontSize: '1.25rem',
+                          fontWeight: '600',
+                          lineHeight: '1.25',
+                          margin: 0
+                        }}
                       >
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                      </svg>
+                        {displayTitle}
+                      </h3>
                       {/* Relative time badge for recalls without images */}
                       {recall.recallInitiationDate && (
-                        <div 
+                        <div
                           className={styles.timeBadge}
-                          style={{ 
+                          style={{
                             backgroundColor: currentTheme.cardBackground,
                             color: currentTheme.textSecondary,
                             borderColor: currentTheme.cardBorder
@@ -573,7 +584,7 @@ export function EditableRecallList({
                           Review
                         </button>
                       )}
-                      
+
                       {/* Edit button for cards without images - only show on main card */}
                       {splitIndex === -1 && (
                         <button
@@ -609,9 +620,9 @@ export function EditableRecallList({
                     )}
                     
                     <div className={styles.recallHeader}>
-                      <span 
+                      <span
                         className={styles.sourceTag}
-                        style={{ 
+                        style={{
                           color: getSourceColor(recall.source),
                           borderColor: getSourceColor(recall.source),
                         }}
@@ -619,9 +630,23 @@ export function EditableRecallList({
                         {recall.source}
                       </span>
 
-                      {/* <span 
+                      {/* Hidden badge */}
+                      {isHidden && (
+                        <span
+                          className={styles.sourceTag}
+                          style={{
+                            color: currentTheme.textSecondary,
+                            borderColor: currentTheme.textSecondary,
+                            marginLeft: '0.5rem',
+                          }}
+                        >
+                          Hidden
+                        </span>
+                      )}
+
+                      {/* <span
                         className={styles.riskLevel}
-                        style={{ 
+                        style={{
                           color: getRiskLevelColor(recall.classification),
                           borderColor: getRiskLevelColor(recall.classification),
                         }}
@@ -629,16 +654,16 @@ export function EditableRecallList({
                         {recall.classification}
                       </span> */}
 
-                      {/* <span 
+                      {/* <span
                         className={styles.activeStatus}
-                        style={{ 
+                        style={{
                           color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
                           borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
                         }}
                       >
                         {recall.isActive ? 'Active' : 'Closed'}
                       </span> */}
-                      
+
                       {/* Show pending badge only on main card */}
                       {!hidePendingBadges && splitIndex === -1 && hasPendingChanges(recall.id, recall.source) && (
                         <PendingBadge 
@@ -666,13 +691,16 @@ export function EditableRecallList({
                         )
                       )}
                     </div>
-                    
-                    <h3 
-                      className={styles.recallTitle}
-                      style={{ color: currentTheme.text }}
-                    >
-                      {displayTitle}
-                    </h3>
+
+                    {/* Only show title here if we have an image (otherwise it's shown in the header) */}
+                    {firstImage && (
+                      <h3
+                        className={styles.recallTitle}
+                        style={{ color: currentTheme.text }}
+                      >
+                        {displayTitle}
+                      </h3>
+                    )}
                     
                     {/* Commented out state names display - uncomment to show states again
                     <div className={styles.recallStates}>

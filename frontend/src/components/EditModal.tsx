@@ -104,7 +104,17 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   );
   const [isReorderingMode, setIsReorderingMode] = useState(false);
   const [tempOrder, setTempOrder] = useState<number[]>([]);
-  
+
+  // No images available toggle state
+  const [noImagesAvailable, setNoImagesAvailable] = useState(
+    recall.display?.noImagesAvailable || false
+  );
+
+  // Hide from frontend toggle state
+  const [hideFromFrontend, setHideFromFrontend] = useState(
+    recall.display?.hideFromFrontend || false
+  );
+
   // Check if this is an FDA recall and user is admin
   const isFDARecall = recall.source === 'FDA';
   const canModifyStates = isFDARecall && internal_user?.role === 'admin';
@@ -123,8 +133,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0 || pendingFiles.length > 0;
   const showImageSections = true; // Always show image options for all recalls
   
-  // Total image count including pending files for split calculations
-  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length;
+  // Count scrapped images (if enabled)
+  const scrappedImageCount = (scrappedImagesEnabled && recall.scrapped_images)
+    ? scrappedImagesVisible.length // Use visible count, not total
+    : 0;
+
+  // Total image count including scrapped images and pending files for split calculations
+  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length + scrappedImageCount;
   
   // Combined array of all images for split display (including pending)
   const allImagesIncludingPending = [
@@ -262,7 +277,9 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           enabled: scrappedImagesEnabled,
           visibleIndices: scrappedImagesVisible.length > 0 ? scrappedImagesVisible : undefined,
           order: scrappedImagesOrder.length > 0 ? scrappedImagesOrder : undefined
-        } : undefined
+        } : undefined,
+        noImagesAvailable: noImagesAvailable || undefined,
+        hideFromFrontend: hideFromFrontend || undefined
       };
 
       // Role-based routing: Admins save directly, members create pending changes
@@ -376,7 +393,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
     // Step 1: Create/update pending change WITHOUT images first
     const pendingChange = await pendingChangesApi.createPendingChange({
       recallId: recall.id,
-      recallSource: recall.source,
+      recallSource: recall.isTemp ? 'TEMP_FDA' : recall.source,
       originalRecall: recall, // Store full recall data to avoid additional API calls
       proposedDisplay: cleanProposedDisplay
     });
@@ -442,9 +459,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         alert('Reset completed successfully!');
       } else {
         // For members, check if this recall has pending changes
-        if (hasPendingChanges(recall.id, recall.source)) {
+        const recallSource = recall.isTemp ? 'TEMP_FDA' : recall.source;
+        if (hasPendingChanges(recall.id, recallSource)) {
           // If it has pending changes, withdraw them (remove from pending queue)
-          const pendingChangesForRecall = getPendingChangesForRecall(recall.id, recall.source);
+          const pendingChangesForRecall = getPendingChangesForRecall(recall.id, recallSource);
           
           if (pendingChangesForRecall.length > 0) {
             // Withdraw the pending change (members can withdraw their own changes)
@@ -587,11 +605,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div 
-        className={styles.modalContent} 
-        onClick={e => e.stopPropagation()}
-        style={{ 
+    <div className={styles.modalOverlay}>
+      <div
+        className={styles.modalContent}
+        style={{
           backgroundColor: currentTheme.cardBackground,
           color: currentTheme.text
         }}
@@ -622,6 +639,32 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         </div>
 
         <div className={styles.modalBody}>
+          {/* Administrative Controls */}
+          <div className={styles.section}>
+            <h3>Visibility Control</h3>
+            <div className={styles.toggleRow}>
+              <label className={styles.toggleLabel} style={{ color: currentTheme.text, fontSize: '0.875rem' }}>
+                Hide recall from public website:
+              </label>
+              <label htmlFor="hideFromFrontendToggle">
+                <input
+                  id="hideFromFrontendToggle"
+                  type="checkbox"
+                  className={styles.checkboxInput}
+                  checked={hideFromFrontend}
+                  onChange={(e) => setHideFromFrontend(e.target.checked)}
+                />
+                <div className={styles.toggleSwitch} />
+              </label>
+            </div>
+            <p style={{
+              color: currentTheme.textSecondary,
+              fontSize: '0.75rem'
+            }}>
+              Enable this to prevent duplicate recalls from appearing on the frontend
+            </p>
+          </div>
+
           {/* Original Title Display */}
           <div className={styles.section}>
             <h3>Original Information</h3>
@@ -631,7 +674,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 <p><strong>AI-Enhanced Title:</strong> {recall.llmTitle}</p>
               )}
               <p><strong>Recall Number:</strong> {recall.recallNumber}</p>
-              <p><strong>Images:</strong> {processedImages.length + uploadedImages.length + pendingFiles.length}</p>
+              <p><strong>Images:</strong> {totalImageCount}</p>
             </div>
           </div>
 
@@ -841,6 +884,31 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               >
                 Clear primary image
               </button>
+
+              {/* No Images Available Toggle */}
+              <div style={{ paddingBottom: '1.5rem', marginBottom: '-1rem', borderBottom: `1px solid ${currentTheme.cardBorder}` }}>
+                <div className={styles.toggleRow}>
+                  <label className={styles.toggleLabel} style={{ color: currentTheme.text, fontSize: '0.875rem' }}>
+                    No images found anywhere:
+                  </label>
+                  <label htmlFor="noImagesToggle">
+                    <input
+                      id="noImagesToggle"
+                      type="checkbox"
+                      className={styles.checkboxInput}
+                      checked={noImagesAvailable}
+                      onChange={(e) => setNoImagesAvailable(e.target.checked)}
+                    />
+                    <div className={styles.toggleSwitch} />
+                  </label>
+                </div>
+                <p style={{
+                  color: currentTheme.textSecondary,
+                  fontSize: '0.75rem'
+                }}>
+                  Check this if you've searched for images but couldn't find any
+                </p>
+              </div>
             </div>
           )}
 
@@ -1015,16 +1083,28 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                           className={styles.downloadButton}
                           onClick={async () => {
                             try {
-                              const response = await fetch(url);
+                              // Use backend endpoint to download the image
+                              const filename = `scraped-${recall.recallNumber}-${index + 1}.jpg`;
+                              const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL}/recalls/download-image?` +
+                                `url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+
+                              const response = await fetch(downloadUrl, {
+                                credentials: 'include'
+                              });
+
+                              if (!response.ok) {
+                                throw new Error('Failed to download image');
+                              }
+
                               const blob = await response.blob();
-                              const downloadUrl = window.URL.createObjectURL(blob);
+                              const blobUrl = window.URL.createObjectURL(blob);
                               const a = document.createElement('a');
-                              a.href = downloadUrl;
-                              a.download = `scraped-${recall.recallNumber}-${index + 1}.jpg`;
+                              a.href = blobUrl;
+                              a.download = filename;
                               document.body.appendChild(a);
                               a.click();
                               document.body.removeChild(a);
-                              window.URL.revokeObjectURL(downloadUrl);
+                              window.URL.revokeObjectURL(blobUrl);
                             } catch (error) {
                               console.error('Failed to download image:', error);
                               alert('Failed to download image');

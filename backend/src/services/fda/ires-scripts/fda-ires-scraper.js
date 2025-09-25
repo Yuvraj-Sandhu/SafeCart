@@ -287,20 +287,29 @@ class FDAIRESScraper {
         if (response) {
           console.log(`Response status: ${response.status()}`);
           
-          // Check for bot detection
-          if (response.status() === 403 || response.status() === 429) {
-            console.warn(`Possible bot detection (HTTP ${response.status()})`);
-            
+          // Check for bot detection or authentication issues
+          if (response.status() === 401 || response.status() === 403 || response.status() === 429) {
+            console.warn(`Access denied (HTTP ${response.status()})`);
+
+            // For 401, it's likely permanent authentication failure
+            if (response.status() === 401) {
+              console.error('401 Unauthorized - The IRES website may have changed authentication requirements');
+              throw new Error('Authentication failed - IRES returned 401 Unauthorized');
+            }
+
+            // For 403 and 429, retry with backoff
             if (attempt < maxRetries - 1) {
               // Exponential backoff
               const waitTime = Math.pow(2, attempt) * 5000;
               console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
               await this.page.waitForTimeout(waitTime);
-              
+
               // Clear cookies and try again
               await this.context.clearCookies();
               attempt++;
               continue;
+            } else {
+              throw new Error(`Failed after ${maxRetries} attempts - HTTP ${response.status()}`);
             }
           }
         }
@@ -741,9 +750,33 @@ class FDAIRESScraper {
     
     try {
       // Wait for the data table to be present
-      await this.page.waitForSelector('table', { 
-        timeout: 10000 
+      await this.page.waitForSelector('table', {
+        timeout: 10000
       }).catch(() => {});
+
+      // Select "All" from the dropdown to show all recalls instead of just 50
+      try {
+        // console.log('Attempting to select "All" from the page size dropdown...');
+
+        // Wait for the dropdown to be present
+        await this.page.waitForSelector('#fda_table_length select', { timeout: 5000 });
+
+        // Select "All" option (value="-1")
+        await this.page.selectOption('#fda_table_length select', '-1');
+
+        console.log('Selected "All" from dropdown, waiting for table to update...');
+
+        // Wait for the table to reload with all data
+        await this.page.waitForTimeout(2000); // Give it time to load all records
+
+        // Wait for network to be idle after changing the dropdown
+        await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+          console.log('Network not idle after 10s, continuing anyway');
+        });
+
+      } catch (error) {
+        console.log('Could not select "All" from dropdown, continuing with default page size:', error.message);
+      }
 
       const recalls = await this.page.evaluate(() => {
         const data = [];
