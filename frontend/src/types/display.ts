@@ -26,6 +26,7 @@ export interface DisplayData {
   previewUrl?: string;        // Override URL for recall links (Visit USDA/FDA page)
   uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
   scrappedImagesConfig?: ScrappedImagesConfig; // Configuration for displaying scrapped images
+  noImagesAvailable?: boolean; // Flag indicating that images were searched for but not found
 
   // Approval audit fields
   proposedBy?: UserInfo;      // Who proposed these changes

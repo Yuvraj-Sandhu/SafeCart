@@ -104,6 +104,11 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   );
   const [isReorderingMode, setIsReorderingMode] = useState(false);
   const [tempOrder, setTempOrder] = useState<number[]>([]);
+
+  // No images available toggle state
+  const [noImagesAvailable, setNoImagesAvailable] = useState(
+    recall.display?.noImagesAvailable || false
+  );
   
   // Check if this is an FDA recall and user is admin
   const isFDARecall = recall.source === 'FDA';
@@ -262,7 +267,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           enabled: scrappedImagesEnabled,
           visibleIndices: scrappedImagesVisible.length > 0 ? scrappedImagesVisible : undefined,
           order: scrappedImagesOrder.length > 0 ? scrappedImagesOrder : undefined
-        } : undefined
+        } : undefined,
+        noImagesAvailable: noImagesAvailable || undefined
       };
 
       // Role-based routing: Admins save directly, members create pending changes
@@ -842,6 +848,31 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
               >
                 Clear primary image
               </button>
+
+              {/* No Images Available Toggle */}
+              <div style={{ paddingBottom: '1.5rem', marginBottom: '-1rem', borderBottom: `1px solid ${currentTheme.cardBorder}` }}>
+                <div className={styles.toggleRow}>
+                  <label className={styles.toggleLabel} style={{ color: currentTheme.text, fontSize: '0.875rem' }}>
+                    No images found anywhere:
+                  </label>
+                  <label htmlFor="noImagesToggle">
+                    <input
+                      id="noImagesToggle"
+                      type="checkbox"
+                      className={styles.checkboxInput}
+                      checked={noImagesAvailable}
+                      onChange={(e) => setNoImagesAvailable(e.target.checked)}
+                    />
+                    <div className={styles.toggleSwitch} />
+                  </label>
+                </div>
+                <p style={{
+                  color: currentTheme.textSecondary,
+                  fontSize: '0.75rem'
+                }}>
+                  Check this if you've searched for images but couldn't find any
+                </p>
+              </div>
             </div>
           )}
 
