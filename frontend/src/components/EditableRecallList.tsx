@@ -31,14 +31,15 @@ interface EditableRecallListProps {
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
   imageStats?: { total: number; withImages: number };
+  showHiddenRecallsOnly?: boolean; // New prop to control opacity
 }
 
-export function EditableRecallList({ 
-  recalls, 
-  loading, 
-  error, 
-  onEdit, 
-  onReview, 
+export function EditableRecallList({
+  recalls,
+  loading,
+  error,
+  onEdit,
+  onReview,
   hidePendingBadges = false,
   hideSearch = false,
   enableSelection = false,
@@ -46,7 +47,8 @@ export function EditableRecallList({
   onRecallSelect,
   onSelectAll,
   onDeselectAll,
-  imageStats
+  imageStats,
+  showHiddenRecallsOnly = false
 }: EditableRecallListProps) {
   const { currentTheme } = useTheme();
   const { hasPendingChanges, getPendingChangesForRecall } = usePendingChanges();
@@ -75,11 +77,13 @@ export function EditableRecallList({
     return () => window.removeEventListener('resize', updateColumnCount);
   }, []);
 
-  // Filter recalls by search term (only if search is not hidden)
-  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
-    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter recalls by search term only (visibility filtering handled by parent)
+  const filteredRecalls = hideSearch
+    ? recalls
+    : recalls.filter(recall =>
+        recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
   // Create masonry columns with horizontal ordering (including split cards)
   const createMasonryColumns = (recalls: UnifiedRecall[]) => {
@@ -447,6 +451,9 @@ export function EditableRecallList({
                 displayTitle = display.previewTitle;
               }
               
+              const isHidden = recall.display?.hideFromFrontend === true;
+              const shouldReduceOpacity = isHidden && !showHiddenRecallsOnly;
+
               return (
                 <div
                   key={cardId}
@@ -455,6 +462,7 @@ export function EditableRecallList({
                     backgroundColor: currentTheme.cardBackground,
                     borderColor: isSelected ? currentTheme.primary : currentTheme.cardBorder,
                     borderWidth: isSelected ? '2px' : '1px',
+                    opacity: shouldReduceOpacity ? 0.5 : 1,
                   }}
                 >
 
@@ -612,9 +620,9 @@ export function EditableRecallList({
                     )}
                     
                     <div className={styles.recallHeader}>
-                      <span 
+                      <span
                         className={styles.sourceTag}
-                        style={{ 
+                        style={{
                           color: getSourceColor(recall.source),
                           borderColor: getSourceColor(recall.source),
                         }}
@@ -622,9 +630,23 @@ export function EditableRecallList({
                         {recall.source}
                       </span>
 
-                      {/* <span 
+                      {/* Hidden badge */}
+                      {isHidden && (
+                        <span
+                          className={styles.sourceTag}
+                          style={{
+                            color: currentTheme.textSecondary,
+                            borderColor: currentTheme.textSecondary,
+                            marginLeft: '0.5rem',
+                          }}
+                        >
+                          Hidden
+                        </span>
+                      )}
+
+                      {/* <span
                         className={styles.riskLevel}
-                        style={{ 
+                        style={{
                           color: getRiskLevelColor(recall.classification),
                           borderColor: getRiskLevelColor(recall.classification),
                         }}
@@ -632,16 +654,16 @@ export function EditableRecallList({
                         {recall.classification}
                       </span> */}
 
-                      {/* <span 
+                      {/* <span
                         className={styles.activeStatus}
-                        style={{ 
+                        style={{
                           color: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
                           borderColor: recall.isActive ? currentTheme.warning : currentTheme.textSecondary,
                         }}
                       >
                         {recall.isActive ? 'Active' : 'Closed'}
                       </span> */}
-                      
+
                       {/* Show pending badge only on main card */}
                       {!hidePendingBadges && splitIndex === -1 && hasPendingChanges(recall.id, recall.source) && (
                         <PendingBadge 

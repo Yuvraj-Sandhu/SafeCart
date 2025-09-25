@@ -109,7 +109,12 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const [noImagesAvailable, setNoImagesAvailable] = useState(
     recall.display?.noImagesAvailable || false
   );
-  
+
+  // Hide from frontend toggle state
+  const [hideFromFrontend, setHideFromFrontend] = useState(
+    recall.display?.hideFromFrontend || false
+  );
+
   // Check if this is an FDA recall and user is admin
   const isFDARecall = recall.source === 'FDA';
   const canModifyStates = isFDARecall && internal_user?.role === 'admin';
@@ -273,7 +278,8 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
           visibleIndices: scrappedImagesVisible.length > 0 ? scrappedImagesVisible : undefined,
           order: scrappedImagesOrder.length > 0 ? scrappedImagesOrder : undefined
         } : undefined,
-        noImagesAvailable: noImagesAvailable || undefined
+        noImagesAvailable: noImagesAvailable || undefined,
+        hideFromFrontend: hideFromFrontend || undefined
       };
 
       // Role-based routing: Admins save directly, members create pending changes
@@ -634,6 +640,32 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
         </div>
 
         <div className={styles.modalBody}>
+          {/* Administrative Controls */}
+          <div className={styles.section}>
+            <h3>Visibility Control</h3>
+            <div className={styles.toggleRow}>
+              <label className={styles.toggleLabel} style={{ color: currentTheme.text, fontSize: '0.875rem' }}>
+                Hide recall from public website:
+              </label>
+              <label htmlFor="hideFromFrontendToggle">
+                <input
+                  id="hideFromFrontendToggle"
+                  type="checkbox"
+                  className={styles.checkboxInput}
+                  checked={hideFromFrontend}
+                  onChange={(e) => setHideFromFrontend(e.target.checked)}
+                />
+                <div className={styles.toggleSwitch} />
+              </label>
+            </div>
+            <p style={{
+              color: currentTheme.textSecondary,
+              fontSize: '0.75rem'
+            }}>
+              Enable this to prevent duplicate recalls from appearing on the frontend
+            </p>
+          </div>
+
           {/* Original Title Display */}
           <div className={styles.section}>
             <h3>Original Information</h3>

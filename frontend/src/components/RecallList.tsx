@@ -74,11 +74,15 @@ export function RecallList({
     }
   }, [columnCount]);
 
-  // Filter recalls by search term (only if search is not hidden)
-  const filteredRecalls = hideSearch ? recalls : recalls.filter(recall =>
-    recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter recalls by search term and visibility (only if search is not hidden)
+  const filteredRecalls = hideSearch
+    ? recalls.filter(recall => recall.display?.hideFromFrontend !== true)
+    : recalls.filter(recall =>
+        recall.display?.hideFromFrontend !== true && (
+          recall.productTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          recall.recallingFirm.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
 
   // Initialize displayed recalls
   useEffect(() => {

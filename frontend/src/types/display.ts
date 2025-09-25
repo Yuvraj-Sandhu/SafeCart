@@ -27,6 +27,7 @@ export interface DisplayData {
   uploadedImages?: UploadedImage[]; // User-uploaded images for this recall
   scrappedImagesConfig?: ScrappedImagesConfig; // Configuration for displaying scrapped images
   noImagesAvailable?: boolean; // Flag indicating that images were searched for but not found
+  hideFromFrontend?: boolean; // Flag to hide this recall from public frontend (to prevent duplicates)
 
   // Approval audit fields
   proposedBy?: UserInfo;      // Who proposed these changes
