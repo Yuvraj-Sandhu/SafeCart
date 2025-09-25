@@ -605,11 +605,10 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div 
-        className={styles.modalContent} 
-        onClick={e => e.stopPropagation()}
-        style={{ 
+    <div className={styles.modalOverlay}>
+      <div
+        className={styles.modalContent}
+        style={{
           backgroundColor: currentTheme.cardBackground,
           color: currentTheme.text
         }}
