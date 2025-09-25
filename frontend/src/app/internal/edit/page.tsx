@@ -291,12 +291,19 @@ export default function InternalEditPage() {
     // Filter by image presence (always apply this filter)
     if (filterNoImages) {
       filtered = filtered.filter(recall => {
-        // Check both processed images and uploaded images
+        // Check processed images, uploaded images, and scrapped images
         const hasProcessedImages = recall.images && recall.images.length > 0;
         const hasUploadedImages = recall.display?.uploadedImages && recall.display.uploadedImages.length > 0;
-        
-        // Return recalls that have NO images (neither processed nor uploaded)
-        return !hasProcessedImages && !hasUploadedImages;
+
+        // Check scrapped images (only count if enabled and has visible images)
+        const hasScrappedImages = recall.scrapped_images &&
+          recall.scrapped_images.count > 0 &&
+          (recall.display?.scrappedImagesConfig?.enabled !== false) && // Default is true if not specified
+          (recall.display?.scrappedImagesConfig?.visibleIndices === undefined ||
+           recall.display?.scrappedImagesConfig?.visibleIndices.length > 0);
+
+        // Return recalls that have NO images (neither processed, uploaded, nor scrapped)
+        return !hasProcessedImages && !hasUploadedImages && !hasScrappedImages;
       });
     }
 

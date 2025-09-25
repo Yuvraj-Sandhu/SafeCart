@@ -128,8 +128,13 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
   const hasImages = processedImages.length > 0 || uploadedImages.length > 0 || pendingFiles.length > 0;
   const showImageSections = true; // Always show image options for all recalls
   
-  // Total image count including pending files for split calculations
-  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length;
+  // Count scrapped images (if enabled)
+  const scrappedImageCount = (scrappedImagesEnabled && recall.scrapped_images)
+    ? scrappedImagesVisible.length // Use visible count, not total
+    : 0;
+
+  // Total image count including scrapped images and pending files for split calculations
+  const totalImageCount = processedImages.length + uploadedImages.length + pendingFiles.length + scrappedImageCount;
   
   // Combined array of all images for split display (including pending)
   const allImagesIncludingPending = [
@@ -638,7 +643,7 @@ export function EditModal({ recall, onClose, onSave }: EditModalProps) {
                 <p><strong>AI-Enhanced Title:</strong> {recall.llmTitle}</p>
               )}
               <p><strong>Recall Number:</strong> {recall.recallNumber}</p>
-              <p><strong>Images:</strong> {processedImages.length + uploadedImages.length + pendingFiles.length}</p>
+              <p><strong>Images:</strong> {totalImageCount}</p>
             </div>
           </div>
 
