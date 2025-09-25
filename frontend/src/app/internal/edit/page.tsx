@@ -36,6 +36,7 @@ export default function InternalEditPage() {
   // Advanced options states
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [filterNoImages, setFilterNoImages] = useState(false);
+  const [filterNoImagesMarked, setFilterNoImagesMarked] = useState(false);
   const [showUSDARecalls, setShowUSDARecalls] = useState(true);
   const [showFDARecalls, setShowFDARecalls] = useState(true);
   const [showApproved, setShowApproved] = useState(true);
@@ -185,6 +186,7 @@ export default function InternalEditPage() {
     // Reset advanced options
     setShowAdvancedOptions(false);
     setFilterNoImages(false);
+    setFilterNoImagesMarked(false);
     setShowUSDARecalls(true);
     setShowFDARecalls(true);
     setShowApproved(true);
@@ -307,6 +309,14 @@ export default function InternalEditPage() {
       });
     }
 
+    // Filter out recalls marked as "no images available"
+    if (filterNoImagesMarked) {
+      filtered = filtered.filter(recall => {
+        // Hide recalls that have been marked as having no images available
+        return recall.display?.noImagesAvailable !== true;
+      });
+    }
+
     return filtered;
   };
 
@@ -390,10 +400,32 @@ export default function InternalEditPage() {
                   <label htmlFor="filterNoImagesInput" className={styles.toggleSwitch}></label>
                   <span>Show only recalls without images</span>
                 </div>
-                
-                <div 
+
+                <div
                   className={styles.filterOption}
-                  style={{ 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    color: currentTheme.text,
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="filterNoImagesMarkedInput"
+                    checked={filterNoImagesMarked}
+                    onChange={(e) => setFilterNoImagesMarked(e.target.checked)}
+                    className={styles.checkboxInput}
+                  />
+                  <label htmlFor="filterNoImagesMarkedInput" className={styles.toggleSwitch}></label>
+                  <span>Show unreviewed image searches only</span>
+                </div>
+
+                <div
+                  className={styles.filterOption}
+                  style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
