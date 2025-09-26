@@ -50,7 +50,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@react-email/preview-server": "^4.2.0",
+    "@react-email/preview-server": "^4.2.8",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.17",

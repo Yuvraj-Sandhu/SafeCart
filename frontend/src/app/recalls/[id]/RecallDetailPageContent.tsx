@@ -7,6 +7,8 @@ import { api } from '@/services/api';
 import { RecallList } from '@/components/RecallList';
 import { UnifiedRecall } from '@/types/recall.types';
 import { Button } from '@/components/ui/Button';
+import { ShareMenu } from '@/components/ui/ShareMenu';
+import { formatRecallDate } from '@/utils/dateUtils';
 import styles from './RecallDetailPageContent.module.css';
 
 interface ProcessedImage {
@@ -27,7 +29,7 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
   const [recall, setRecall] = useState<UnifiedRecall | null>(initialRecall);
   const [loading, setLoading] = useState(!initialRecall);
   const [error, setError] = useState<string | null>(null);
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+  const [showAllStates, setShowAllStates] = useState(false);
 
   useEffect(() => {
     if (!initialRecall && recallId) {
@@ -47,29 +49,6 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
   };
 
 
-  const copyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      setShowCopiedMessage(true);
-      setTimeout(() => setShowCopiedMessage(false), 2000);
-    });
-  };
-
-  const shareOnFacebook = () => {
-    const url = encodeURIComponent(window.location.href);
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-  };
-
-  const shareOnTwitter = () => {
-    const url = encodeURIComponent(window.location.href);
-    const text = encodeURIComponent(`Check out this food recall: ${recall?.productTitle || ''}`);
-    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
-  };
-
-  const shareOnLinkedIn = () => {
-    const url = encodeURIComponent(window.location.href);
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
-  };
 
   const unifiedRecall = recall ? [recall] : [];
 
@@ -96,9 +75,88 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
 
   return (
     <div className={styles.pageContent}>
+      {/* Context Banner - Helps receivers understand what they're looking at */}
+      {recall && (
+        <div
+          className={styles.contextBanner}
+          style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
+          }}
+        >
+          <div className={styles.contextHeader}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M10 0C4.48 0 0 4.48 0 10C0 15.52 4.48 20 10 20C15.52 20 20 15.52 20 10C20 4.48 15.52 0 10 0ZM11 15H9V13H11V15ZM11 11H9V5H11V11Z"
+                fill={currentTheme.text}
+              />
+            </svg>
+            <h2 style={{ color: currentTheme.text }}>Important Food Recall Alert</h2>
+          </div>
+          <p className={styles.contextDescription} style={{ color: currentTheme.textSecondary }}>
+            This product has been recalled and may pose health risks. Check if you have this item and take appropriate action.
+          </p>
+        </div>
+      )}
+
+      {/* Affected States Section */}
+      {recall && recall.affectedStates && recall.affectedStates.length > 0 && (
+        <div
+          className={styles.affectedStates}
+          style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderColor: currentTheme.cardBorder,
+            marginBottom: '1.5rem',
+          }}
+        >
+          <h3 style={{ color: currentTheme.text }}>Affected States</h3>
+          <div className={styles.statesList}>
+            {(showAllStates ? recall.affectedStates : recall.affectedStates.slice(0, 10)).map(state => (
+              <span
+                key={state}
+                className={styles.stateBadge}
+                style={{
+                  backgroundColor: currentTheme.primary + '20',
+                  color: currentTheme.primary,
+                  borderColor: currentTheme.primary,
+                }}
+              >
+                {state}
+              </span>
+            ))}
+            {recall.affectedStates.length > 10 && !showAllStates && (
+              <button
+                className={styles.moreStatesButton}
+                onClick={() => setShowAllStates(true)}
+                style={{
+                  backgroundColor: currentTheme.textSecondary + '20',
+                  color: currentTheme.textSecondary,
+                  borderColor: currentTheme.textSecondary,
+                }}
+              >
+                +{recall.affectedStates.length - 10} more
+              </button>
+            )}
+            {showAllStates && recall.affectedStates.length > 10 && (
+              <button
+                className={styles.moreStatesButton}
+                onClick={() => setShowAllStates(false)}
+                style={{
+                  backgroundColor: currentTheme.textSecondary + '20',
+                  color: currentTheme.textSecondary,
+                  borderColor: currentTheme.textSecondary,
+                }}
+              >
+                Show less
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Recall Display */}
       <div className={styles.recallSection}>
-        <RecallList 
+        <RecallList
           recalls={unifiedRecall}
           loading={loading}
           error={error}
@@ -109,63 +167,78 @@ export default function RecallDetailPageContent({ initialRecall, recallId }: Rec
         />
       </div>
 
-      {/* Share Section */}
+      {/* What Should I Do Section */}
       {recall && (
-        <div 
-          className={styles.shareSection}
+        <div
+          className={styles.actionSection}
           style={{
             backgroundColor: currentTheme.cardBackground,
-            borderColor: currentTheme.cardBorder
+            borderColor: currentTheme.cardBorder,
           }}
         >
-          <h3 style={{ color: currentTheme.text }}>Share This Recall</h3>
-          <div className={styles.shareButtons}>
-            <Button 
-              variant="secondary"
-              size='medium'
-              onClick={copyLink}
-            >
-              {showCopiedMessage ? 'Copied!' : 'Copy Link'}
-            </Button>
-            <Button 
-              variant="secondary"
-              size='medium'
-              onClick={shareOnFacebook}
-            >
-              Facebook
-            </Button>
-            <Button 
-              variant="secondary"
-              size='medium'
-              onClick={shareOnTwitter}
-            >
-              Twitter
-            </Button>
-            <Button 
-              variant="secondary"
-              size='medium'
-              onClick={shareOnLinkedIn}
-            >
-              LinkedIn
-            </Button>
+          <h3 style={{ color: currentTheme.text }}>What Should I Do?</h3>
+          <div className={styles.actionSteps}>
+            <div className={styles.actionStep}>
+              <div className={styles.stepNumber} style={{ backgroundColor: currentTheme.primary }}>
+                1
+              </div>
+              <div className={styles.stepContent}>
+                <h4 style={{ color: currentTheme.text }}>Check Your Products</h4>
+                <p style={{ color: currentTheme.textSecondary }}>
+                  Look for this product in your refrigerator, freezer, or pantry.
+                </p>
+              </div>
+            </div>
+            <div className={styles.actionStep}>
+              <div className={styles.stepNumber} style={{ backgroundColor: currentTheme.primary }}>
+                2
+              </div>
+              <div className={styles.stepContent}>
+                <h4 style={{ color: currentTheme.text }}>Do Not Consume</h4>
+                <p style={{ color: currentTheme.textSecondary }}>
+                  If you have this product, do not eat it. Dispose of it immediately or return it to the store.
+                </p>
+              </div>
+            </div>
+            <div className={styles.actionStep}>
+              <div className={styles.stepNumber} style={{ backgroundColor: currentTheme.primary }}>
+                3
+              </div>
+              <div className={styles.stepContent}>
+                <h4 style={{ color: currentTheme.text }}>Monitor Your Health</h4>
+                <p style={{ color: currentTheme.textSecondary }}>
+                  If you've consumed this product and feel unwell, contact your healthcare provider.
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Share Section with new ShareMenu */}
+      {recall && (
+        <div className={styles.shareWrapper}>
+          <ShareMenu recallTitle={recall.productTitle} />
+          <p className={styles.shareText} style={{ color: currentTheme.textSecondary }}>
+            Help keep your friends and family safe by sharing this recall
+          </p>
         </div>
       )}
 
       {/* View More CTA */}
       <div className={styles.ctaSection}>
-        <Button 
+        <Button
           variant="primary"
           size='large'
           onClick={() => router.push('/')}
         >
-          View More Recalls
+          View All Active Recalls
         </Button>
-        <p 
+        <p
           className={styles.ctaText}
           style={{ color: currentTheme.textSecondary }}
         >
-          Stay informed about the latest food recalls in your area
+          Stay informed about food safety in your area
         </p>
       </div>
     </div>
