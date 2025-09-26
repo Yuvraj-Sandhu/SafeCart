@@ -1,19 +1,24 @@
 /**
  * FDA IRES (Import Refusal and Enforcement System) Scraper
- * 
+ *
  * This script uses Playwright to scrape the FDA IRES website for the latest enforcement reports.
  * Playwright is more reliable than Puppeteer for complex SPAs and works better with modern web apps.
- * 
+ *
  * The IRES system provides weekly enforcement reports that are more up-to-date than the OpenFDA API.
- * 
+ *
  * Installation:
  *   npm install playwright playwright-extra puppeteer-extra-plugin-stealth
  *   npx playwright install chromium
- * 
+ *
  * Stealth Mode:
  *   When running in headless mode (for Cloud Run), uses playwright-extra with stealth plugin
  *   to evade bot detection mechanisms.
  */
+
+// Import browser fingerprint utility for rotating user agents
+const browserFingerprint = require('../browser-fingerprint');
+// Import advanced stealth evasions
+const StealthEvasions = require('../stealth-evasions');
 
 // Dynamically load playwright or playwright-extra based on requirements
 let chromium;
@@ -57,10 +62,14 @@ class FDAIRESScraper {
    */
   async init() {
     console.log('Initializing browser...');
+
+    // Get a random browser fingerprint
+    const fingerprint = browserFingerprint.getRandomFingerprint();
+    console.log(`Using fingerprint: ${browserFingerprint.getFingerprintSummary(fingerprint)}`);
     console.log(`Mode: ${this.headless ? 'Headless' : 'Headed'}, Stealth: ${useStealthMode && this.headless ? 'Enabled' : 'Disabled'}`);
-    
-    // Enhanced args for stealth mode
-    const browserArgs = [
+
+    // Use fingerprint args or fallback to default
+    const browserArgs = fingerprint.args || [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
@@ -71,82 +80,41 @@ class FDAIRESScraper {
       '--disable-web-security',
       '--disable-features=VizDisplayCompositor'
     ];
-    
-    // Add stealth-specific args when in headless mode with stealth
-    if (this.headless && useStealthMode) {
-      browserArgs.push(
-        '--disable-blink-features=AutomationControlled',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--window-size=1920,1080',
-        '--start-maximized',
-        '--disable-infobars',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
-      );
-    } else if (!this.headless) {
-      // Non-stealth args for headed mode
-      browserArgs.push(
-        '--disable-blink-features=AutomationControlled',
-        '--disable-features=IsolateOrigins,site-per-process'
-      );
-    }
-    
+
     const launchOptions = {
       headless: this.headless,
       args: browserArgs
     };
-    
-    // Remove automation flag when using stealth
-    if (this.headless && useStealthMode) {
-      launchOptions.ignoreDefaultArgs = ['--enable-automation'];
+
+    // Use fingerprint's ignoreDefaultArgs if specified
+    if (fingerprint.ignoreDefaultArgs) {
+      launchOptions.ignoreDefaultArgs = fingerprint.ignoreDefaultArgs;
     }
-    
+
     this.browser = await chromium.launch(launchOptions);
 
-    // Enhanced context options for stealth
+    // Use fingerprint for context options
     const contextOptions = {
-      viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-      locale: 'en-US',
-      timezoneId: 'America/New_York',
-      permissions: ['geolocation']
+      viewport: fingerprint.viewport,
+      userAgent: fingerprint.userAgent,
+      locale: fingerprint.locale,
+      timezoneId: fingerprint.timezoneId,
+      permissions: fingerprint.permissions,
+      deviceScaleFactor: fingerprint.deviceScaleFactor,
+      hasTouch: fingerprint.hasTouch,
+      isMobile: fingerprint.isMobile,
+      colorScheme: fingerprint.colorScheme,
+      reducedMotion: fingerprint.reducedMotion,
+      extraHTTPHeaders: fingerprint.extraHTTPHeaders,
+      screen: fingerprint.screen
+      // Note: Don't set geolocation to null - Playwright doesn't accept null
     };
-    
-    // Add more realistic headers when using stealth
-    if (this.headless && useStealthMode) {
-      contextOptions.screen = { width: 1920, height: 1080 };
-      contextOptions.deviceScaleFactor = 1;
-      contextOptions.hasTouch = false;
-      contextOptions.isMobile = false;
-      contextOptions.permissions = ['geolocation', 'notifications'];
-      contextOptions.extraHTTPHeaders = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'max-age=0',
-        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="121", "Google Chrome";v="121"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-User': '?1',
-        'Sec-Fetch-Dest': 'document',
-        'Upgrade-Insecure-Requests': '1'
-      };
-    } else {
-      contextOptions.extraHTTPHeaders = {
-        'Accept-Language': 'en-US,en;q=0.9'
-      };
-    }
-    
+
     this.context = await this.browser.newContext(contextOptions);
-    
-    // Apply additional evasions to context BEFORE creating page when in stealth mode
-    if (this.headless && useStealthMode) {
-      await this.applyStealthEvasions();
-    }
-    
+
+    // Apply nuclear-level stealth evasions
+    await StealthEvasions.applyAll(this.context);
+
     this.page = await this.context.newPage();
 
     // Log console messages for debugging (filter out font/resource errors)
@@ -277,24 +245,32 @@ class FDAIRESScraper {
     while (attempt < maxRetries) {
       try {
         console.log(`Navigating to ${this.baseUrl} (attempt ${attempt + 1}/${maxRetries})...`);
-        
+
+        // Add human-like behavior before navigation
+        await StealthEvasions.addHumanBehavior(this.page);
+
         const response = await this.page.goto(this.baseUrl, {
           waitUntil: 'networkidle',
           timeout: 60000
         });
-        
+
         // Check response status
         if (response) {
           console.log(`Response status: ${response.status()}`);
-          
+
           // Check for bot detection or authentication issues
           if (response.status() === 401 || response.status() === 403 || response.status() === 429) {
             console.warn(`Access denied (HTTP ${response.status()})`);
 
-            // For 401, it's likely permanent authentication failure
+            // For 401, add more evasions and retry
             if (response.status() === 401) {
-              console.error('401 Unauthorized - The IRES website may have changed authentication requirements');
-              throw new Error('Authentication failed - IRES returned 401 Unauthorized');
+              console.warn('401 Unauthorized - Applying additional evasions...');
+              await StealthEvasions.addHumanBehavior(this.page);
+
+              // Don't throw immediately, let retry logic handle it
+              if (attempt >= maxRetries - 1) {
+                throw new Error('Authentication failed - IRES returned 401 Unauthorized after all retries');
+              }
             }
 
             // For 403 and 429, retry with backoff
