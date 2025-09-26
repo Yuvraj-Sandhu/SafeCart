@@ -92,16 +92,6 @@ export function RecallDigest({
         </Section>
       )}
 
-      {/* Header */}
-      <Section style={headerSection}>
-        <Text style={greeting}>
-          Hello {user.name},
-        </Text>
-        <Text style={digestInfo}>
-          Your SafeCart digest for <strong>{formatStateName(state)}</strong> {formatDate(digestDate)}
-        </Text>
-      </Section>
-
       {/* No Recalls Message */}
       {recalls.length === 0 ? (
         <Section style={noRecallsSection}>
@@ -122,40 +112,19 @@ export function RecallDigest({
           {/* Recalls Summary */}
           <Section style={summarySection}>
             <Text style={summaryTitle}>
-              {recalls.length} Food Recall{recalls.length > 1 ? 's' : ''} {formatStateName(state)}
+              {recalls.length} Food Recall{recalls.length > 1 ? 's' : ''}
             </Text>
             <Text style={summaryText}>
-              We found {recalls.length} food recall{recalls.length > 1 ? 's' : ''} that may affect your area. 
-              Review the details below and check your pantry for any affected products.
+              We found {recalls.length} food recall{recalls.length > 1 ? 's' : ''} that may affect your area.
+              Review the details and check your pantry for any affected products.
             </Text>
           </Section>
 
-          {/* Recall Cards Grid */}
+          {/* Recall Cards - Vertical Layout */}
           <Section style={recallsSection}>
-            {/* Group recalls into rows of 2 for desktop */}
-            {recalls.reduce<React.ReactElement[]>((rows, recall, index) => {
-              if (index % 2 === 0) {
-                // Start a new row
-                const nextRecall = recalls[index + 1];
-                rows.push(
-                  <Row key={`row-${index}`} style={recallRow} className="recall-row">
-                    <Column style={recallColumn} className="recall-column">
-                      <RecallCard recall={recall} />
-                    </Column>
-                    {nextRecall ? (
-                      <Column style={recallColumn} className="recall-column">
-                        <RecallCard recall={nextRecall} />
-                      </Column>
-                    ) : (
-                      <Column style={recallColumn} className="recall-column">
-                        {/* Empty column for odd number of recalls */}
-                      </Column>
-                    )}
-                  </Row>
-                );
-              }
-              return rows;
-            }, [])}
+            {recalls.map((recall, index) => (
+              <RecallCard key={recall.id || index} recall={recall} />
+            ))}
           </Section>
 
           {/* Call to Action */}
@@ -265,36 +234,25 @@ const tipText = {
 };
 
 const summarySection = {
-  marginBottom: '24px',
+  marginBottom: '20px',
 };
 
 const summaryTitle = {
-  fontSize: '20px',
+  fontSize: '22px',
   fontWeight: 'bold',
   color: '#dc2626',
   margin: '0 0 8px',
 };
 
 const summaryText = {
-  fontSize: '16px',
+  fontSize: '14px',
   color: '#374151',
   margin: '0',
-  lineHeight: '24px',
+  lineHeight: '20px',
 };
 
 const recallsSection = {
-  marginBottom: '32px',
-};
-
-const recallRow = {
-  marginBottom: '0',
-};
-
-const recallColumn = {
-  width: '50%',
-  verticalAlign: 'top',
-  paddingRight: '8px',
-  paddingLeft: '8px',
+  marginBottom: '24px',
 };
 
 const ctaSection = {

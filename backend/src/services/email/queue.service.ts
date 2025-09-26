@@ -977,7 +977,7 @@ export class EmailQueueService {
    * Examples:
    * - "1 food recall in CA"
    * - "3 food recalls in CA, TX, WA"
-   * - "5 food recalls in CA, TX, WA (and 2 other states)"
+   * - "5 food recalls in 5 states"
    * - "2 food recalls nationwide"
    */
   private generateEmailTitle(recalls: RecallData[], userStates: string[]): string {
@@ -1038,18 +1038,15 @@ export class EmailQueueService {
     if (states.length === 0) {
       return `${recallCount} ${recallText}`;
     }
-    
+
     if (states.length <= 3) {
       // Show all states if 3 or fewer
       return `${recallCount} ${recallText} in ${states.join(', ')}`;
     }
-    
-    // Show first 3 states and indicate how many more
-    const displayStates = states.slice(0, 3);
-    const remainingCount = states.length - 3;
-    const otherText = remainingCount === 1 ? 'other state' : 'other states';
-    
-    return `${recallCount} ${recallText} in ${displayStates.join(', ')} (and ${remainingCount} ${otherText})`;
+
+    // If more than 3 states, just show the count
+    const stateText = states.length === 1 ? 'state' : 'states';
+    return `${recallCount} ${recallText} in ${states.length} ${stateText}`;
   }
 
   /**

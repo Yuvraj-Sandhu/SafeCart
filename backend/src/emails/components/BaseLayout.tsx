@@ -55,14 +55,6 @@ export function BaseLayout({ children, previewText }: BaseLayoutProps) {
         )}
         
         <Container style={container}>
-          {/* Header */}
-          <Section style={header}>
-            <Text style={logoText}>
-              SafeCart
-            </Text>
-            <Text style={tagline}>Protecting You from Food Recalls</Text>
-          </Section>
-
           {/* Main Content */}
           <Section style={content}>
             {children}
@@ -121,7 +113,7 @@ const preview = {
 
 const container = {
   backgroundColor: '#fcf9f6',
-  margin: '0 auto',
+  margin: '0',
   padding: '20px 0 48px',
   marginBottom: '64px',
   maxWidth: '800px',
@@ -151,7 +143,7 @@ const tagline = {
 };
 
 const content = {
-  padding: '32px 40px',
+  padding: '24px 20px',
 };
 
 const divider = {
@@ -160,7 +152,7 @@ const divider = {
 };
 
 const footer = {
-  padding: '0 40px 24px',
+  padding: '0 20px 24px',
   textAlign: 'center' as const,
 };
 
