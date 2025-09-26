@@ -117,7 +117,7 @@ export function ShareMenu({ recallTitle = '', className = '' }: ShareMenuProps) 
           style={{
             backgroundColor: currentTheme.cardBackground,
             borderColor: currentTheme.cardBorder,
-            boxShadow: `0 4px 12px ${currentTheme.shadowColor}`,
+            boxShadow: `0 4px 12px ${currentTheme.shadowLight}`,
           }}
         >
           <button
