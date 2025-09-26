@@ -15,6 +15,7 @@
 // Load environment variables first
 require('dotenv').config();
 
+const { storage } = require('firebase-admin');
 // Import OpenAI service for LLM title generation
 const { openAIService } = require('../../openai.service');
 
@@ -167,7 +168,8 @@ class FDAAlertscraper {
     // Enhanced context options for stealth
     const contextOptions = {
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      storageState: null,
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
       locale: 'en-US',
       timezoneId: 'America/New_York',
       permissions: ['geolocation']
